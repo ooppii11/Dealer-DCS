@@ -1,0 +1,102 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\Requests">
+      <UniqueIdentifier>{62cea9fb-1efd-4ae8-bcaf-7aa187bee15b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Requests">
+      <UniqueIdentifier>{d6d3cce6-2906-44e2-b921-c69eb7ce1e31}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Response">
+      <UniqueIdentifier>{6f55908b-f889-4b02-951f-af178a4b7a46}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Response">
+      <UniqueIdentifier>{ebd2c54a-1e1b-4c7d-b433-6e4d95011349}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Chunck.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Server.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="IRequest.cpp">
+      <Filter>Resource Files\Requests</Filter>
+    </ClCompile>
+    <ClCompile Include="readChunkRequest.cpp">
+      <Filter>Resource Files\Requests</Filter>
+    </ClCompile>
+    <ClCompile Include="writeChunkRequest.cpp">
+      <Filter>Resource Files\Requests</Filter>
+    </ClCompile>
+    <ClCompile Include="deleteChunkRequest.cpp">
+      <Filter>Resource Files\Requests</Filter>
+    </ClCompile>
+    <ClCompile Include="ACKResponse.cpp">
+      <Filter>Resource Files\Response</Filter>
+    </ClCompile>
+    <ClCompile Include="ErrorResponse.cpp">
+      <Filter>Resource Files\Response</Filter>
+    </ClCompile>
+    <ClCompile Include="GetChunckResponse.cpp">
+      <Filter>Resource Files\Response</Filter>
+    </ClCompile>
+    <ClCompile Include="IResponse.cpp">
+      <Filter>Resource Files\Response</Filter>
+    </ClCompile>
+    <ClCompile Include="WSAInitializer.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Server.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Chunck.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="deleteChunkRequest.h">
+      <Filter>Header Files\Requests</Filter>
+    </ClInclude>
+    <ClInclude Include="IRequest.h">
+      <Filter>Header Files\Requests</Filter>
+    </ClInclude>
+    <ClInclude Include="readChunkRequest.h">
+      <Filter>Header Files\Requests</Filter>
+    </ClInclude>
+    <ClInclude Include="writeChunkRequest.h">
+      <Filter>Header Files\Requests</Filter>
+    </ClInclude>
+    <ClInclude Include="IResponse.h">
+      <Filter>Header Files\Response</Filter>
+    </ClInclude>
+    <ClInclude Include="ACKResponse.h">
+      <Filter>Header Files\Response</Filter>
+    </ClInclude>
+    <ClInclude Include="ErrorResponse.h">
+      <Filter>Header Files\Response</Filter>
+    </ClInclude>
+    <ClInclude Include="GetChunckResponse.h">
+      <Filter>Header Files\Response</Filter>
+    </ClInclude>
+    <ClInclude Include="WSAInitializer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
