@@ -1,6 +1,8 @@
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
 import googleapiclient.errors
+from DriveHelper.UploadFile import UploadFile
 
 
 class DriveServiceHelper:
@@ -125,7 +127,7 @@ class DriveServiceHelper:
         except (IndexError, KeyError):
             raise Exception("Error retrieving folder ID. The folder with name '{folder_name}' was not found in Google Drive.")
  
- 
+
     @staticmethod
     def create_folder(drive_connection, folder_name:str) -> str:
         """Create a new folder in the Google Drive with the specified name.
@@ -151,3 +153,43 @@ class DriveServiceHelper:
             return folder.get("id")
         except googleapiclient.errors.HttpError as e:
             raise Exception(f"Error creating folder. Please ensure that the folder with name '{folder_name}' could be created in Google Drive.")
+    
+    
+    @staticmethod
+    def upload_file(drive_connection, upload_file:UploadFile) -> None:
+        """Uploads a file to the Google Drive.
+        
+        Args:
+            drive_connection (googleapiclient.discovery.Resource): An authenticated connection to the Google Drive API.
+            upload_file (UploadFile): An object representing the file to be uploaded.
+        
+        Returns:
+            None
+
+        Raises:
+            Exception: googleapiclient.errors.HttpError: If there is an error during the file upload process.
+
+        """
+        # Load the file bytes: 
+        media = MediaIoBaseUpload(
+            upload_file.file_bytes,
+            mimetype=upload_file.mimetype,
+            chunksize=DriveServiceHelper.CHUNKSIZE, 
+            resumable=True
+        )        
+        
+        # Create file metdata:
+        file_metadata = {
+            "name": upload_file.filename,
+            "parents": [upload_file.folder_id],
+            "mimeType": upload_file.mimetype
+        }
+
+        try:
+            # Create a request to create the file and upload its content:
+            uploaded_file = drive_connection.files().create(
+                body=file_metadata,
+                media_body=media,
+            ).execute()
+        except googleapiclient.errors.HttpError as e:
+            raise Exception(f"Error uploading file '{upload_file.filename}'. Please check if the file could be uploaded to the specified folder.")
