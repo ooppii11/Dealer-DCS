@@ -3,7 +3,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 import googleapiclient.errors
-from DriveHelper.UploadFile import UploadFile
+from drive_helper.upload_file import UploadFile
 
 
 class DriveServiceHelper:
