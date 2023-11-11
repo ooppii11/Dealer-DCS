@@ -73,3 +73,55 @@ class DriveServiceHelper:
             return drive
         except googleapiclient.errors.HttpError as e:
             raise Exception("Failed to authenticate with Google Drive API. Please check if the provided credentials file is valid and has the necessary permissions.")
+
+
+    @staticmethod    
+    def get_file_id(drive_connection, filename:str, folder_id:str) -> str:
+        """Retrieve a file ID from the Google Drive based on the file name and folder ID.
+
+        Args:
+            drive_connection (googleapiclient.discovery.Resource): An authenticated connection to the Google Drive API.
+            filename (str): The name of the file to be search.
+            folder_id (str): The id of the folder to be searched.
+        
+        Returns:
+            str: The id of the file. 
+
+        Raises:
+            Exception: googleapiclient.errors.HttpError
+
+        """
+        query = f"name ='{filename}' and '{folder_id}' in parents" # Query to search for the file in the specified folder
+        response = drive_connection.files().list(q=query).execute()
+
+        try:
+            return response.get("files", [])[0]["id"]  # Get file id from the response
+        except (IndexError, KeyError):
+            raise Exception(f"Error retrieving file ID. The file with name '{filename}' in folder '{folder_id}' was not found in Google Drive.")
+    
+
+    @staticmethod
+    def get_folder_id(drive_connection, folder_name:str) -> str:
+        """Retrieve the ID of a folder in the Google Drive based on the folder name
+
+        Args:
+            drive_connection (googleapiclient.discovery.Resource): An authenticated connection to the Google Drive API.
+            folder_name (str): The name of the folder to be search.
+        
+        Returns:
+            str: The id of the folder. 
+
+        Raises:
+            Exception: googleapiclient.errors.HttpError
+
+        """
+        # Query to search for the folder:
+        query = f"name ='{folder_name}' and mimeType = 'application/vnd.google-apps.folder'"
+        
+        response = drive_connection.files().list(q=query).execute()
+        
+        try:
+           return response.get("files", [])[0]["id"]  # Get folder id from the response
+        except (IndexError, KeyError):
+            raise Exception("Error retrieving folder ID. The folder with name '{folder_name}' was not found in Google Drive.")
+ 
