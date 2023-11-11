@@ -1,6 +1,7 @@
+import io
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
+from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 import googleapiclient.errors
 from DriveHelper.UploadFile import UploadFile
 
@@ -193,3 +194,39 @@ class DriveServiceHelper:
             ).execute()
         except googleapiclient.errors.HttpError as e:
             raise Exception(f"Error uploading file '{upload_file.filename}'. Please check if the file could be uploaded to the specified folder.")
+
+    
+    @staticmethod
+    def download_file(drive_connection, file_id:str) -> bytes:
+        """Downloads the content of a file from the Google Drive based on the file ID.
+
+        Args:
+            drive_connection (googleapiclient.discovery.Resource): An authenticated connection to the Google Drive API.
+            file_id (str): The id of the file to be downloaded.
+
+        Returns:
+            bytes: The content of the downloaded file.
+
+        Raises:
+            Exception: If the file ID not exists.
+            Exception: googleapiclient.errors.HttpError: If there is an error during the file download process.
+
+        """
+        # Create a request to get the media content of the file:
+        request = drive_connection.files().get_media(fileId=file_id)
+        
+        file = io.BytesIO()
+
+        # Initialize a MediaIoBaseDownload object for efficient file content download:
+        downloader = MediaIoBaseDownload(file, request)
+
+        try:
+            done = False
+
+            # Continue downloading chunks until done:
+            while done is False:
+                status, done = downloader.next_chunk()
+        except googleapiclient.errors.HttpError as e:
+            raise Exception(f"Error downloading file with ID '{file_id}'. The file may not exist or there was an issue retrieving its content.")
+
+        return file.getvalue()
