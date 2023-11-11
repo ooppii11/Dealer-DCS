@@ -230,3 +230,25 @@ class DriveServiceHelper:
             raise Exception(f"Error downloading file with ID '{file_id}'. The file may not exist or there was an issue retrieving its content.")
 
         return file.getvalue()
+    
+    
+    @staticmethod
+    def delete_file(drive_connection, file_id:str) -> None:
+        """Deletes a file from the Google Drive.
+        
+        Args:
+            drive_connection (googleapiclient.discovery.Resource): An authenticated connection to the Google Drive API.
+            file_id (str): The id of the file to be deleted.
+        
+        Returns:
+            None
+
+        Raises:
+            Exception: If the file ID not exists.
+            Exception: googleapiclient.errors.HttpError: If there is an error during the file delete process.
+
+        """
+        try:
+            drive_connection.files().delete(fileId=file_id).execute() # Delete file by id
+        except googleapiclient.errors.HttpError as e:
+            raise Exception(f"Error deleting file with ID '{file_id}'. Please ensure that the file exists and can be deleted from Google Drive.") 
