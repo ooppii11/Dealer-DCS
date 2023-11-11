@@ -125,3 +125,29 @@ class DriveServiceHelper:
         except (IndexError, KeyError):
             raise Exception("Error retrieving folder ID. The folder with name '{folder_name}' was not found in Google Drive.")
  
+ 
+    @staticmethod
+    def create_folder(drive_connection, folder_name:str) -> str:
+        """Create a new folder in the Google Drive with the specified name.
+
+        Args:
+            drive_connection (googleapiclient.discovery.Resource): An authenticated connection to the Google Drive API.
+            folder_name (str): The name of the folder to be created.
+
+        Returns:
+            str: The id of the folder. 
+
+        Raises:
+            Exception: googleapiclient.errors.HttpError
+   
+        """
+        # Create folder metdata:
+        metadata = {
+            "name": folder_name,
+            "mimeType": "application/vnd.google-apps.folder"
+        }
+        try:
+            folder = drive_connection.files().create(body=metadata, fields="id").execute()
+            return folder.get("id")
+        except googleapiclient.errors.HttpError as e:
+            raise Exception(f"Error creating folder. Please ensure that the folder with name '{folder_name}' could be created in Google Drive.")
