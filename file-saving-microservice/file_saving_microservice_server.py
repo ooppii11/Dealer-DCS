@@ -7,7 +7,7 @@ import file_saving_microservice_pb2_grpc
 
 
 REGION_ID = "x"
-CREDENTIALS_FILE = ""
+CREDENTIALS_FILE = "dealer-dcs-150291856e98.json"
 
 
 class FileCloudAccessServicer(file_saving_microservice_pb2_grpc.FileCloudAccessServicer):
