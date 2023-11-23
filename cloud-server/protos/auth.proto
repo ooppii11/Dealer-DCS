@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+
+message loginRequest {
+	string username = 1;
+    string password = 2;
+}
+
+
+message loginResponse {
+	string sessionId = 1;
+}
+
+
+message signupRequest {
+	string username = 1;
+    string password = 2;
+	string email = 2;
+
+}
+
+
+message signupResponse {
+	string sessionId = 1;
+}
+
+
+message logoutRequest {
+	string sessionId = 1;
+}
+
+
+message logoutResponse {
+
+}
+
+
+service CloudWebAuth {
+	rpc login(loginRequest) returns loginResponse;
+	rpc signup(signupRequest) returns signupRequest;
+	rpc logout(logoutRequest) returns logoutResponse;
+}
