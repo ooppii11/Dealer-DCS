@@ -27,6 +27,6 @@ message DeleteFileResponse {
 
 service FileCloudAccess {
     rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse);
-    rpc DownloadFile(UploadFileRequest) returns (stream DownloadFileResponse);
+    rpc DownloadFile(DownloadFileRequest) returns (stream DownloadFileResponse);
     rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
 }
