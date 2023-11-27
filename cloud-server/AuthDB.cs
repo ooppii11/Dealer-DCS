@@ -1,4 +1,5 @@
-﻿using Npgsql
+﻿using Npgsql;
+
 public class AuthDB
 {
     private NpgsqlConnection _conn;
@@ -23,5 +24,31 @@ public class AuthDB
         
         this._command.ExecuteNonQuery();
     }
-};
+
+    public bool signup(string username, string password, string email, string phoneNumber="NULL")
+    {
+        this._command.CommandText = @$"
+            INSERT INTO users (
+                user_name,
+                password,
+                email,
+                phone_number
+            )
+            VALUES (
+                '{username}',
+                '{password}',
+                '{email}',
+                '{phoneNumber}');";
+        try
+        {
+            this._command.ExecuteNonQuery();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+}
 
