@@ -1,23 +1,20 @@
 using Grpc.Core;
-using Grpc.Net.Client;
 using GrpcFileCloudAccessClient;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
+
 
 
 public class FileSaving
 {
     private Grpc.Core.Channel channel;
     private FileCloudAccess.FileCloudAccessClient client;
-    public FileSaving()
+    
+    public FileSaving(string host, int port)
     {
         try
         {
-            channel = new Grpc.Core.Channel("[::]:50051", ChannelCredentials.Insecure);
+            // Create Grpc connction:
+            channel = new Channel($"{host}:{port}", ChannelCredentials.Insecure);
             client = new FileCloudAccess.FileCloudAccessClient(channel);
-
         }
         catch (Exception ex)
         {
@@ -25,11 +22,18 @@ public class FileSaving
         }
     }
 
+    ~FileSaving()
+    {
+        this.channel.ShutdownAsync().Wait();
+    }
+
+
     public async Task<byte[]> downloadFile(string filename)
     {
         DownloadFileRequest request = new DownloadFileRequest { FileName = filename };
         try
         {
+            // Download chunks of file
             using (var call = client.DownloadFile(request))
             {
                 using (var memoryStream = new MemoryStream())
@@ -56,6 +60,7 @@ public class FileSaving
             IEnumerable<UploadFileRequest> requests = new[] { new UploadFileRequest() { FileName = filename, FileData = Google.Protobuf.ByteString.CopyFrom(fileData), Type = type } };
             var call = client.UploadFile();
 
+            // For evry chunk of file call upload 
             foreach (var request in requests)
             {
                 await call.RequestStream.WriteAsync(request);
@@ -66,9 +71,10 @@ public class FileSaving
             var response = await call.ResponseAsync;
             return response;
         }
-        catch
+        catch(Exception ex)
         {
-            throw new Exception("Error upload file");
+
+            Console.WriteLine(ex.ToString());
         }
         return new UploadFileResponse();
     }
@@ -82,8 +88,7 @@ public class FileSaving
         }
         catch(Exception ex)
         {
-            throw new Exception("Error deleting file");
+            Console.WriteLine(ex.ToString());
         }
     }
-
 }
