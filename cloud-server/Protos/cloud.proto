@@ -4,6 +4,12 @@ syntax = "proto3";
 option csharp_namespace = "GrpcCloud";
 
 
+enum Status {
+    SUCCESS = 0;
+    FAILURE = 1;
+}
+
+
 message loginRequest {
 	string username = 1;
     string password = 2;
@@ -19,12 +25,17 @@ message signupRequest {
 	string username = 1;
     string password = 2;
 	string email = 3;
+	string phoneNumber = 4;
 
 }
 
 
 message signupResponse {
-	string sessionId = 1;
+	
+  
+  Status status = 1;
+  string message = 2;
+
 }
 
 
