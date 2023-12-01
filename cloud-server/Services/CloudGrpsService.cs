@@ -1,10 +1,9 @@
 ﻿using Grpc.Core;
 using GrpcCloud;
-using System.Threading;
 
 namespace cloud_server.Services
-{
-    public class CloudGrpsService: GrpcCloud.Cloud.CloudBase
+{   
+    public class CloudGrpsService: Cloud.CloudBase
     {
         private readonly ILogger<CloudGrpsService> _logger;
 
@@ -12,7 +11,25 @@ namespace cloud_server.Services
         {
             _logger = logger;
         }
+      
+        public override Task<signupResponse> signup(signupRequest request, ServerCallContext context)
+        {
+            // imploment
+            return Task.FromResult(new signupResponse { SessionId = "1" });
+        }
 
-       
+        public override Task<loginResponse> login(loginRequest request, ServerCallContext context)
+        {
+            // imploment
+
+            return Task.FromResult(new loginResponse { SessionId = "1" });
+        }
+        public override Task<logoutResponse> logout(logoutRequest request, ServerCallContext context)
+        {
+            // imploment
+
+            return Task.FromResult(new logoutResponse());
+
+        }
     }
 }

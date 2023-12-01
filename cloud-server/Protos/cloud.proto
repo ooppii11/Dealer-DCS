@@ -40,7 +40,7 @@ message logoutResponse {
 
 service Cloud {
 	rpc login(loginRequest) returns (loginResponse);
-	rpc signup(signupRequest) returns (signupRequest);
+	rpc signup(signupRequest) returns (signupResponse);
 	rpc logout(logoutRequest) returns (logoutResponse);
 
 }
