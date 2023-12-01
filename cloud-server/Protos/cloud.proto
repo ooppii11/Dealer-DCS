@@ -17,7 +17,8 @@ message loginRequest {
 
 
 message loginResponse {
-	string sessionId = 1;
+	Status status = 1;
+	string sessionId = 2;
 }
 
 

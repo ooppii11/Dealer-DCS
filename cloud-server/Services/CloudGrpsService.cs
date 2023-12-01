@@ -19,6 +19,8 @@ namespace cloud_server.Services
             try
             {
                 this._db.signup(request.Username, request.Password, request.Email ,(request.PhoneNumber != "")? request.PhoneNumber : "NULL");
+                
+                // Send Response:
                 return Task.FromResult(new signupResponse
                 {
                     Status = GrpcCloud.Status.Success,
@@ -28,6 +30,7 @@ namespace cloud_server.Services
             }
             catch (Exception ex)
             {
+                // Send Error response:
                 return Task.FromResult(new signupResponse
                 {
                     Status = GrpcCloud.Status.Failure,
@@ -42,28 +45,29 @@ namespace cloud_server.Services
             try
             {
                 this._db.login(request.Username, request.Password);
-                return Task.FromResult(new loginResponse
+
+                // Send Response:
+                return Task.FromResult(new loginResponse 
                 {
-                    SessionId = ""
+                    Status = GrpcCloud.Status.Success,
+                    SessionId = "not Implomented yet"
                 });
 
             }
             catch (Exception ex)
             {
+                // Send Error response:
                 return Task.FromResult(new loginResponse
                 {
-                    SessionId = ""
+                    Status = GrpcCloud.Status.Failure,
+                    SessionId = "not Implomented yet"
                 });
 
             }
-            return Task.FromResult(new loginResponse { SessionId = "1" });
         }
         public override Task<logoutResponse> logout(logoutRequest request, ServerCallContext context)
         {
-            // imploment
-
             return Task.FromResult(new logoutResponse());
-
         }
     }
 }
