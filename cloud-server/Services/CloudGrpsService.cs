@@ -44,15 +44,14 @@ namespace cloud_server.Services
         {
             try
             {
-                this._db.login(request.Username, request.Password);
-
-                // Send Response:
-                return Task.FromResult(new loginResponse 
+                if (this._db.login(request.Username, request.Password))
                 {
-                    Status = GrpcCloud.Status.Success,
-                    SessionId = "not Implomented yet"
-                });
-
+                    return Task.FromResult(new loginResponse { SessionId = "", Status = GrpcCloud.Status.Success });
+                }
+                else
+                {
+                    return Task.FromResult(new loginResponse { SessionId = "", Status = GrpcCloud.Status.Failure });
+                }
             }
             catch (Exception ex)
             {

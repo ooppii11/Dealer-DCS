@@ -1,4 +1,4 @@
-﻿public class AuthDBTest
+﻿/*public class AuthDBTest
 {
     static void Main(string[] args)
     {
@@ -14,6 +14,6 @@
         catch { }
 
     }
-}
+}*/
 
 

@@ -7,9 +7,8 @@ public class AuthDB
     private NpgsqlConnection _conn;
     public AuthDB(string tablesPath, string host, string username, string port, string password, string db)
     {
-        var connectionString = $"Host={host};Username={username};Port={port};Password={password};Database={db}";
+        var connectionString = $"Server={host};Port={port};User Id={username};Password={password};Database={db};";
 
-        connectionString = @"Server=localhost;Port=5432;User Id=postgres;Password=123456;Database=postgres;";
         this._conn = new NpgsqlConnection(connectionString);
         try
         {
@@ -63,7 +62,7 @@ public class AuthDB
             }
             catch
             {
-                throw new Exception("username or email alradt exists");
+                throw new Exception("username or email already exists");
             }
         }
     }
