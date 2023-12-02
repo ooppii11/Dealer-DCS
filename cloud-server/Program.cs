@@ -1,4 +1,5 @@
 ﻿using cloud_server.Services;
+using cloud_server.Managers;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
@@ -9,7 +10,7 @@ public class Startup
 {
     public void ConfigureServices(IServiceCollection services)
     {
-        services.AddSingleton<AuthDB>(new AuthDB("DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres")); // Register AuthDB service with its required parameters
+        services.AddSingleton<Authentication>(new Authentication(new AuthDB("DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres")));
         services.AddGrpc();
     }
 

@@ -102,12 +102,16 @@ public class AuthDB
             {
                 command.Parameters.AddWithValue("@username", username);
                 command.Parameters.AddWithValue("@password", password);
-                NpgsqlDataReader reader = command.ExecuteReader();
-                while (reader.Read())
+                using (NpgsqlDataReader reader = command.ExecuteReader())
                 {
-                    id = reader[0].ToString();
-                    email = reader[1].ToString();
-                    phoneNumber = reader[2].ToString();
+
+                    if (reader.HasRows) 
+                    {
+                        reader.Read();
+                        id = reader[0].ToString();
+                        email = reader[1].ToString();
+                        phoneNumber = reader[2].ToString();
+                    }
                 }
             }
             return new User(id, username, email, phoneNumber);

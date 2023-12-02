@@ -10,6 +10,7 @@ namespace cloud_server.Managers
         public Authentication(AuthDB db)
         {
             this._db = db; 
+            this._users = new Dictionary<string, User>();
         }
 
         public bool Signup(string username, string password, string email, string phoneNumber="NULL")
@@ -18,26 +19,28 @@ namespace cloud_server.Managers
             return true;
         }
 
-        public bool Login(string username, string password)
+        public string Login(string username, string password)
         {
             string sessionId = "";
             if (this._db.login(username, password))
             {
                 User user = this._db.GetUser(username, password);
+
                 // check if user already login:
-                if (!this._users.ContainsValue(user))
+                if (!_users.Any(pair => pair.Value == user))
                 {
                     do
                     {
-                        sessionId = new Guid().ToString();
-                    } while (!this._users.ContainsKey(sessionId));
+                        sessionId = Guid.NewGuid().ToString();
+                    } while (this._users.ContainsKey(sessionId));
 
                     // Add user 
                     this._users.Add(sessionId, user);
-                    return true;
+                    return sessionId;
                 }
+                throw new Exception("User already logged in");
             }
-            return false;
+            throw new Exception("User not found");
         }
 
         public void Logout(string sessionId)
