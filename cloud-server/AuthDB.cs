@@ -8,8 +8,8 @@ public class AuthDB
     public AuthDB(string tablesPath, string host, string username, string port, string password, string db)
     {
         var connectionString = $"Host={host};Username={username};Port={port};Password={password};Database={db}";
-
-        connectionString = @"Server=localhost;Port=5432;User Id=postgres;Password=123456;Database=postgres;";
+        //@"Server=localhost;Port=5432;User Id=postgres;Password=123456;Database=postgres;";
+        connectionString = @"Server=172.18.0.2;Port=5432;User Id=dBserver;Password=123AvIt456;Database=mydatabase;";
         this._conn = new NpgsqlConnection(connectionString);
         try
         {
