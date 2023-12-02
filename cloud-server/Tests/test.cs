@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
-
+/*
 class Test
 {
     private FileSaving _fileSaving;
@@ -63,4 +63,4 @@ class Test
             Console.WriteLine("Error deleteFile");
         }
     }  
-}
+}*/
