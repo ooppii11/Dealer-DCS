@@ -1,6 +1,7 @@
-﻿using Google.Protobuf.Collections;
-using Npgsql;
+﻿using Npgsql;
+using cloud_server.Managers;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using System.Runtime.CompilerServices;
 
 public class AuthDB
 {
@@ -83,6 +84,38 @@ public class AuthDB
             userExists = Convert.ToInt32(command.ExecuteScalar()) > 0;
         }
         return userExists;
+    }
+
+    public User GetUser(string username, string password)
+    {
+        string id = "";
+        string email = "";
+        string phoneNumber = "";
+        string query = @"
+            SELECT id, email, phone_number 
+            FROM users 
+            WHERE username=@username AND password=@password;";
+
+        try
+        {
+            using (NpgsqlCommand command = new NpgsqlCommand(query, this._conn))
+            {
+                command.Parameters.AddWithValue("@username", username);
+                command.Parameters.AddWithValue("@password", password);
+                NpgsqlDataReader reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    id = reader[0].ToString();
+                    email = reader[1].ToString();
+                    phoneNumber = reader[2].ToString();
+                }
+            }
+            return new User(id, username, email, phoneNumber);
+        }
+        catch(Exception ex)
+        {
+            throw new Exception("Cannot find user");
+        }
     }
 }
 

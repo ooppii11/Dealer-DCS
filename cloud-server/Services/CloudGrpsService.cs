@@ -59,7 +59,7 @@ namespace cloud_server.Services
                 return Task.FromResult(new loginResponse
                 {
                     Status = GrpcCloud.Status.Failure,
-                    SessionId = "not Implomented yet"
+                    SessionId = ""
                 });
 
             }
