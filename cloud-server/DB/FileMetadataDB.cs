@@ -1,6 +1,6 @@
 ﻿using Npgsql;
-using cloud_server.Managers
-using Grpc.Core;
+using cloud_server.Managers;
+using System.Data;
 
 namespace cloud_server.DB
 {
@@ -75,11 +75,7 @@ END";
 
         public void deleteFileMetadata(string userId, string name)
         {
-            string query = @"DELETE FROM file_metadata WHERE creator_id=@creator_id AND name=@name
-                @username,
-                @password,
-                @email,
-                @phoneNumber);";
+            string query = @"DELETE FROM file_metadata WHERE creator_id = @creator_id AND name = @name;";
             using (NpgsqlCommand command = new NpgsqlCommand(query, this._conn))
             {
                 try
@@ -93,6 +89,41 @@ END";
                     throw new Exception("Unable to delete this file");
                 }
             }
+        }
+    
+        public FileMetadata getFile(string userId, string name)
+        {
+            string query = @"SELECT * FROM file_metadata WHERE creator_id = @creator_id AND name = @name;";
+            try
+            {
+                using (NpgsqlCommand command = new NpgsqlCommand(query, this._conn))
+                {
+                    command.Parameters.AddWithValue("@creator_id", userId);
+                    command.Parameters.AddWithValue("@name", name);
+                    using (NpgsqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.HasRows)
+                        {
+                            reader.Read();
+                            reader.GetValue(reader.GetOrdinal(""));
+                            
+                            return new FileMetadata(
+                                reader.GetString(reader.GetOrdinal("creator_id")),
+                                reader.GetString(reader.GetOrdinal("name")),
+                                reader.GetString(reader.GetOrdinal("type")),
+                                reader.GetInt32(reader.GetOrdinal("size")),
+                                (reader.GetString(reader.GetOrdinal("creation_date")) == "NULL") ? "NULL" : reader.GetString(reader.GetOrdinal("creation_date")),
+                                (reader.GetString(reader.GetOrdinal("last_modified")) == "NULL")? "NULL": reader.GetString(reader.GetOrdinal("last_modified")));
+                        }
+                        throw new Exception("File not found");
+                    }
+                }
+            }
+            catch 
+            { 
+                throw new Exception("DB Error");
+            }
+            
         }
     }
 }
