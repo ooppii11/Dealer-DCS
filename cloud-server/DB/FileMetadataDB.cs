@@ -1,6 +1,7 @@
 ﻿using Npgsql;
 using cloud_server.Managers;
 using System.Data;
+using System.Xml.Linq;
 
 namespace cloud_server.DB
 {
@@ -90,7 +91,7 @@ END";
                 }
             }
         }
-    
+
         public FileMetadata getFile(string userId, string name)
         {
             string query = @"SELECT * FROM file_metadata WHERE creator_id = @creator_id AND name = @name;";
@@ -104,9 +105,7 @@ END";
                     {
                         if (reader.HasRows)
                         {
-                            reader.Read();
-                            reader.GetValue(reader.GetOrdinal(""));
-                            
+                            reader.Read();                            
                             return new FileMetadata(
                                 reader.GetString(reader.GetOrdinal("creator_id")),
                                 reader.GetString(reader.GetOrdinal("name")),
@@ -123,7 +122,38 @@ END";
             { 
                 throw new Exception("DB Error");
             }
-            
+        }
+        public List<FileMetadata> getUserFilesMetadata(int userId)
+        {
+            List<FileMetadata> userFiles = new List<FileMetadata>();
+            string query = @"SELECT * FROM file_metadata WHERE creator_id = @creator_id;";
+
+            try
+            {
+                using (NpgsqlCommand command = new NpgsqlCommand(query, this._conn))
+                {
+                    command.Parameters.AddWithValue("@creator_id", userId);
+                    
+                    using (NpgsqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            userFiles.Add(new FileMetadata(
+                                reader.GetString(reader.GetOrdinal("creator_id")),
+                                reader.GetString(reader.GetOrdinal("name")),
+                                reader.GetString(reader.GetOrdinal("type")),
+                                reader.GetInt32(reader.GetOrdinal("size")),
+                                (reader.GetString(reader.GetOrdinal("creation_date")) == "NULL") ? "NULL" : reader.GetString(reader.GetOrdinal("creation_date")),
+                                (reader.GetString(reader.GetOrdinal("last_modified")) == "NULL") ? "NULL" : reader.GetString(reader.GetOrdinal("last_modified"))));
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                throw new Exception("DB Error");
+            }
+            return userFiles;
         }
     }
 }
