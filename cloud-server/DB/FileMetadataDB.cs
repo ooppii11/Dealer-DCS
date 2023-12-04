@@ -1,4 +1,5 @@
 ﻿using Npgsql;
+using cloud_server.Managers
 
 namespace cloud_server.DB
 {
@@ -42,7 +43,7 @@ namespace cloud_server.DB
             }
         }
 
-        public void uploadFileMetadata(int userId, FileMetadata metadata)
+        public void uploadFileMetadata(FileMetadata metadata)
         {
             string query = @"BEGIN
 	IF NOT EXISTS (SELECT * FROM file_metadata
@@ -58,7 +59,7 @@ END";
             {
                 try
                 {
-                    command.Parameters.AddWithValue("@creator_id", userId);
+                    command.Parameters.AddWithValue("@creator_id", metadata.CreatorId);
                     command.Parameters.AddWithValue("@name", metadata.Name);
                     command.Parameters.AddWithValue("@type", metadata.Type);
                     command.Parameters.AddWithValue("@size", metadata.Size);
