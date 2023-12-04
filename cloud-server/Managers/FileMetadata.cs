@@ -6,10 +6,15 @@
         private string _creatorId;
         private string _name;
         private string _type;
-        private string _size;
+        private int _size;
         private string _creationDate;
         private string _lastModified;
-        public FileMetadata(string creatorId, string name, string type, string size, string creationDate="", string lastModified="")
+        public FileMetadata(string creatorId,
+                            string name,
+                            string type,
+                            int size,
+                            string creationDate = "",
+                            string lastModified = "")
         {
             this._creatorId = creatorId;
             this._name = name;
@@ -34,7 +39,7 @@
             get { return this._type; }
         }
 
-        public string Size
+        public int Size
         {
             get { return this._size; }
         }

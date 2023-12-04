@@ -1,5 +1,6 @@
 ﻿using Npgsql;
 using cloud_server.Managers
+using Grpc.Core;
 
 namespace cloud_server.DB
 {
@@ -68,6 +69,28 @@ END";
                 catch
                 {
                     throw new Exception("The user already have file with this name");
+                }
+            }
+        }
+
+        public void deleteFileMetadata(string userId, string name)
+        {
+            string query = @"DELETE FROM file_metadata WHERE creator_id=@creator_id AND name=@name
+                @username,
+                @password,
+                @email,
+                @phoneNumber);";
+            using (NpgsqlCommand command = new NpgsqlCommand(query, this._conn))
+            {
+                try
+                {
+                    command.Parameters.AddWithValue("@creator_id", userId);
+                    command.Parameters.AddWithValue("@name", name);
+                    command.ExecuteNonQuery();
+                }
+                catch
+                {
+                    throw new Exception("Unable to delete this file");
                 }
             }
         }
