@@ -11,11 +11,16 @@ def main():
     try:        
         request = cloud_pb2.signupRequest(username="test1", password="test1password", email="test1@.gmailcom", phoneNumber="1")
         response = stub.signup(request)
-        print(response.status == 0)
+        print(response)
         response = stub.login(cloud_pb2.loginRequest(username="test1", password="test1password"))
-        print(response.status == 0)
-        response = stub.login(cloud_pb2.loginRequest(username="test9", password="test9password"))
-        print(response.status == 0)
+        sessionId = response.sessionId
+        print(sessionId)
+        response = stub.login(cloud_pb2.loginRequest(username="test1", password="test1password"))
+        print(response)
+        stub.logout(cloud_pb2.logoutRequest(sessionId=sessionId))
+        print("logout")
+        response = stub.login(cloud_pb2.loginRequest(username="test1", password="test1password"))
+        print(response)
     
     except grpc.RpcError as e:
         print("Error")

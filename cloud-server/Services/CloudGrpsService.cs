@@ -1,24 +1,25 @@
 ﻿using Grpc.Core;
 using GrpcCloud;
+using cloud_server.Managers;
 
 namespace cloud_server.Services
 {   
     public class CloudGrpsService: Cloud.CloudBase
     {
-        private AuthDB _db;
+        private Authentication _auth;
         private readonly ILogger<CloudGrpsService> _logger;
 
-        public CloudGrpsService(ILogger<CloudGrpsService> logger, AuthDB db)
+        public CloudGrpsService(ILogger<CloudGrpsService> logger, Authentication auth)
         {
-            _logger = logger;
-            _db = db;  
+            this._logger = logger;
+            this._auth = auth;  
         }
       
         public override Task<signupResponse> signup(signupRequest request, ServerCallContext context)
         {
             try
             {
-                this._db.signup(request.Username, request.Password, request.Email ,(request.PhoneNumber != "")? request.PhoneNumber : "NULL");
+                this._auth.Signup(request.Username, request.Password, request.Email ,(request.PhoneNumber != "")? request.PhoneNumber : "NULL");
                 
                 // Send Response:
                 return Task.FromResult(new signupResponse
@@ -42,16 +43,14 @@ namespace cloud_server.Services
 
         public override Task<loginResponse> login(loginRequest request, ServerCallContext context)
         {
+            string sessionId = "";
+
             try
             {
-                if (this._db.login(request.Username, request.Password))
-                {
-                    return Task.FromResult(new loginResponse { SessionId = "", Status = GrpcCloud.Status.Success });
-                }
-                else
-                {
-                    return Task.FromResult(new loginResponse { SessionId = "", Status = GrpcCloud.Status.Failure });
-                }
+                sessionId = this._auth.Login(request.Username, request.Password);
+                return Task.FromResult(new loginResponse { SessionId = sessionId, Status = GrpcCloud.Status.Success });
+
+
             }
             catch (Exception ex)
             {
@@ -59,13 +58,14 @@ namespace cloud_server.Services
                 return Task.FromResult(new loginResponse
                 {
                     Status = GrpcCloud.Status.Failure,
-                    SessionId = "not Implomented yet"
+                    SessionId = ex.Message
                 });
 
             }
         }
         public override Task<logoutResponse> logout(logoutRequest request, ServerCallContext context)
         {
+            this._auth.Logout(request.SessionId);
             return Task.FromResult(new logoutResponse());
         }
     }

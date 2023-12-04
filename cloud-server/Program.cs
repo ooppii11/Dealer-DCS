@@ -1,28 +1,16 @@
 ﻿using cloud_server.Services;
+using cloud_server.Managers;
 using Microsoft.AspNetCore.Hosting.Server.Features;
-/*var builder = WebApplication.CreateBuilder(args);
-
-
-builder.Services.AddGrpc();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-app.MapGrpcService<CloudGrpsService>();
-app.MapGet("/", () => "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
-
-app.Run();
-*/
-
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+
 
 public class Startup
 {
     public void ConfigureServices(IServiceCollection services)
     {
-        services.AddSingleton<AuthDB>(new AuthDB("DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres")); // Register AuthDB service with its required parameters
+        services.AddSingleton<Authentication>(new Authentication(new AuthDB("DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres")));
         services.AddGrpc();
     }
 
