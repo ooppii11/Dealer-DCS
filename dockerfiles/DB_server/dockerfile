@@ -1,0 +1,32 @@
+# Use the official PostgreSQL image as the base image
+FROM postgres:15.5-alpine
+
+# Environment variables for PostgreSQL configuration
+ENV POSTGRES_USER dBserver
+ENV POSTGRES_PASSWORD 123AvIt456
+ENV POSTGRES_DB mydatabase
+
+# Copy custom configuration files if needed
+
+# COPY ./path/to/custom/pg_hba.conf /etc/postgresql/pg_hba.conf - 
+#This file defines the client authentication rules, specifying which hosts are allowed to connect to the PostgreSQL server, what user can connect from where, and what authentication method should be used.
+#By default, PostgreSQL is configured to accept connections only from the localhost. If you want to allow connections from other hosts, you need to modify pg_hba.conf.
+#Example entry in pg_hba.conf to allow all connections from all IP addresses:
+##TYPE  DATABASE        USER            ADDRESS                 METHOD
+#host   all             all             0.0.0.0/0               md5
+
+# COPY ./path/to/custom/postgresql.conf /etc/postgresql/postgresql.conf -  
+#This file contains various configuration parameters for the PostgreSQL server, such as the listening address, maximum connections, memory settings, and other performance-related configurations.
+#While many configurations have sensible defaults, you might need to adjust them based on your server's hardware and workload.
+#Example entry in postgresql.conf to change the listening address:
+#listen_addresses = '*'
+#This example allows PostgreSQL to listen on all available network interfaces.
+
+
+# Expose the PostgreSQL port
+EXPOSE 5432
+
+# Define the command to run when the container starts
+CMD ["postgres"]
+#CMD ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+#CMD ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf", "-c", "hba_file=/etc/postgresql/pg_hba.conf"]
