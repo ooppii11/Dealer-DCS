@@ -1,5 +1,5 @@
 # Use the official PostgreSQL image as the base image
-FROM postgres:15.5-alpine
+FROM postgres:latest
 
 # Environment variables for PostgreSQL configuration
 ENV POSTGRES_USER dBserver
@@ -27,6 +27,13 @@ ENV POSTGRES_DB mydatabase
 EXPOSE 5432
 
 # Define the command to run when the container starts
-CMD ["postgres"]
+CMD ["postgres", "-c", "listen_addresses=*"]
 #CMD ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
 #CMD ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf", "-c", "hba_file=/etc/postgresql/pg_hba.conf"]
+
+
+
+
+#docker network create --subnet=172.18.0.0/16 cloud_db-net
+#docker build -t docker-db_server:0.1 .
+#docker run --rm --net cloud_db-net --ip 172.18.0.2 --name db_server-container docker-db_server:0.1
