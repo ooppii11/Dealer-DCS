@@ -3,6 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.3.32929.385
 MinimumVisualStudioVersion = 10.0.40219.1
+<<<<<<< HEAD
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cloud-server", "cloud-server.vcxproj", "{ADE20252-62EB-4181-9F35-444E2C6C55E4}"
 EndProject
 Global
@@ -21,11 +22,29 @@ Global
 		{ADE20252-62EB-4181-9F35-444E2C6C55E4}.Release|x64.Build.0 = Release|x64
 		{ADE20252-62EB-4181-9F35-444E2C6C55E4}.Release|x86.ActiveCfg = Release|Win32
 		{ADE20252-62EB-4181-9F35-444E2C6C55E4}.Release|x86.Build.0 = Release|Win32
+=======
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "cloud-server", "cloud-server.csproj", "{034702CA-DF29-4D92-9C1E-88DC3B8B64B5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{034702CA-DF29-4D92-9C1E-88DC3B8B64B5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{034702CA-DF29-4D92-9C1E-88DC3B8B64B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{034702CA-DF29-4D92-9C1E-88DC3B8B64B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{034702CA-DF29-4D92-9C1E-88DC3B8B64B5}.Release|Any CPU.Build.0 = Release|Any CPU
+>>>>>>> 50ad037c904762e9306ccc716411e4feb7f1c4c5
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
+<<<<<<< HEAD
 		SolutionGuid = {A8D2DAA6-1C48-4063-A6F4-A10BC82AA8FD}
+=======
+		SolutionGuid = {00960ABA-34B6-42D3-A1EA-DB3A1518693E}
+>>>>>>> 50ad037c904762e9306ccc716411e4feb7f1c4c5
 	EndGlobalSection
 EndGlobal
