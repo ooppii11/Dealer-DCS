@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+
+option csharp_namespace = "GrpcCloud";
+
+
+enum Status {
+    SUCCESS = 0;
+    FAILURE = 1;
+}
+
+
+message loginRequest {
+	string username = 1;
+    string password = 2;
+}
+
+
+message loginResponse {
+	Status status = 1;
+	string sessionId = 2;
+}
+
+
+message signupRequest {
+	string username = 1;
+    string password = 2;
+	string email = 3;
+	string phoneNumber = 4;
+
+}
+
+
+message signupResponse {
+	
+  
+  Status status = 1;
+  string message = 2;
+
+}
+
+
+message logoutRequest {
+	string sessionId = 1;
+}
+
+
+message logoutResponse {
+
+}
+
+
+service Cloud {
+	rpc login(loginRequest) returns (loginResponse);
+	rpc signup(signupRequest) returns (signupResponse);
+	rpc logout(logoutRequest) returns (logoutResponse);
+
+}
