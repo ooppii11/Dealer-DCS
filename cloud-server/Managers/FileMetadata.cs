@@ -3,18 +3,18 @@
     public class FileMetadata
     {
         private string _id;
-        private string _creatorId;
+        private int _creatorId;
         private string _name;
         private string _type;
         private int _size;
-        private string _creationDate;
-        private string _lastModified;
-        public FileMetadata(string creatorId,
+        private DateTime _creationDate;
+        private DateTime _lastModified;
+        public FileMetadata(int creatorId,
                             string name,
                             string type,
                             int size,
-                            string creationDate = "",
-                            string lastModified = "")
+                            DateTime creationDate = default(DateTime),
+                            DateTime lastModified = default(DateTime))
         {
             this._creatorId = creatorId;
             this._name = name;
@@ -44,16 +44,16 @@
             get { return this._size; }
         }
 
-        public string CreationDate
+        public DateTime CreationDate
         {
             get { return this._creationDate; }
         }
-        public string LastModified
+        public DateTime LastModified
         {
             get { return this._lastModified; }
         }
 
-        public string CreatorId
+        public int CreatorId
         {
             get { return this._creatorId; }
         }

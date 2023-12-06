@@ -2,6 +2,7 @@
 using cloud_server.Managers;
 using System.Data;
 using System.Xml.Linq;
+using System.Drawing;
 
 namespace cloud_server.DB
 {
@@ -45,36 +46,41 @@ namespace cloud_server.DB
             }
         }
 
+
         public void uploadFileMetadata(FileMetadata metadata)
         {
-            string query = @"BEGIN
-	IF NOT EXISTS (SELECT * FROM file_metadata
-				WHERE creator_id = @creator_id AND name = @name)
-	BEGIN
-	INSERT INTO file_metadata (creator_id, name, type, size)
-				VALUES (@creator_id, @name, @type, @size)
-				
-	END
-END";
+            string sqlQuery = $@"
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM file_metadata
+                        WHERE creator_id = {metadata.CreatorId} AND name = '{metadata.Name}'
+                    )
+                    THEN
+                        INSERT INTO file_metadata (creator_id, name, type, size)
+                        VALUES ({metadata.CreatorId}, '{metadata.Name}', '{metadata.Type}', {metadata.Size});
+                    END IF;
+                END
+                $$;";
 
-            using (NpgsqlCommand command = new NpgsqlCommand(query, this._conn))
+            using (var cmd = new NpgsqlCommand(sqlQuery, this._conn))
             {
+             
                 try
                 {
-                    command.Parameters.AddWithValue("@creator_id", metadata.CreatorId);
-                    command.Parameters.AddWithValue("@name", metadata.Name);
-                    command.Parameters.AddWithValue("@type", metadata.Type);
-                    command.Parameters.AddWithValue("@size", metadata.Size);
-                    command.ExecuteNonQuery();
+                    cmd.ExecuteNonQuery();
                 }
-                catch
+                catch (Npgsql.PostgresException ex)
                 {
-                    throw new Exception("The user already have file with this name");
+                    throw new Exception("Error executing the PostgreSQL query: " + ex.Message);
                 }
             }
         }
 
-        public void deleteFileMetadata(string userId, string name)
+
+
+
+        public void deleteFileMetadata(int userId, string name)
         {
             string query = @"DELETE FROM file_metadata WHERE creator_id = @creator_id AND name = @name;";
             using (NpgsqlCommand command = new NpgsqlCommand(query, this._conn))
@@ -92,7 +98,7 @@ END";
             }
         }
 
-        public FileMetadata getFile(string userId, string name)
+        public FileMetadata getFile(int userId, string name)
         {
             string query = @"SELECT * FROM file_metadata WHERE creator_id = @creator_id AND name = @name;";
             try
@@ -105,14 +111,14 @@ END";
                     {
                         if (reader.HasRows)
                         {
-                            reader.Read();                            
+                            reader.Read();
                             return new FileMetadata(
-                                reader.GetString(reader.GetOrdinal("creator_id")),
+                                reader.GetInt32(reader.GetOrdinal("creator_id")),
                                 reader.GetString(reader.GetOrdinal("name")),
                                 reader.GetString(reader.GetOrdinal("type")),
                                 reader.GetInt32(reader.GetOrdinal("size")),
-                                (reader.GetString(reader.GetOrdinal("creation_date")) == "NULL") ? "NULL" : reader.GetString(reader.GetOrdinal("creation_date")),
-                                (reader.GetString(reader.GetOrdinal("last_modified")) == "NULL")? "NULL": reader.GetString(reader.GetOrdinal("last_modified")));
+                                reader.GetDateTime(reader.GetOrdinal("creation_time")),
+                                reader.GetDateTime(reader.GetOrdinal("last_modify")));
                         }
                         throw new Exception("File not found");
                     }
@@ -139,12 +145,12 @@ END";
                         while (reader.Read())
                         {
                             userFiles.Add(new FileMetadata(
-                                reader.GetString(reader.GetOrdinal("creator_id")),
+                                reader.GetInt32(reader.GetOrdinal("creator_id")),
                                 reader.GetString(reader.GetOrdinal("name")),
                                 reader.GetString(reader.GetOrdinal("type")),
                                 reader.GetInt32(reader.GetOrdinal("size")),
-                                (reader.GetString(reader.GetOrdinal("creation_date")) == "NULL") ? "NULL" : reader.GetString(reader.GetOrdinal("creation_date")),
-                                (reader.GetString(reader.GetOrdinal("last_modified")) == "NULL") ? "NULL" : reader.GetString(reader.GetOrdinal("last_modified"))));
+                                reader.GetDateTime(reader.GetOrdinal("creation_time")),
+                                reader.GetDateTime(reader.GetOrdinal("last_modify"))));
                         }
                     }
                 }
