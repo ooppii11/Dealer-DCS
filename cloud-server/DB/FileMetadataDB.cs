@@ -3,6 +3,9 @@ using cloud_server.Managers;
 using System.Data;
 using System.Xml.Linq;
 using System.Drawing;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.AspNetCore.Components.Routing;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace cloud_server.DB
 {
@@ -46,39 +49,45 @@ namespace cloud_server.DB
             }
         }
 
-
-        public void uploadFileMetadata(FileMetadata metadata)
+        public void uploadFileMetadata(FileMetadata metadata, Location location)
         {
-            string sqlQuery = $@"
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM file_metadata
-                        WHERE creator_id = {metadata.CreatorId} AND name = '{metadata.Name}'
-                    )
-                    THEN
-                        INSERT INTO file_metadata (creator_id, name, type, size)
-                        VALUES ({metadata.CreatorId}, '{metadata.Name}', '{metadata.Type}', {metadata.Size});
-                    END IF;
-                END
-                $$;";
+            string sqlQuery = "SELECT insertFileMetadata(@creatorId, @fileName, @fileType, @fileSize) AS inserted_id";
 
-            using (var cmd = new NpgsqlCommand(sqlQuery, this._conn))
+                int fileId = 0;
+
+            using (var command = new NpgsqlCommand(sqlQuery, this._conn))
             {
-             
-                try
+                command.Parameters.AddWithValue("creatorId", metadata.CreatorId);
+                command.Parameters.AddWithValue("fileName", metadata.Name);
+                command.Parameters.AddWithValue("fileType", metadata.Type);
+                command.Parameters.AddWithValue("fileSize", metadata.Size);
+
+
+                fileId = Convert.ToInt32(command.ExecuteScalar());
+
+                if (fileId != 0)
                 {
-                    cmd.ExecuteNonQuery();
+                    this.addFileLocation(fileId, location);
                 }
-                catch (Npgsql.PostgresException ex)
+                else
                 {
-                    throw new Exception("Error executing the PostgreSQL query: " + ex.Message);
+                    throw new Exception("File already exists");
                 }
             }
         }
+        private void addFileLocation(int fileId, Location location)
+        {
+            string sqlQuery = @"INSERT INTO file_location VALUES(@file_id, @primary_server_ip, @backup_server_ip_1, @backup_server_ip_2);";
+            using (var cmd = new NpgsqlCommand(sqlQuery, this._conn))
+            {
+                cmd.Parameters.AddWithValue("@file_id", fileId);
+                cmd.Parameters.AddWithValue("@primary_server_ip", location.PrimaryServer);
+                cmd.Parameters.AddWithValue("@backup_server_ip_1", location.FirstBackupServer);
+                cmd.Parameters.AddWithValue("@backup_server_ip_2", location.SecondBackupServer);
 
-
-
+                cmd.ExecuteNonQuery();
+            }
+        }
 
         public void deleteFileMetadata(int userId, string name)
         {
