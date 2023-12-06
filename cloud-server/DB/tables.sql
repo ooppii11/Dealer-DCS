@@ -17,3 +17,13 @@ CREATE TABLE IF NOT EXISTS file_metadata (
 
     FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+
+CREATE TABLE IF NOT EXISTS file_location (
+    file_id TEXT NOT NULL,
+    primary_server_ip TEXT NOT NULL,
+    backup_server_ip_1 TEXT NOT NULL,
+    backup_server_ip_2 TEXT NOT NULL,
+
+    FOREIGN KEY (file_id) REFERENCES file_metadata(id) ON DELETE CASCADE
+);
