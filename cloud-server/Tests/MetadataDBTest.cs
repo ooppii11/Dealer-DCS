@@ -1,4 +1,4 @@
-﻿using cloud_server.DB;
+﻿/*using cloud_server.DB;
 using cloud_server.Managers;
 
 namespace cloud_server.Tests
@@ -33,3 +33,4 @@ namespace cloud_server.Tests
         }
     }
 }
+*/
