@@ -5,12 +5,38 @@ namespace NodeServer.Services
 {
     public class NodeServer : NodeServices.NodeServicesBase
     {
-        public NodeServer() { }
-
-        public override Task<UploadFileResponse> UploadFile(UploadFileRequest request, ServerCallContext context)
-        {
-            return base.UploadFile(request, context);
+        private FileSaving microservice;
+        public NodeServer() {
+            microservice = new FileSaving("localhost", 50051);
         }
+
+        public override async Task<UploadFileResponse> UploadFile(UploadFileRequest request, ServerCallContext context)
+        {
+            try
+            {
+                string fileName = null;
+                MemoryStream fileData = new MemoryStream();
+
+                await foreach (var chunk in request.ReadAllAsync())
+                {
+                    if (fileName == null)
+                    {
+                        fileName = chunk.file_id;
+                    }
+
+                    fileData.Write(chunk.file_content.ToArray(), 0, chunk.file_content.Length);
+                }
+
+                //fileData.ToArray()
+
+                return new UploadFileResponse { Status = true, Message = "File uploaded successfully." };
+            }
+            catch (Exception ex)
+            {
+                return new UploadFileResponse { Status = false, Message = $"Error uploading file: {ex.Message}" };
+            }
+        }
+    }
 
         public override Task<DownloadFileResponse> DownloadFile(DownloadFileRequest request, ServerCallContext context)
         {
@@ -32,3 +58,15 @@ namespace NodeServer.Services
         }
     }
 }
+
+/*
+ public class FileUploadService : FileUpload.FileUploadBase
+{
+    public override async Task<FileResponse> UploadFile(IAsyncStreamReader<FileRequest> requestStream, ServerCallContext context)
+    {
+        
+    }
+}
+
+ 
+ */
