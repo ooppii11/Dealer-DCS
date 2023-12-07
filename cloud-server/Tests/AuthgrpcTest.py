@@ -4,7 +4,7 @@ import cloud_pb2_grpc
 
 
 def main():
-    channel = grpc.insecure_channel('localhost:5000')
+    channel = grpc.insecure_channel('172.18.0.3:5000')
     stub = cloud_pb2_grpc.CloudStub(channel)
 
     

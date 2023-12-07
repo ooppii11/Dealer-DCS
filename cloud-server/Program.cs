@@ -10,7 +10,7 @@ public class Startup
 {
     public void ConfigureServices(IServiceCollection services)
     {
-        services.AddSingleton<Authentication>(new Authentication(new AuthDB("DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres")));
+        services.AddSingleton<Authentication>(new Authentication(new AuthDB("tables.sql", "172.18.0.2", "dBserver", "5432", "123AvIt456", "mydatabase")));
         services.AddGrpc();
     }
 
@@ -37,7 +37,7 @@ public class Program
             .ConfigureWebHostDefaults(webBuilder =>
             {
                 webBuilder.UseStartup<Startup>();
-                webBuilder.UseUrls("http://localhost:5000"); // Change the port as needed
+                webBuilder.UseUrls("http://172.18.0.3:5000"); // Change the port as needed
             });
 }
 
