@@ -7,7 +7,7 @@ option csharp_namespace = "GrpcNodeServer";
 service NodeServices {
   rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse);
   rpc UpdateFile(stream UpdateFileRequest) returns (UpdateFileResponse);
-  rpc DownloadFile(DownloadFileRequest) returns (DownloadFileResponse);
+  rpc DownloadFile(DownloadFileRequest) returns (stream DownloadFileResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
 }
 
