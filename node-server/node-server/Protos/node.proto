@@ -1,1 +1,56 @@
 syntax = "proto3";
+
+package FileService;
+
+option csharp_namespace = "GrpcNodeServer";
+
+service CloudFileService {
+  rpc UploadFile(UploadFileRequest) returns (UploadFileResponse);
+  rpc UpdateFile(UpdateFileRequest) returns (UpdateFileResponse);
+  rpc DownloadFile(DownloadFileRequest) returns (DownloadFileResponse);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  rpc WhereToReplicateFiles(ReplicateFilesRequest) returns (ReplicateFilesResponse);
+}
+
+message UploadFileRequest {
+	string file_id = 1;
+	bytes file_content = 2;
+}
+
+message UploadFileResponse {
+	int32 status = 1;
+}
+
+message UpdateFileRequest {
+	string file_id = 1;
+	bytes new_content = 2;
+}
+
+message UpdateFileResponse {
+	int32 status = 1;
+}
+
+message DownloadFileRequest {
+	string file_id = 1;
+}
+
+message DownloadFileResponse {
+	bytes file_content = 1;
+}
+
+message DeleteFileRequest {
+	string file_id = 1;
+}
+
+message DeleteFileResponse {
+	int32 status = 1;
+
+}
+
+message ReplicateFilesRequest {
+	repeated string target_nodes = 1;
+}
+
+message ReplicateFilesResponse {
+	int32 status = 1;
+}
