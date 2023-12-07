@@ -5,11 +5,12 @@ namespace NodeServer.Services
 {
     public class NodeServer : NodeServices.NodeServicesBase
     {
-        private FileSaving microservice;
-        private string[] replicationPlaces;
-        public NodeServer(string host= "localhost", int port=50051) {
-            microservice = new FileSaving(host, port);
-            replicationPlaces = new string[3];
+        private FileSaving _microservice;
+        private Dictionary<string, (string, string)> _replicatedPlaces;
+        //loginfo 
+        public NodeServer(string host= "127.0.0.1", int port=50051) {
+            this._microservice = new FileSaving(host, port);
+            //parse log and get all the replicated places
         }
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
@@ -18,6 +19,8 @@ namespace NodeServer.Services
             {
                 string fileName = null;
                 string type = null;
+                string SecondReplicationPlace = null;
+                string ThirdReplicationPlace = null;
                 MemoryStream fileData = new MemoryStream();
 
                 await foreach (var chunk in requestStream.ReadAllAsync())
@@ -30,9 +33,18 @@ namespace NodeServer.Services
                     {
                         type = chunk.Type;
                     }
+                    if (SecondReplicationPlace == null)
+                    {
+                        SecondReplicationPlace = chunk.SecondReplicationPlace;
+                    }
+                    if (ThirdReplicationPlace == null)
+                    {
+                        ThirdReplicationPlace = chunk.ThirdReplicationPlace;
+                    }
                     fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
                 }
-                microservice.uploadFile(fileName, fileData.ToArray(), type);
+                this._replicatedPlaces[fileName] = (SecondReplicationPlace, ThirdReplicationPlace);
+                this._microservice.uploadFile(fileName, fileData.ToArray(), type);
                 //consensus + S2S
 
                 return new UploadFileResponse { Status = true, Message = "File uploaded successfully." };
@@ -42,5 +54,7 @@ namespace NodeServer.Services
                 return new UploadFileResponse { Status = false, Message = $"Error uploading file: {ex.Message}" };
             }
         }
+
+
     }
 }

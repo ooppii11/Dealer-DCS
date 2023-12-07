@@ -9,13 +9,16 @@ service NodeServices {
   rpc UpdateFile(stream UpdateFileRequest) returns (UpdateFileResponse);
   rpc DownloadFile(DownloadFileRequest) returns (DownloadFileResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
-  rpc WhereToReplicateFiles(ReplicateFilesRequest) returns (ReplicateFilesResponse);
 }
 
 message UploadFileRequest {
 	string file_id = 1;
 	string type = 2;
 	bytes file_content = 3;
+	string SecondReplicationPlace = 4;
+	string ThirdReplicationPlace = 5;
+
+
 }
 
 message UploadFileResponse {
@@ -46,15 +49,6 @@ message DeleteFileRequest {
 }
 
 message DeleteFileResponse {
-	bool status = 1;
-	string message = 2;
-}
-
-message ReplicateFilesRequest {
-	repeated string target_nodes = 1;
-}
-
-message ReplicateFilesResponse {
 	bool status = 1;
 	string message = 2;
 }
