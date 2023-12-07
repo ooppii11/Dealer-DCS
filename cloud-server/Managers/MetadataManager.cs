@@ -10,11 +10,9 @@ namespace cloud_server.Managers
         public MetadataManager(FileMetadataDB db)
         {
             this._db = db;
-            //this._db.getFile
-            //this._db.getUserFilesMetadata
         }
 
-        public void uploadFileMetadata(int userid, string filename, string type, int size, byte[] fileData)
+        public void uploadFile(int userid, string filename, string type, int size, byte[] fileData)
         {
             FileMetadata file = new FileMetadata(userid, filename, type, size);
             Location location = this.getLocation();
@@ -40,6 +38,12 @@ namespace cloud_server.Managers
         {
             return this._db.getUserFilesMetadata(userId);
         }
+
+        /*
+        public bytes[] download(int userId, string filename)
+        {
+        }
+         */
 
         private Location getLocation()
         {
