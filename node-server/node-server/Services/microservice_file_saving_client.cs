@@ -1,13 +1,12 @@
-using Grpc.Core;
+﻿using Grpc.Core;
 using GrpcFileCloudAccessClient;
-
 
 
 public class FileSaving
 {
     private Grpc.Core.Channel channel;
     private FileCloudAccess.FileCloudAccessClient client;
-    
+
     public FileSaving(string host, int port)
     {
         try
@@ -71,7 +70,7 @@ public class FileSaving
             var response = await call.ResponseAsync;
             return response;
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
 
             Console.WriteLine(ex.ToString());
@@ -86,7 +85,7 @@ public class FileSaving
         {
             client.DeleteFile(request);
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             Console.WriteLine(ex.ToString());
         }
