@@ -6,28 +6,34 @@ namespace NodeServer.Services
     public class NodeServer : NodeServices.NodeServicesBase
     {
         private FileSaving microservice;
-        public NodeServer() {
-            microservice = new FileSaving("localhost", 50051);
+        private string[] replicationPlaces;
+        public NodeServer(string host= "localhost", int port=50051) {
+            microservice = new FileSaving(host, port);
+            replicationPlaces = new string[3];
         }
 
-        public override async Task<UploadFileResponse> UploadFile(UploadFileRequest request, ServerCallContext context)
+        public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
         {
             try
             {
                 string fileName = null;
+                string type = null;
                 MemoryStream fileData = new MemoryStream();
 
-                await foreach (var chunk in request.ReadAllAsync())
+                await foreach (var chunk in requestStream.ReadAllAsync())
                 {
                     if (fileName == null)
                     {
-                        fileName = chunk.file_id;
+                        fileName = chunk.FileId;
                     }
-
-                    fileData.Write(chunk.file_content.ToArray(), 0, chunk.file_content.Length);
+                    if (type == null)
+                    {
+                        type = chunk.Type;
+                    }
+                    fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
                 }
-
-                //fileData.ToArray()
+                microservice.uploadFile(fileName, fileData.ToArray(), type);
+                //consensus + S2S
 
                 return new UploadFileResponse { Status = true, Message = "File uploaded successfully." };
             }
@@ -37,36 +43,4 @@ namespace NodeServer.Services
             }
         }
     }
-
-        public override Task<DownloadFileResponse> DownloadFile(DownloadFileRequest request, ServerCallContext context)
-        {
-            return base.DownloadFile(request, context);
-        }
-        public override Task<DeleteFileResponse> DeleteFile(DeleteFileRequest request, ServerCallContext context)
-        {
-            return base.DeleteFile(request, context);
-        }
-
-        public override Task<UpdateFileResponse> UpdateFile(UpdateFileRequest request, ServerCallContext context)
-        {
-            return base.UpdateFile(request, context);
-        }
-
-        public override Task<ReplicateFilesResponse> WhereToReplicateFiles(ReplicateFilesRequest request, ServerCallContext context)
-        {
-            return base.WhereToReplicateFiles(request, context);
-        }
-    }
 }
-
-/*
- public class FileUploadService : FileUpload.FileUploadBase
-{
-    public override async Task<FileResponse> UploadFile(IAsyncStreamReader<FileRequest> requestStream, ServerCallContext context)
-    {
-        
-    }
-}
-
- 
- */

@@ -5,8 +5,8 @@ package FileService;
 option csharp_namespace = "GrpcNodeServer";
 
 service NodeServices {
-  rpc UploadFile(UploadFileRequest) returns (UploadFileResponse);
-  rpc UpdateFile(UpdateFileRequest) returns (UpdateFileResponse);
+  rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse);
+  rpc UpdateFile(stream UpdateFileRequest) returns (UpdateFileResponse);
   rpc DownloadFile(DownloadFileRequest) returns (DownloadFileResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
   rpc WhereToReplicateFiles(ReplicateFilesRequest) returns (ReplicateFilesResponse);
@@ -14,7 +14,8 @@ service NodeServices {
 
 message UploadFileRequest {
 	string file_id = 1;
-	bytes file_content = 2;
+	string type = 2;
+	bytes file_content = 3;
 }
 
 message UploadFileResponse {
