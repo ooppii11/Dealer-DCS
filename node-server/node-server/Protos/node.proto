@@ -4,7 +4,7 @@ package FileService;
 
 option csharp_namespace = "GrpcNodeServer";
 
-service CloudFileService {
+service NodeServices {
   rpc UploadFile(UploadFileRequest) returns (UploadFileResponse);
   rpc UpdateFile(UpdateFileRequest) returns (UpdateFileResponse);
   rpc DownloadFile(DownloadFileRequest) returns (DownloadFileResponse);
@@ -18,7 +18,8 @@ message UploadFileRequest {
 }
 
 message UploadFileResponse {
-	int32 status = 1;
+	bool status = 1;
+	string message = 2;
 }
 
 message UpdateFileRequest {
@@ -27,7 +28,8 @@ message UpdateFileRequest {
 }
 
 message UpdateFileResponse {
-	int32 status = 1;
+	bool status = 1;
+	string message = 2;
 }
 
 message DownloadFileRequest {
@@ -43,8 +45,8 @@ message DeleteFileRequest {
 }
 
 message DeleteFileResponse {
-	int32 status = 1;
-
+	bool status = 1;
+	string message = 2;
 }
 
 message ReplicateFilesRequest {
@@ -52,5 +54,6 @@ message ReplicateFilesRequest {
 }
 
 message ReplicateFilesResponse {
-	int32 status = 1;
+	bool status = 1;
+	string message = 2;
 }
