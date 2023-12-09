@@ -41,7 +41,9 @@ message DownloadFileRequest {
 }
 
 message DownloadFileResponse {
-	bytes file_content = 1;
+	bool status = 1;
+	bytes file_content = 2;
+	optional string message = 3;
 }
 
 message DeleteFileRequest {

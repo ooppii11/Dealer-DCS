@@ -1,4 +1,5 @@
-﻿using Grpc.Core;
+﻿using Google.Protobuf;
+using Grpc.Core;
 using GrpcNodeServer;
 
 namespace NodeServer.Services
@@ -7,11 +8,10 @@ namespace NodeServer.Services
     {
         private FileSaving _microservice;
         private Dictionary<string, (string, string)> _replicatedPlaces;
-        //loginfo 
+        //logFileInfo 
         public NodeServer(string host= "127.0.0.1", int port=50051) {
             this._microservice = new FileSaving(host, port);
             this._replicatedPlaces = new Dictionary<string, (string, string)>();
-
             //parse log and get all the replicated places
         }
 
@@ -93,6 +93,33 @@ namespace NodeServer.Services
             {
                 return new UpdateFileResponse { Status = false, Message = $"Error updating file: {ex.Message}" };
             }
+        }
+
+        public override async Task DownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)
+        {
+            try
+            {
+                byte[] file = await this._microservice.downloadFile(request.FileId);
+                int offset = 0;
+                int chunkSize = 64000;
+                if (file != null)
+                {
+                    while (offset < file.Length)
+                    {
+                        int remaining = file.Length - offset;
+                        int writingSize = Math.Min(remaining, chunkSize);
+
+                        DownloadFileResponse response = new DownloadFileResponse {Status = true, FileContent = ByteString.CopyFrom(file, offset, writingSize)};
+                        await responseStream.WriteAsync(response);
+                    }
+                }
+            }   
+            catch (Exception ex)
+            {
+                await responseStream.WriteAsync(new DownloadFileResponse { Status = false, Message = $"Error downloading file: {ex.Message}", FileContent = ByteString.Empty });
+                return;
+            }
+            
         }
     }
 }
