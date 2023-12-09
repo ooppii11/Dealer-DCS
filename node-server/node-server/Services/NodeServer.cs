@@ -91,7 +91,7 @@ namespace NodeServer.Services
             }
             catch (Exception ex)
             {
-                return new UpdateFileResponse { Status = false, Message = $"Error updating file: {ex.Message}" };
+                return new UpdateFileResponse { Status = false, Message = $"Error updating the file: {ex.Message}" };
             }
         }
 
@@ -116,8 +116,22 @@ namespace NodeServer.Services
             }   
             catch (Exception ex)
             {
-                await responseStream.WriteAsync(new DownloadFileResponse { Status = false, Message = $"Error downloading file: {ex.Message}", FileContent = ByteString.Empty });
+                await responseStream.WriteAsync(new DownloadFileResponse { Status = false, Message = $"Error downloading the file: {ex.Message}", FileContent = ByteString.Empty });
                 return;
+            }
+            
+        }
+
+        public override Task<DeleteFileResponse> DeleteFile(DeleteFileRequest request, ServerCallContext context)
+        {
+            try 
+            {
+                this._microservice.deleteFile(request.FileId);
+                return Task.FromResult(new DeleteFileResponse {Status = true, Message = "File deleted successfully." });
+                }
+            catch (Exception ex)
+            {
+                return Task.FromResult(new DeleteFileResponse { Status = false, Message = $"Error deleting the file: {ex.Message}" });
             }
             
         }
