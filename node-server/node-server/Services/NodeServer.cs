@@ -1,15 +1,16 @@
 ﻿using Google.Protobuf;
 using Grpc.Core;
 using GrpcNodeServer;
+using NodeServer.Managers;
 
 namespace NodeServer.Services
 {
-    public class NodeServer : NodeServices.NodeServicesBase
+    public class NodeServerService : NodeServices.NodeServicesBase
     {
         private FileSaving _microservice;
         private Dictionary<string, (string, string)> _replicatedPlaces;
         //logFileInfo 
-        public NodeServer(string host= "127.0.0.1", int port=50051) {
+        public NodeServerService(string host= "127.0.0.1", int port=50051) {
             this._microservice = new FileSaving(host, port);
             this._replicatedPlaces = new Dictionary<string, (string, string)>();
             //parse log and get all the replicated places
