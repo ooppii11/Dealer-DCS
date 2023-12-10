@@ -2,7 +2,6 @@
 {
     public class FileMetadata
     {
-        private string _id;
         private int _creatorId;
         private string _name;
         private string _type;
@@ -22,11 +21,6 @@
             this._size = size;
             this._creationDate = creationDate;
             this._lastModified = lastModified;
-        }
-
-        public string Id
-        {
-            get { return this._id; }
         }
 
         public string Name

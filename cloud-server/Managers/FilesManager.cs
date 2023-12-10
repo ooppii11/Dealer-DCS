@@ -1,4 +1,5 @@
 ﻿using cloud_server.DB;
+using cloud_server.Utilities;
 using GrpcCloud;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 
@@ -32,12 +33,13 @@ namespace cloud_server.Managers
 
         public GrpcCloud.FileMetadata getFile(int userId, string filename)
         {
-            return this._db.getFile(userId, filename);
+            return Converter.ConvertToMessage(this._db.getFile(userId, filename));
+
 
         }
         public List<GrpcCloud.FileMetadata> getFiles(int userId)
         {
-            return this._db.getUserFilesMetadata(userId);
+            return Converter.ConvertToMessage(this._db.getUserFilesMetadata(userId));
         }
 
         /*
