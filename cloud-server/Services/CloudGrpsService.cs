@@ -2,6 +2,7 @@
 using GrpcCloud;
 using cloud_server.Managers;
 using System.Linq.Expressions;
+using Google.Protobuf;
 
 namespace cloud_server.Services
 {   
@@ -136,6 +137,80 @@ namespace cloud_server.Services
                 });
             }
 
+        }
+
+        public override async Task DownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)
+        {
+            try
+            {
+                User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
+                
+                byte[] file = await this._filesManager.downloadFile(user.Id, request.FileName);
+                int offset = 0;
+                int chunkSize = 64000;
+                if (file != null)
+                {
+                    while (offset < file.Length)
+                    {
+                        int remaining = file.Length - offset;
+                        int writingSize = Math.Min(remaining, chunkSize);
+
+                        DownloadFileResponse response = new DownloadFileResponse { Status = GrpcCloud.Status.Success, FileData = ByteString.CopyFrom(file, offset, writingSize) };
+                        offset += chunkSize;
+                        await responseStream.WriteAsync(response);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Error downloading the file: {ex.Message}", FileData = ByteString.Empty });
+                return;
+            }
+
+        }
+
+        public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
+        {
+            try
+            {
+                User user = null;
+                bool isFirstIteration = true;
+
+                string fileName = "";
+                string type = "";
+                string SecondReplicationPlace = "";
+                string ThirdReplicationPlace = "";
+                MemoryStream fileData = new MemoryStream();
+
+                await foreach (var chunk in requestStream.ReadAllAsync())
+                {
+                    if (isFirstIteration)
+                    {
+                        user = this._authManager.GetUser(chunk.SessionId);
+                        fileName = chunk.FileName;
+                        type = chunk.Type;
+                    }
+
+                    fileData.Write(chunk.FileData.ToArray(), 0, chunk.FileData.Length);
+                }
+
+                this._filesManager.uploadFile(user.Id, fileName, type, fileData.Length, fileData.ToArray());
+                //consensus + S2S
+
+                return new UploadFileResponse()
+                { 
+                    Status = GrpcCloud.Status.Success,
+                    Message = "File uploaded successfully." 
+                };
+            }
+            catch (Exception ex)
+            {
+                return new UploadFileResponse()
+                {
+                    Status = GrpcCloud.Status.Failure,
+                    Message = $"Error uploading file: {ex.Message}" 
+                };
+            }
         }
 
     }

@@ -14,9 +14,9 @@ namespace cloud_server.Managers
             this._db = db;
         }
 
-        public void uploadFile(int userid, string filename, string type, int size, byte[] fileData)
+        public void uploadFile(int userid, string filename, string type, long size, byte[] fileData)
         {
-            FileMetadata file = new FileMetadata(userid, filename, type, size);
+            FileMetadata file = new FileMetadata(userid, filename, type, (int)size);
             Location location = this.getLocation();
 
             this._db.uploadFileMetadata(file, location);
@@ -42,11 +42,11 @@ namespace cloud_server.Managers
             return Converter.ConvertToMessage(this._db.getUserFilesMetadata(userId));
         }
 
-        /*
-        public bytes[] download(int userId, string filename)
+        public async Task<byte[]> downloadFile(int userId, string filename)
         {
+            return new byte[1];
         }
-         */
+         
 
         private Location getLocation()
         {
