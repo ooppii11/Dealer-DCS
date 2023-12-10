@@ -38,7 +38,7 @@ public class Program
             .ConfigureWebHostDefaults(webBuilder =>
             {
                 webBuilder.UseStartup<Startup>();
-                webBuilder.UseUrls("http://localhost:50053"); // Change the port as needed 
+                webBuilder.UseUrls("http://0.0.0.0:50053"); // Change the port as needed 
             });
 }
 
