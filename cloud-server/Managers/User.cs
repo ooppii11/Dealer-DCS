@@ -5,12 +5,12 @@ namespace cloud_server.Managers
 {
     public class User
     {
-        private string _id;
+        private int _id;
         private string _username;
         private string _email;
         private string _phoneNumber;
 
-        public User(string id, string username, string email, string phoneNumber)
+        public User(int id, string username, string email, string phoneNumber)
         {
             this._id = id;
             this._username = username;
@@ -18,10 +18,10 @@ namespace cloud_server.Managers
             this._phoneNumber = phoneNumber;
         }
 
-        private string Id => _id;
-        private string Username => _username;
-        private string Email => _email;
-        private string Phone => _phoneNumber;
+        public int Id => _id;
+        public string Username => _username;
+        public string Email => _email;
+        public string Phone => _phoneNumber;
 
 
         public static bool operator == (User lhs, User rhs)

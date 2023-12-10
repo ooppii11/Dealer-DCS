@@ -1,13 +1,14 @@
 ﻿using cloud_server.DB;
+using GrpcCloud;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 
 namespace cloud_server.Managers
 {
-    public class MetadataManager
+    public class FilesManager
     {
         private FileMetadataDB _db;
 
-        public MetadataManager(FileMetadataDB db)
+        public FilesManager(FileMetadataDB db)
         {
             this._db = db;
         }
@@ -29,12 +30,12 @@ namespace cloud_server.Managers
             // Delete file from locations
         }
 
-        public FileMetadata getFile(int userId, string filename)
+        public GrpcCloud.FileMetadata getFile(int userId, string filename)
         {
             return this._db.getFile(userId, filename);
 
         }
-        public List<FileMetadata> getFiles(int userId)
+        public List<GrpcCloud.FileMetadata> getFiles(int userId)
         {
             return this._db.getUserFilesMetadata(userId);
         }

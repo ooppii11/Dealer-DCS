@@ -19,33 +19,33 @@ message FileMetadata{
     google.protobuf.Timestamp  lastModified = 6;
 }
 
-message loginRequest {
+message LoginRequest {
 	string username = 1;
     string password = 2;
 }
 
-message loginResponse {
+message LoginResponse {
 	Status status = 1;
 	string sessionId = 2;
 }
 
-message signupRequest {
+message SignupRequest {
 	string username = 1;
     string password = 2;
 	string email = 3;
 	string phoneNumber = 4;
 }
 
-message signupResponse {
+message SignupResponse {
   Status status = 1;
   string message = 2;
 }
 
-message logoutRequest {
+message LogoutRequest {
 	string sessionId = 1;
 }
 
-message logoutResponse {
+message LogoutResponse {
 
 }
 
@@ -82,22 +82,22 @@ message DeleteFileResponse {
 	string message = 2;
 }
 
-message getListOfFilesRequest{
+message GetListOfFilesRequest{
 	string sessionId = 1; 
 }
 
-message getListOfFilesResponse{
-	Status status = 1;
-	string message = 2;
-	repeated FileMetadata files = 3;
+message GetListOfFilesResponse {
+    Status status = 1;
+    string message = 2;
+    repeated FileMetadata files = 3;
 }
 
-message getFileMetadataRequest{
+message GetFileMetadataRequest{
 	string sessionId = 1;
     string fileName = 2;
 }
 
-message getFileMetadataResponse{
+message GetFileMetadataResponse{
 	Status status = 1;
 	string message = 2;
 	FileMetadata file = 3;
@@ -106,13 +106,13 @@ message getFileMetadataResponse{
 service Cloud {
 
 	// Auth:
-	rpc login(loginRequest) returns (loginResponse);
-	rpc signup(signupRequest) returns (signupResponse);
-	rpc logout(logoutRequest) returns (logoutResponse);
+	rpc login(LoginRequest) returns (LoginResponse);
+	rpc signup(SignupRequest) returns (SignupResponse);
+	rpc logout(LogoutRequest) returns (LogoutResponse);
 	
 	// Metadata:
-	rpc getListOfFiles(getListOfFilesRequest) returns(getListOfFilesResponse);
-	rpc getFileMetadata(getFileMetadataRequest) returns(getFileMetadataResponse) ;
+	rpc getListOfFiles(GetListOfFilesRequest) returns(GetListOfFilesResponse);
+	rpc getFileMetadata(GetFileMetadataRequest) returns(GetFileMetadataResponse) ;
 
 	// File methods:
 	rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse);
