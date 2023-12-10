@@ -114,5 +114,29 @@ namespace cloud_server.Services
                 return Task.FromResult(response);
             }
         }
+        public override Task<DeleteFileResponse> DeleteFile(DeleteFileRequest request, ServerCallContext context)
+        {
+            try
+            {
+                User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
+
+                this._filesManager.deleteFile(user.Id, request.FileName);
+                return Task.FromResult(new DeleteFileResponse 
+                {
+                    Status = GrpcCloud.Status.Success,
+                    Message = "" }
+                );
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(new DeleteFileResponse
+                { 
+                    Status = GrpcCloud.Status.Failure,
+                    Message = $"Error deleting the file: {ex.Message}" 
+                });
+            }
+
+        }
+
     }
 }
