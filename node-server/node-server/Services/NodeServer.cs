@@ -112,6 +112,8 @@ namespace NodeServer.Services
 
                         DownloadFileResponse response = new DownloadFileResponse {Status = true, FileContent = ByteString.CopyFrom(file, offset, writingSize)};
                         await responseStream.WriteAsync(response);
+
+                        offset += writingSize;
                     }
                 }
             }   
