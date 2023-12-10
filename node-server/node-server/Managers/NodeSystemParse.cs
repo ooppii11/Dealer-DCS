@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 using System.IO;
-namespace node_server.Managers
+namespace NodeServer.Managers
 {
     public class NodeSystemParse
     {

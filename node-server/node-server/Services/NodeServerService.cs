@@ -9,7 +9,7 @@ namespace NodeServer.Services
     {
         private FileSaving _microservice;
         private Dictionary<string, (string, string)> _replicatedPlaces;
-
+        private NodeSystemParse _system;
         //logFileInfo 
         public NodeServerService(string host= "127.0.0.1", int port=50051) {
             this._microservice = new FileSaving(host, port);
@@ -50,6 +50,7 @@ namespace NodeServer.Services
                 }
                 this._replicatedPlaces[fileName] = (SecondReplicationPlace, ThirdReplicationPlace);
                 this._microservice.uploadFile(fileName, fileData.ToArray(), type);
+                this._system.addFile();
                 //consensus + S2S
 
                 return new UploadFileResponse { Status = true, Message = "File uploaded successfully." };
@@ -135,6 +136,7 @@ namespace NodeServer.Services
             {
                 //consensus + S2S
                 this._microservice.deleteFile(request.FileId);
+                this._system.removeFile(); 
                 return Task.FromResult(new DeleteFileResponse {Status = true, Message = "File deleted successfully." });
                 }
             catch (Exception ex)
