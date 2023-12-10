@@ -21,7 +21,7 @@ RUN dotnet publish "cloud-server.csproj" -c Release -o /app/publish /p:UseAppHos
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-COPY DB/tables.sql .
+COPY DB/tables.sql DB/tables.sql
 ENTRYPOINT ["dotnet", "cloud-server.dll"]
 
 
