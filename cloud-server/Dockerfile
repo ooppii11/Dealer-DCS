@@ -5,6 +5,7 @@ WORKDIR /app
 EXPOSE 80
 EXPOSE 443
 EXPOSE 6666
+EXPOSE 50053
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
@@ -26,4 +27,4 @@ ENTRYPOINT ["dotnet", "cloud-server.dll"]
 
 
 #docker build -t docker-cloud_server:0.2 .
-#docker run --net cloud_db-net --ip 172.18.0.3 --name cloud_server-container docker-cloud_server:0.2
+#docker run --rm --net cloud_db-net --ip 172.18.0.3 --name cloud_server-container docker-cloud_server:0.2
