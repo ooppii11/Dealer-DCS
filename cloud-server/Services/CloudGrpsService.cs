@@ -66,6 +66,7 @@ namespace cloud_server.Services
 
             }
         }
+      
         public override Task<LogoutResponse> logout(LogoutRequest request, ServerCallContext context)
         {
             this._authManager.Logout(request.SessionId);
@@ -77,10 +78,33 @@ namespace cloud_server.Services
             GetListOfFilesResponse response = new GetListOfFilesResponse();
             try
             {
-                User user = this._authManager.GetUser(request.SessionId);
-                List<GrpcCloud.FileMetadata> fileMetadata = this._filesManager.getFiles(user.Id);
+                User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
+                List<GrpcCloud.FileMetadata> fileMetadata = this._filesManager.getFiles(user.Id); // Get the metadata
+                
+                // Init response:
                 response.Message = "";
                 response.Status = GrpcCloud.Status.Success;
+                response.Files.Add(fileMetadata);
+
+                return Task.FromResult(response);
+            }
+            catch (Exception ex)
+            {
+                response.Message = ex.Message;
+                response.Status = GrpcCloud.Status.Failure;
+                return Task.FromResult(response);
+            }
+        }
+        public override Task<GetFileMetadataResponse> getFileMetadata(GetFileMetadataRequest request, ServerCallContext context)
+        {
+            GetFileMetadataResponse response = new GetFileMetadataResponse();
+            try 
+            {
+                User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
+                
+                response.Message = "";
+                response.Status = GrpcCloud.Status.Success;
+                response.File = this._filesManager.getFile(user.Id, request.FileName);
                 return Task.FromResult(response);
             }
             catch (Exception ex)
