@@ -54,3 +54,5 @@ message DeleteFileResponse {
 	bool status = 1;
 	string message = 2;
 }
+
+

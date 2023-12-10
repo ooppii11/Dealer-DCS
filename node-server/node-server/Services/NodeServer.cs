@@ -9,6 +9,7 @@ namespace NodeServer.Services
     {
         private FileSaving _microservice;
         private Dictionary<string, (string, string)> _replicatedPlaces;
+
         //logFileInfo 
         public NodeServerService(string host= "127.0.0.1", int port=50051) {
             this._microservice = new FileSaving(host, port);
@@ -20,6 +21,7 @@ namespace NodeServer.Services
         {
             try
             {
+                //consensus + S2S
                 string fileName = null;
                 string type = null;
                 string SecondReplicationPlace = null;
@@ -63,6 +65,7 @@ namespace NodeServer.Services
         {
             try
             {
+                //consensus + S2S
                 string fileName = null;
 
                 MemoryStream fileData = new MemoryStream();
@@ -100,6 +103,7 @@ namespace NodeServer.Services
         {
             try
             {
+                //consensus + S2S
                 byte[] file = await this._microservice.downloadFile(request.FileId);
                 int offset = 0;
                 int chunkSize = 64000;
@@ -129,6 +133,7 @@ namespace NodeServer.Services
         {
             try 
             {
+                //consensus + S2S
                 this._microservice.deleteFile(request.FileId);
                 return Task.FromResult(new DeleteFileResponse {Status = true, Message = "File deleted successfully." });
                 }
