@@ -11,6 +11,7 @@ public class Startup
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<Authentication>(new Authentication(new AuthDB("DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres")));
+        services.AddSingleton<FilesManager>(new FilesManager(new cloud_server.DB.FileMetadataDB("DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres")));
         services.AddGrpc();
     }
 
