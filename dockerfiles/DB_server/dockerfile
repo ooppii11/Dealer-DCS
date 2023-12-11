@@ -18,7 +18,6 @@ ENV POSTGRES_DB mydatabase
 #listen_addresses = '*'
 #This example allows PostgreSQL to listen on all available network interfaces.
 
-
 EXPOSE 5432
 
 CMD ["postgres", "-c", "listen_addresses=*"]

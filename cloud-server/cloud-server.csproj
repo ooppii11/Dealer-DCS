@@ -16,7 +16,7 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="7.0.11" />
     <PackageReference Include="Grpc" Version="2.46.6" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.59.0" />
-    <PackageReference Include="Grpc.Tools" Version="2.59.0">
+    <PackageReference Include="Grpc.Tools" Version="2.59.0" >
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -24,7 +24,7 @@
   </ItemGroup>
 
 	<ItemGroup>
-		<Protobuf Include="Protos\file_saving_microservices.proto" GrpcServices="Client" />
+		<Protobuf Include="Protos\node.proto" GrpcServices="Client" />
 		<Protobuf Include="Protos\cloud.proto" GrpcServices="Server" />
 
 	</ItemGroup>
