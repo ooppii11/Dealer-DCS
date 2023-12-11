@@ -1,7 +1,5 @@
 ﻿using cloud_server.DB;
 using cloud_server.Utilities;
-using GrpcCloud;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 
 namespace cloud_server.Managers
 {

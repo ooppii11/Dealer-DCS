@@ -195,7 +195,6 @@ namespace cloud_server.Services
                 }
 
                 this._filesManager.uploadFile(user.Id, fileName, type, fileData.Length, fileData.ToArray());
-                //consensus + S2S
 
                 return new UploadFileResponse()
                 { 
