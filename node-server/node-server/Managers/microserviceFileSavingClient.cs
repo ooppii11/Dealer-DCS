@@ -3,7 +3,7 @@ using GrpcFileCloudAccessClient;
 
 namespace NodeServer.Managers
 {
-    public class FileSaving
+    public class FileSaving : IDisposable
     {
         private Grpc.Core.Channel channel;
         private FileCloudAccess.FileCloudAccessClient client;
@@ -23,6 +23,11 @@ namespace NodeServer.Managers
         }
 
         ~FileSaving()
+        {
+            this.channel.ShutdownAsync().Wait();
+        }
+
+        public void Dispose() 
         {
             this.channel.ShutdownAsync().Wait();
         }

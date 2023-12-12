@@ -1,4 +1,4 @@
-﻿using Google.Protobuf;
+﻿    using Google.Protobuf;
 using Grpc.Core;
 using GrpcNodeServer;
 using NodeServer.Managers;
@@ -14,6 +14,7 @@ namespace NodeServer.Services
         public NodeServerService(string host= "127.0.0.1", int port=50051) {
             this._microservice = new FileSaving(host, port);
             this._replicatedPlaces = new Dictionary<string, (string, string)>();
+            this._system = new NodeSystemParse();
             //parse log and get all the replicated places
         }
 

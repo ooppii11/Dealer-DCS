@@ -1,15 +1,7 @@
 syntax = "proto3";
 
-package FileService;
-
 option csharp_namespace = "GrpcNodeServer";
 
-service NodeServices {
-  rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse);
-  rpc UpdateFile(stream UpdateFileRequest) returns (UpdateFileResponse);
-  rpc DownloadFile(DownloadFileRequest) returns (stream DownloadFileResponse);
-  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
-}
 
 message UploadFileRequest {
 	string file_id = 1;
@@ -59,3 +51,10 @@ message StartNodeGroupProposal
 	
 }
 */
+
+service NodeServices {
+  rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse);
+  rpc UpdateFile(stream UpdateFileRequest) returns (UpdateFileResponse);
+  rpc DownloadFile(DownloadFileRequest) returns (stream DownloadFileResponse);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+}

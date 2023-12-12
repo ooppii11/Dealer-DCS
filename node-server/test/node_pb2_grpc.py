@@ -6,7 +6,13 @@ import node_pb2 as node__pb2
 
 
 class NodeServicesStub(object):
-    """Missing associated documentation comment in .proto file."""
+    """
+    message StartNodeGroupProposal
+    {
+
+    }
+
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -15,29 +21,35 @@ class NodeServicesStub(object):
             channel: A grpc.Channel.
         """
         self.UploadFile = channel.stream_unary(
-                '/FileService.NodeServices/UploadFile',
+                '/NodeServices/UploadFile',
                 request_serializer=node__pb2.UploadFileRequest.SerializeToString,
                 response_deserializer=node__pb2.UploadFileResponse.FromString,
                 )
         self.UpdateFile = channel.stream_unary(
-                '/FileService.NodeServices/UpdateFile',
+                '/NodeServices/UpdateFile',
                 request_serializer=node__pb2.UpdateFileRequest.SerializeToString,
                 response_deserializer=node__pb2.UpdateFileResponse.FromString,
                 )
         self.DownloadFile = channel.unary_stream(
-                '/FileService.NodeServices/DownloadFile',
+                '/NodeServices/DownloadFile',
                 request_serializer=node__pb2.DownloadFileRequest.SerializeToString,
                 response_deserializer=node__pb2.DownloadFileResponse.FromString,
                 )
         self.DeleteFile = channel.unary_unary(
-                '/FileService.NodeServices/DeleteFile',
+                '/NodeServices/DeleteFile',
                 request_serializer=node__pb2.DeleteFileRequest.SerializeToString,
                 response_deserializer=node__pb2.DeleteFileResponse.FromString,
                 )
 
 
 class NodeServicesServicer(object):
-    """Missing associated documentation comment in .proto file."""
+    """
+    message StartNodeGroupProposal
+    {
+
+    }
+
+    """
 
     def UploadFile(self, request_iterator, context):
         """Missing associated documentation comment in .proto file."""
@@ -88,13 +100,19 @@ def add_NodeServicesServicer_to_server(servicer, server):
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'FileService.NodeServices', rpc_method_handlers)
+            'NodeServices', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
  # This class is part of an EXPERIMENTAL API.
 class NodeServices(object):
-    """Missing associated documentation comment in .proto file."""
+    """
+    message StartNodeGroupProposal
+    {
+
+    }
+
+    """
 
     @staticmethod
     def UploadFile(request_iterator,
@@ -107,7 +125,7 @@ class NodeServices(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.stream_unary(request_iterator, target, '/FileService.NodeServices/UploadFile',
+        return grpc.experimental.stream_unary(request_iterator, target, '/NodeServices/UploadFile',
             node__pb2.UploadFileRequest.SerializeToString,
             node__pb2.UploadFileResponse.FromString,
             options, channel_credentials,
@@ -124,7 +142,7 @@ class NodeServices(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.stream_unary(request_iterator, target, '/FileService.NodeServices/UpdateFile',
+        return grpc.experimental.stream_unary(request_iterator, target, '/NodeServices/UpdateFile',
             node__pb2.UpdateFileRequest.SerializeToString,
             node__pb2.UpdateFileResponse.FromString,
             options, channel_credentials,
@@ -141,7 +159,7 @@ class NodeServices(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/FileService.NodeServices/DownloadFile',
+        return grpc.experimental.unary_stream(request, target, '/NodeServices/DownloadFile',
             node__pb2.DownloadFileRequest.SerializeToString,
             node__pb2.DownloadFileResponse.FromString,
             options, channel_credentials,
@@ -158,7 +176,7 @@ class NodeServices(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/FileService.NodeServices/DeleteFile',
+        return grpc.experimental.unary_unary(request, target, '/NodeServices/DeleteFile',
             node__pb2.DeleteFileRequest.SerializeToString,
             node__pb2.DeleteFileResponse.FromString,
             options, channel_credentials,
