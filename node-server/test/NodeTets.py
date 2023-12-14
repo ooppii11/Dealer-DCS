@@ -22,6 +22,7 @@ def main():
         """
         download_file_request = node_pb2.DownloadFileRequest(file_id=FILE_NAME)
         download_file_response = stub.DownloadFile(download_file_request)
+        print(download_file_response.file_content.decode())
         for response in download_file_response:
             print(f'DownloadFileResponse: {response.file_content.decode()}')
 

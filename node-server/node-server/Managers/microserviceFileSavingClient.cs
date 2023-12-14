@@ -18,7 +18,7 @@ namespace NodeServer.Managers
             }
             catch (Exception ex)
             {
-                throw new Exception("Cannot connect to the servise");
+                throw new Exception("Cannot connect to the service");
             }
         }
 
@@ -54,7 +54,7 @@ namespace NodeServer.Managers
             }
             catch (Exception ex)
             {
-                throw new Exception("Error download this file");
+                throw new Exception("Error occurred while downloading this file");
             }
         }
 
@@ -79,9 +79,9 @@ namespace NodeServer.Managers
             catch (Exception ex)
             {
 
-                Console.WriteLine(ex.ToString());
+                throw new Exception("Error occurred while uploading this file");
             }
-            return new UploadFileResponse();
+            
         }
 
         public void deleteFile(string filename)
@@ -93,7 +93,7 @@ namespace NodeServer.Managers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                throw new Exception("Error deleting this file");
             }
         }
     }

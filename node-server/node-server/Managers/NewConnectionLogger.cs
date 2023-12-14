@@ -20,7 +20,14 @@ namespace NodeServer.Managers
             ServerCallContext context,
             UnaryServerMethod<TRequest, TResponse> continuation)
         {
+            _logger.LogInformation("\n");
             _logger.LogInformation($"Client connected: {context.Peer}");
+            _logger.LogInformation($"Type/Method: {MethodType.Unary} / {context.Method}"); 
+            _logger.LogInformation($"Request: {request}");
+            _logger.LogInformation($"Headers: {context.RequestHeaders}");
+            _logger.LogInformation($"Host: {context.Host}");
+            _logger.LogInformation($"Status: {context.Status}");
+            
             try
             {
                 return base.UnaryServerHandler(request, context, continuation);
