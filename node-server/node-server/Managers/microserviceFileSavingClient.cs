@@ -64,7 +64,7 @@ namespace NodeServer.Managers
             {
                 IEnumerable<UploadFileRequest> requests = new[] { new UploadFileRequest() { FileName = filename, FileData = Google.Protobuf.ByteString.CopyFrom(fileData), Type = type } };
                 var call = client.UploadFile();
-
+  
                 // For evry chunk of file call upload 
                 foreach (var request in requests)
                 {
