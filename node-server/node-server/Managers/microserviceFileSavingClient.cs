@@ -3,7 +3,7 @@ using GrpcFileCloudAccessClient;
 
 namespace NodeServer.Managers
 {
-    public class FileSaving
+    public class FileSaving : IDisposable
     {
         private Grpc.Core.Channel channel;
         private FileCloudAccess.FileCloudAccessClient client;
@@ -18,11 +18,16 @@ namespace NodeServer.Managers
             }
             catch (Exception ex)
             {
-                throw new Exception("Cannot connect to the servise");
+                throw new Exception("Cannot connect to the service");
             }
         }
 
         ~FileSaving()
+        {
+            this.channel.ShutdownAsync().Wait();
+        }
+
+        public void Dispose() 
         {
             this.channel.ShutdownAsync().Wait();
         }
@@ -49,7 +54,7 @@ namespace NodeServer.Managers
             }
             catch (Exception ex)
             {
-                throw new Exception("Error download this file");
+                throw new Exception("Error occurred while downloading this file");
             }
         }
 
@@ -59,7 +64,7 @@ namespace NodeServer.Managers
             {
                 IEnumerable<UploadFileRequest> requests = new[] { new UploadFileRequest() { FileName = filename, FileData = Google.Protobuf.ByteString.CopyFrom(fileData), Type = type } };
                 var call = client.UploadFile();
-
+  
                 // For evry chunk of file call upload 
                 foreach (var request in requests)
                 {
@@ -74,9 +79,9 @@ namespace NodeServer.Managers
             catch (Exception ex)
             {
 
-                Console.WriteLine(ex.ToString());
+                throw new Exception("Error occurred while uploading this file");
             }
-            return new UploadFileResponse();
+            
         }
 
         public void deleteFile(string filename)
@@ -88,7 +93,7 @@ namespace NodeServer.Managers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                throw new Exception("Error deleting this file");
             }
         }
     }

@@ -12,7 +12,10 @@ public class Startup
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<FileSaving>(new FileSaving("127.0.0.1", 50051));
-        services.AddGrpc();
+        services.AddGrpc(options =>
+        {
+            options.Interceptors.Add<ConnectionLoggerInterceptor>();
+        });
     }
 
     public void Configure(IApplicationBuilder app)
@@ -38,6 +41,9 @@ public class Program
             .ConfigureWebHostDefaults(webBuilder =>
             {
                 webBuilder.UseStartup<Startup>();
+                webBuilder.UseUrls("http://localhost:50052");
+                
+                /*
                 webBuilder.ConfigureKestrel(options =>
                 {
                     var config = new ConfigurationBuilder()
@@ -50,6 +56,11 @@ public class Program
 
                     options.Listen(IPAddress.Parse(ipAddress), port);
                 });
+                */
+            })
+            .ConfigureLogging(logging =>
+            {
+                logging.ClearProviders(); // Clear the default providers
+                logging.AddConsole();     // Add the console logger
             });
 }
-

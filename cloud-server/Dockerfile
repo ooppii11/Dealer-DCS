@@ -26,5 +26,5 @@ COPY DB/tables.sql DB/tables.sql
 ENTRYPOINT ["dotnet", "cloud-server.dll"]
 
 
-#docker build -t docker-cloud_server:0.2 .
-#docker run --rm --net cloud_db-net --ip 172.18.0.3 --name cloud_server-container docker-cloud_server:0.2
+#docker build -t cloud_server:0.1 .
+#docker run --rm --net system-net --ip 172.18.0.3 --name cloud_server-container cloud_server:0.1

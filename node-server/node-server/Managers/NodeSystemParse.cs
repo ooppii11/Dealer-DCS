@@ -7,13 +7,22 @@ namespace NodeServer.Managers
         private const int _fileSize = 50; //MB
         private const int _systemSize = 1000; //MB -> 1GB
         private int _numOfFilesInSystem = 0;
-        private const string _fileName = "numOfFilesInTheSysetm.txt";
+        private const string _fileName = "Managers/numOfFilesInTheSysetm.txt";
 
         
         public NodeSystemParse() 
         {
-            string data = File.ReadAllText(NodeSystemParse._fileName);
-            Int32.TryParse(data, out this._numOfFilesInSystem);
+            if (!File.Exists(NodeSystemParse._fileName))
+            {
+                File.WriteAllText(NodeSystemParse._fileName, "0");
+
+            }
+            else
+            {
+                string data = File.ReadAllText(NodeSystemParse._fileName);
+                Int32.TryParse(data, out this._numOfFilesInSystem);
+            }
+            
         }
 
         public int GetNumOfFiles()

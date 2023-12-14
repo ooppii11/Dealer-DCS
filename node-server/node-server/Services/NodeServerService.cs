@@ -1,4 +1,4 @@
-﻿using Google.Protobuf;
+﻿    using Google.Protobuf;
 using Grpc.Core;
 using GrpcNodeServer;
 using NodeServer.Managers;
@@ -14,6 +14,7 @@ namespace NodeServer.Services
         public NodeServerService(string host= "127.0.0.1", int port=50051) {
             this._microservice = new FileSaving(host, port);
             this._replicatedPlaces = new Dictionary<string, (string, string)>();
+            this._system = new NodeSystemParse();
             //parse log and get all the replicated places
         }
 
@@ -30,28 +31,17 @@ namespace NodeServer.Services
 
                 await foreach (var chunk in requestStream.ReadAllAsync())
                 {
-                    if (fileName == null)
-                    {
-                        fileName = chunk.FileId;
-                    }
-                    if (type == null)
-                    {
-                        type = chunk.Type;
-                    }
-                    if (SecondReplicationPlace == null)
-                    {
-                        SecondReplicationPlace = chunk.SecondReplicationPlace;
-                    }
-                    if (ThirdReplicationPlace == null)
-                    {
-                        ThirdReplicationPlace = chunk.ThirdReplicationPlace;
-                    }
+                    fileName = chunk.FileId;
+                    type = chunk.Type;
+                    SecondReplicationPlace = chunk.SecondReplicationPlace;
+                    ThirdReplicationPlace = chunk.ThirdReplicationPlace;
                     fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
                 }
                 this._replicatedPlaces[fileName] = (SecondReplicationPlace, ThirdReplicationPlace);
-                this._microservice.uploadFile(fileName, fileData.ToArray(), type);
+                await this._microservice.uploadFile(fileName, fileData.ToArray(), type);
                 this._system.addFile();
                 //consensus + S2S
+                
 
                 return new UploadFileResponse { Status = true, Message = "File uploaded successfully." };
             }
@@ -83,7 +73,7 @@ namespace NodeServer.Services
                 {
                     //get type from microservice
                     this._microservice.deleteFile(fileName);
-                    this._microservice.uploadFile(fileName, fileData.ToArray(), "");
+                    await this._microservice.uploadFile(fileName, fileData.ToArray(), "");
                     //consensus + S2S
                 }
                 else
