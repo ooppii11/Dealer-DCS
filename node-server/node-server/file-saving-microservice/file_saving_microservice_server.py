@@ -1,5 +1,6 @@
 import logging
 import grpc
+import os
 from concurrent import futures
 from file_storage_manager import FileStorageManager
 import file_saving_microservice_pb2
@@ -7,7 +8,7 @@ import file_saving_microservice_pb2_grpc
 
 
 REGION_ID = "x"
-CREDENTIALS_FILE = "dealer-dcs-150291856e98.json"
+CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "dealer-dcs-150291856e98.json")
 
 
 class FileCloudAccessServicer(file_saving_microservice_pb2_grpc.FileCloudAccessServicer):

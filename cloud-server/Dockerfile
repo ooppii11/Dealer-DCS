@@ -28,3 +28,4 @@ ENTRYPOINT ["dotnet", "cloud-server.dll"]
 
 #docker build -t cloud_server:0.1 .
 #docker run --rm --net system-net --ip 172.18.0.3 --name cloud_server-container cloud_server:0.1
+#docker run --rm --net system-net --ip 172.18.0.3 -p 50053:50053 --name cloud_server-container cloud_server:0.1

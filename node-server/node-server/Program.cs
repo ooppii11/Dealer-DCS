@@ -41,8 +41,9 @@ public class Program
             .ConfigureWebHostDefaults(webBuilder =>
             {
                 webBuilder.UseStartup<Startup>();
-                webBuilder.UseUrls("http://localhost:50052");
-                
+                //webBuilder.UseUrls("http://localhost:50052");
+                webBuilder.UseUrls("http://0.0.0.0:50052");
+
                 /*
                 webBuilder.ConfigureKestrel(options =>
                 {
@@ -60,7 +61,7 @@ public class Program
             })
             .ConfigureLogging(logging =>
             {
-                logging.ClearProviders(); // Clear the default providers
-                logging.AddConsole();     // Add the console logger
+                logging.ClearProviders(); 
+                logging.AddConsole();
             });
 }
