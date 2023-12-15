@@ -26,3 +26,4 @@ CMD ["postgres", "-c", "listen_addresses=*"]
 #docker network create --subnet=172.18.0.0/16 system-net
 #docker build -t db_server:0.1 .
 #docker run --rm --net system-net --ip 172.18.0.2 --name db_server-container db_server:0.1
+#docker run --rm --net system-net --ip 172.18.0.2 -p 5432:5432 --name db_server-container db_server:0.1

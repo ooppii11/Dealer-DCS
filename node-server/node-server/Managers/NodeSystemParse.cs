@@ -1,5 +1,9 @@
 ﻿using System.Threading.Tasks;
 using System.IO;
+using Grpc.Core;
+using System;
+
+
 namespace NodeServer.Managers
 {
     public class NodeSystemParse
@@ -8,12 +12,20 @@ namespace NodeServer.Managers
         private const int _systemSize = 1000; //MB -> 1GB
         private int _numOfFilesInSystem = 0;
         private const string _fileName = "Managers/numOfFilesInTheSysetm.txt";
+        private const string subPath = "Managers";
 
         
         public NodeSystemParse() 
         {
-            if (!File.Exists(NodeSystemParse._fileName))
+            if (!Directory.Exists(Path.Combine(Environment.CurrentDirectory, subPath)))
             {
+                Directory.CreateDirectory(subPath);
+                File.Create(NodeSystemParse._fileName).Close();
+                File.WriteAllText(NodeSystemParse._fileName, "0");
+            }
+            else if (!File.Exists(NodeSystemParse._fileName))
+            {
+                File.Create(NodeSystemParse._fileName).Close();
                 File.WriteAllText(NodeSystemParse._fileName, "0");
 
             }
