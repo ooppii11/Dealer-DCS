@@ -7,8 +7,7 @@ message UploadFileRequest {
 	string file_id = 1;
 	string type = 2;
 	bytes file_content = 3;
-	string SecondReplicationPlace = 4;
-	string ThirdReplicationPlace = 5;
+	repeated string servers_addresses_where_saved = 4;
 }
 
 message UploadFileResponse {
