@@ -30,6 +30,8 @@ services:
         - "50053:50053"
         expose:
         - "50053"
+        environment:
+        - NODES_IPS="172.18.0.4:172.18.0.5:172.18.0.6"
         restart: always
         depends_on:
             - "db_server"
@@ -47,6 +49,9 @@ services:
         - "50052:50052"
         expose:
         - "50052"
+        environment:
+        - NODE_SERVER_IP="172.18.0.4"
+        - NODES_IPS="172.18.0.4:172.18.0.5:172.18.0.6"
         depends_on:
             - "db_server"
         restart: always
@@ -60,6 +65,9 @@ services:
         restart: always
         expose:
         - "50052"
+        environment:
+        - NODE_SERVER_IP="172.18.0.5"
+        - NODES_IPS="172.18.0.4:172.18.0.5:172.18.0.6"
         networks:
             system-net:
                 ipv4_address: "172.18.0.5"    
@@ -70,6 +78,9 @@ services:
         restart: always
         expose:
         - "50052"
+        environment:
+        - NODE_SERVER_IP="172.18.0.6"
+        - NODES_IPS="172.18.0.4:172.18.0.5:172.18.0.6"
         networks:
             system-net:
                 ipv4_address: "172.18.0.6"    

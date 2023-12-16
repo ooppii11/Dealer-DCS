@@ -1,19 +1,23 @@
-﻿    using Google.Protobuf;
+﻿using Google.Protobuf;
 using Grpc.Core;
 using GrpcNodeServer;
 using NodeServer.Managers;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace NodeServer.Services
 {
     public class NodeServerService : NodeServices.NodeServicesBase
     {
         private FileSaving _microservice;
-        private Dictionary<string, (string, string)> _replicatedPlaces;
+        private Dictionary<string, List<string>> _replicatedPlaces;
         private NodeSystemParse _system;
+        private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
         //logFileInfo 
         public NodeServerService(string host= "127.0.0.1", int port=50051) {
             this._microservice = new FileSaving(host, port);
-            this._replicatedPlaces = new Dictionary<string, (string, string)>();
+            this._replicatedPlaces = new Dictionary<string, List<string>>();
             this._system = new NodeSystemParse();
             //parse log and get all the replicated places
         }
@@ -23,26 +27,36 @@ namespace NodeServer.Services
             try
             {
                 //consensus + S2S
-                string fileName = null;
-                string type = null;
-                string SecondReplicationPlace = null;
-                string ThirdReplicationPlace = null;
+                string fileName = "";
+                string type = "";
+                List<string> placesFromRequest = new List<string>();
                 MemoryStream fileData = new MemoryStream();
+                List<string> places = ((Environment.GetEnvironmentVariable("NODES_IPS")).Split(':').ToList());
+                places.Remove(this._serverIP);
+
 
                 await foreach (var chunk in requestStream.ReadAllAsync())
                 {
                     fileName = chunk.FileId;
                     type = chunk.Type;
-                    SecondReplicationPlace = chunk.SecondReplicationPlace;
-                    ThirdReplicationPlace = chunk.ThirdReplicationPlace;
                     fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
+                    foreach (var serverAddress in chunk.ServersAddressesWhereSaved)
+                    {
+                        placesFromRequest.Add(serverAddress);
+                    }
                 }
-                this._replicatedPlaces[fileName] = (SecondReplicationPlace, ThirdReplicationPlace);
-                await this._microservice.uploadFile(fileName, fileData.ToArray(), type);
-                this._system.addFile();
-                //consensus + S2S
-                
+                if (!places.Contains(fileName))
+                {
 
+                    this._replicatedPlaces[fileName] = places;
+                    await this._microservice.uploadFile(fileName, fileData.ToArray(), type);
+                    this._system.addFile();
+                    //consensus + S2S
+                }
+                else
+                {
+                    return new UploadFileResponse { Status = false, Message = "Unable to upload file: The file is already saved on the machine" };
+                }
                 return new UploadFileResponse { Status = true, Message = "File uploaded successfully." };
             }
             catch (Exception ex)
@@ -126,6 +140,7 @@ namespace NodeServer.Services
             {
                 //consensus + S2S
                 this._microservice.deleteFile(request.FileId);
+                this._replicatedPlaces.Remove(request.FileId);
                 this._system.removeFile(); 
                 return Task.FromResult(new DeleteFileResponse {Status = true, Message = "File deleted successfully." });
                 }

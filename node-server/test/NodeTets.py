@@ -10,7 +10,7 @@ def main():
     channel = grpc.insecure_channel('localhost:50052')
     stub = node_pb2_grpc.NodeServicesStub(channel)
     try:
-        upload_file_request = node_pb2.UploadFileRequest(file_id=FILE_NAME, file_content=FILE_DATA.encode(), type=FILE_TYPE, SecondReplicationPlace='place2', ThirdReplicationPlace='place3')
+        upload_file_request = node_pb2.UploadFileRequest(file_id=FILE_NAME, file_content=FILE_DATA.encode(), type=FILE_TYPE, servers_addresses_where_saved=["172.18.0.4", "172.18.0.5", "172.18.0.6"])
         upload_file_response = stub.UploadFile(iter([upload_file_request]))
         print(f'UploadFileResponse: {upload_file_response.message}')
         """
