@@ -140,6 +140,7 @@ namespace NodeServer.Services
             {
                 //consensus + S2S
                 this._microservice.deleteFile(request.FileId);
+                this._replicatedPlaces.Remove(request.FileId);
                 this._system.removeFile(); 
                 return Task.FromResult(new DeleteFileResponse {Status = true, Message = "File deleted successfully." });
                 }
