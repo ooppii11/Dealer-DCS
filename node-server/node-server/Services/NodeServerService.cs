@@ -1,4 +1,4 @@
-﻿    using Google.Protobuf;
+﻿using Google.Protobuf;
 using Grpc.Core;
 using GrpcNodeServer;
 using NodeServer.Managers;

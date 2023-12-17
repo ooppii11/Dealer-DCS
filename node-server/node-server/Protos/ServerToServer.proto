@@ -1,0 +1,17 @@
+﻿syntax = "proto3";
+
+option csharp_namespace = "GrpcServerToServer";
+
+
+message PassFileRequest {
+	string fileName = 1;
+	bytes fileContent = 2;
+}
+
+message PassFileResponse {
+	
+}
+
+service NodeServices {
+  rpc PassFile(stream PassFileRequest) returns (PassFileResponse);
+}
