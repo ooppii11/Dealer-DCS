@@ -1,23 +1,42 @@
 ﻿using cloud_server.DB;
 using Grpc.Core;
+using Grpc.Net.Client;
 using GrpcNodeServer;
 using System;
 using System.ComponentModel.DataAnnotations;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace cloud_server.Services
 {
     public class NodeServerCommunication
     {
-        private Grpc.Core.Channel _channel;
+        private GrpcChannel _channel; //Grpc.Core.Channel _channel;
         private GrpcNodeServer.NodeServices.NodeServicesClient _client;
         private const int MaxFileChunckLength = 3145728;
 
+        public static async Task Main(string[] args)
+        {
+            string fileName = "test2.txt";
+            byte[] data = Encoding.ASCII.GetBytes(fileName);
+            NodeServerCommunication node = new NodeServerCommunication("127.0.0.1", 50052);
+            var response1 = await node.uploadFile(fileName, data, "", new Location("", "", ""));
+            Console.Write(response1.ToString());
+            
+            var response2 = await node.DownloadFile(fileName);
+            node.deleteFile(fileName);
+
+           
+            Console.WriteLine(Encoding.ASCII.GetString(response2));    
+            
+        }
         public NodeServerCommunication(string host, int port)
         {
             try
             {
                 // Create Grpc connction:
-                this._channel = new Channel($"{host}:{port}", ChannelCredentials.Insecure);
+                this._channel = GrpcChannel.ForAddress("http://localhost:50052");
                 this._client = new NodeServices.NodeServicesClient(this._channel);
             }
             catch (Exception ex)
@@ -73,7 +92,7 @@ namespace cloud_server.Services
 
         public async Task<UploadFileResponse> uploadFile(string fileId, byte[] fileData, string type, Location location)
         {
-            IEnumerable<UploadFileRequest> requests = createUploadRequests(fileId, fileData, type, location);
+            List<UploadFileRequest> requests = createUploadRequests(fileId, fileData, type, location);
             try
             {
                 var call = this._client.UploadFile();
@@ -97,23 +116,31 @@ namespace cloud_server.Services
             return new UploadFileResponse();
         }
 
-        private IEnumerable<UploadFileRequest> createUploadRequests(string fileId, byte[] fileData, string type, Location location)
+        private List<UploadFileRequest> createUploadRequests(string fileId, byte[] fileData, string type, Location location)
         {
-            IEnumerable<UploadFileRequest> uploadFileRequests = null;
+            List<UploadFileRequest> uploadFileRequests = null;
             byte[] chunk = null;
             UploadFileRequest request = null;
             int numberOfChunks = 0;
             int chunkSize = NodeServerCommunication.MaxFileChunckLength;
             int i = 0;
 
-            uploadFileRequests = new List<UploadFileRequest>();
+            uploadFileRequests = new List<UploadFileRequest> ();
             numberOfChunks = fileData.Length / chunkSize + ((fileData.Length % chunkSize == 0) ? 0 : 1);
 
             for (i = 0; i < numberOfChunks; i++)
             {
-                chunk = new byte[chunkSize];
+                if ((i + 1) * chunkSize < fileData.Length)
+                {
+                    chunk = new byte[chunkSize];
+                }
 
-                for (int j = 0; j < chunkSize; j++)
+                else
+                {
+                    chunk = new byte[fileData.Length % ((i + 1) * chunkSize)];
+                }
+
+                for (int j = 0; j < chunkSize && j + i* chunkSize < fileData.Length; j++)
                 {
                     chunk[j] = fileData[i * chunkSize + j];
                 }
@@ -127,7 +154,7 @@ namespace cloud_server.Services
                     FileContent = Google.Protobuf.ByteString.CopyFrom(chunk)
                 };
 
-                uploadFileRequests.Append(request);
+                 uploadFileRequests.Add(request);
             }
 
             return uploadFileRequests;
