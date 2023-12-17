@@ -24,7 +24,7 @@
   </ItemGroup>
 
 	<ItemGroup>
-		<Protobuf Include="Protos\file_saving_microservices.proto" GrpcServices="Client" />
+		<Protobuf Include="Protos\node.proto" GrpcServices="Client" />
 		<Protobuf Include="Protos\cloud.proto" GrpcServices="Server" />
 
 	</ItemGroup>
