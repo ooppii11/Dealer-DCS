@@ -4,14 +4,18 @@ option csharp_namespace = "GrpcServerToServer";
 
 
 message PassFileRequest {
-	string fileName = 1;
-	bytes fileContent = 2;
+	string file_id = 1;
+	string type = 2;
+	bytes file_content = 3;
+	repeated string servers_addresses_where_saved = 4;
 }
 
 message PassFileResponse {
+	bool status = 1;
+	optional string message = 2;
 	
 }
 
-service NodeServices {
+service ServerToServer {
   rpc PassFile(stream PassFileRequest) returns (PassFileResponse);
 }
