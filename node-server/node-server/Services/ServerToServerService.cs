@@ -8,14 +8,12 @@ namespace NodeServer.Services
     public class ServerToServerService : ServerToServer.ServerToServerBase
     {
         private FileSaving _microservice;
-        private Dictionary<string, List<string>> _replicatedLocations;
         private NodeSystemParse _system;
         private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
         public ServerToServerService(NodeSystemParse sys, FileSaving micro) 
         {
             this._system = sys;
             this._microservice = micro;
-            this._replicatedLocations = ParseWhereChunks_Files.parseWhere();
         }
 
         public override async Task<PassFileResponse> PassFile(IAsyncStreamReader<PassFileRequest> requestStream, ServerCallContext context)
@@ -40,12 +38,11 @@ namespace NodeServer.Services
                         placesFromRequest.Add(serverAddress);
                     }
                 }
-                if (!places.Contains(fileName))
+                if (!this._system.filExists(fileName))
                 {
 
-                    this._replicatedLocations[fileName] = places;
                     await this._microservice.uploadFile(fileName, fileData.ToArray(), type);
-                    this._system.addFile();
+                    this._system.addFile(fileName, places);
                     //consensus + S2S
                 }
                 else
