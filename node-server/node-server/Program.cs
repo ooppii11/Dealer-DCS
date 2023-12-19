@@ -13,7 +13,7 @@ public class Startup
     {
         services.AddSingleton<FileSaving>(new FileSaving("127.0.0.1", 50051));
         services.AddSingleton<NodeSystemParse>(new NodeSystemParse());
-        services.AddSingleton<Dictionary<string, List<string>>>(new Dictionary<string, List<string>>());
+        //services.AddSingleton<Dictionary<string, List<string>>>(new Dictionary<string, List<string>>());
         services.AddGrpc(options =>
         {
             options.Interceptors.Add<ConnectionLoggerInterceptor>();

@@ -11,16 +11,13 @@ namespace NodeServer.Services
     public class NodeServerService : NodeServices.NodeServicesBase
     {
         private FileSaving _microservice;
-        private Dictionary<string, List<string>> _replicatedPlaces;
         private NodeSystemParse _system;
         private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
         //logFileInfo 
-        public NodeServerService(FileSaving micro, NodeSystemParse sys, Dictionary<string, List<string>>  places)
+        public NodeServerService(FileSaving micro, NodeSystemParse sys)
         {
             this._microservice = micro;
-            this._replicatedPlaces = places;
             this._system = sys;
-            //parse log and get all the replicated places
         }
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
@@ -46,12 +43,11 @@ namespace NodeServer.Services
                         placesFromRequest.Add(serverAddress);
                     }
                 }
-                if (!places.Contains(fileName))
+                if (!this._system.filExists(fileName))
                 {
 
-                    this._replicatedPlaces[fileName] = places;
                     await this._microservice.uploadFile(fileName, fileData.ToArray(), type);
-                    this._system.addFile();
+                    this._system.addFile(fileName, places);
                     //consensus + S2S
                 }
                 else
@@ -84,7 +80,7 @@ namespace NodeServer.Services
                     }
                     fileData.Write(chunk.NewContent.ToArray(), 0, chunk.NewContent.Length);
                 }
-                if (this._replicatedPlaces.ContainsKey(fileName))
+                if (this._system.filExists(fileName))
                 {
                     //get type from microservice
                     this._microservice.deleteFile(fileName);
@@ -141,8 +137,7 @@ namespace NodeServer.Services
             {
                 //consensus + S2S
                 this._microservice.deleteFile(request.FileId);
-                this._replicatedPlaces.Remove(request.FileId);
-                this._system.removeFile();
+                this._system.removeFile(request.FileId);
                 return Task.FromResult(new DeleteFileResponse { Status = true, Message = "File deleted successfully." });
             }
             catch (Exception ex)
