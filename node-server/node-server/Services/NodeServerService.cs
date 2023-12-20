@@ -27,10 +27,8 @@ namespace NodeServer.Services
                 //consensus + S2S
                 string fileName = "";
                 string type = "";
-                List<string> placesFromRequest = new List<string>();
+                List<string> otherNodeServersAddresses = new List<string>();
                 MemoryStream fileData = new MemoryStream();
-                List<string> places = ((Environment.GetEnvironmentVariable("NODES_IPS")).Split(':').ToList());
-                places.Remove(this._serverIP);
 
 
                 await foreach (var chunk in requestStream.ReadAllAsync())
@@ -40,15 +38,23 @@ namespace NodeServer.Services
                     fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
                     foreach (var serverAddress in chunk.ServersAddressesWhereSaved)
                     {
-                        placesFromRequest.Add(serverAddress);
+                        otherNodeServersAddresses.Add(serverAddress);
                     }
                 }
+                otherNodeServersAddresses.Remove(this._serverIP);
+
                 if (!this._system.filExists(fileName))
                 {
 
                     await this._microservice.uploadFile(fileName, fileData.ToArray(), type);
-                    this._system.addFile(fileName, places);
-                    //consensus + S2S
+                    this._system.addFile(fileName, otherNodeServersAddresses);
+                    foreach (string serverAddress in otherNodeServersAddresses)
+                    {
+                        ServerToServerClient s2s = new ServerToServerClient(serverAddress, 50052);
+                        await s2s.passFile(fileName, type, otherNodeServersAddresses, fileData);
+                    }
+
+                    //consensus (if needed)
                 }
                 else
                 {
