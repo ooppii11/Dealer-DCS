@@ -4,16 +4,16 @@ import cloud_pb2_grpc
 
 
 def fils_test(stub):
-    FILENAME = "test1"
+    FILENAME = "test22"
     try:
         response = stub.login(cloud_pb2.LoginRequest(username="test1", password="test1password"))
         sessionId = response.sessionId
 
-        request = cloud_pb2.UploadFileRequest(sessionId=sessionId, fileName=FILENAME, type="plain/text", fileData=b"test")
+        request = cloud_pb2.UploadFileRequest(sessionId=sessionId, fileName=FILENAME, type="plain/text", fileData=b"upload test")
         response = stub.UploadFile(iter([request]))
+        print("Upload:")
         print(response)
-        print("Upload pass")
-        
+
         request = cloud_pb2.GetListOfFilesRequest(sessionId=sessionId)
         response = stub.getListOfFiles(request)
         print("Files:")
@@ -24,10 +24,21 @@ def fils_test(stub):
         print("File:")
         print(response)
 
+
+        request = cloud_pb2.DownloadFileRequest(sessionId=sessionId, fileName=FILENAME)
+        download_file_reply = stub.DownloadFile(request)
+        print("Download File:")
+        for response in download_file_reply:
+            print(response.fileData.decode())
+
+
+
         request = cloud_pb2.DeleteFileRequest(sessionId=sessionId, fileName=FILENAME)
         response = stub.DeleteFile(request)
         print("Delete:")
         print("Success" if response.status == 0 else "Failure")
+        stub.logout(cloud_pb2.LogoutRequest(sessionId=sessionId))
+        print("logout successfully")
         return 0
     except:
         return 1
