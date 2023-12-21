@@ -29,6 +29,9 @@ namespace NodeServer.Services
                 string type = "";
                 List<string> otherNodeServersAddresses = new List<string>();
                 MemoryStream fileData = new MemoryStream();
+                List<string> places = ((Environment.GetEnvironmentVariable("NODES_IPS")).Split(':').ToList());
+                places.Remove(this._serverIP);
+
 
 
                 await foreach (var chunk in requestStream.ReadAllAsync())
