@@ -11,15 +11,13 @@ namespace NodeServer.Services
     public class NodeServerService : NodeServices.NodeServicesBase
     {
         private FileSaving _microservice;
-        private Dictionary<string, List<string>> _replicatedPlaces;
         private NodeSystemParse _system;
         private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
         //logFileInfo 
-        public NodeServerService(string host= "127.0.0.1", int port=50051) {
-            this._microservice = new FileSaving(host, port);
-            this._replicatedPlaces = new Dictionary<string, List<string>>();
-            this._system = new NodeSystemParse();
-            //parse log and get all the replicated places
+        public NodeServerService(FileSaving micro, NodeSystemParse sys)
+        {
+            this._microservice = micro;
+            this._system = sys;
         }
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
@@ -29,10 +27,11 @@ namespace NodeServer.Services
                 //consensus + S2S
                 string fileName = "";
                 string type = "";
-                List<string> placesFromRequest = new List<string>();
+                List<string> otherNodeServersAddresses = new List<string>();
                 MemoryStream fileData = new MemoryStream();
                 List<string> places = ((Environment.GetEnvironmentVariable("NODES_IPS")).Split(':').ToList());
                 places.Remove(this._serverIP);
+
 
 
                 await foreach (var chunk in requestStream.ReadAllAsync())
@@ -42,16 +41,23 @@ namespace NodeServer.Services
                     fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
                     foreach (var serverAddress in chunk.ServersAddressesWhereSaved)
                     {
-                        placesFromRequest.Add(serverAddress);
+                        otherNodeServersAddresses.Add(serverAddress);
                     }
                 }
-                if (!places.Contains(fileName))
+                otherNodeServersAddresses.Remove(this._serverIP);
+
+                if (!this._system.filExists(fileName))
                 {
 
-                    this._replicatedPlaces[fileName] = places;
                     await this._microservice.uploadFile(fileName, fileData.ToArray(), type);
-                    this._system.addFile();
-                    //consensus + S2S
+                    this._system.addFile(fileName, otherNodeServersAddresses);
+                    foreach (string serverAddress in otherNodeServersAddresses)
+                    {
+                        ServerToServerClient s2s = new ServerToServerClient(serverAddress, 50052);
+                        await s2s.passFile(fileName, type, otherNodeServersAddresses, fileData);
+                    }
+
+                    //consensus (if needed)
                 }
                 else
                 {
@@ -75,7 +81,7 @@ namespace NodeServer.Services
 
                 MemoryStream fileData = new MemoryStream();
 
-                await foreach(var chunk in requestStream.ReadAllAsync())
+                await foreach (var chunk in requestStream.ReadAllAsync())
                 {
                     if (fileName == null)
                     {
@@ -83,7 +89,7 @@ namespace NodeServer.Services
                     }
                     fileData.Write(chunk.NewContent.ToArray(), 0, chunk.NewContent.Length);
                 }
-                if (this._replicatedPlaces.ContainsKey(fileName))
+                if (this._system.filExists(fileName))
                 {
                     //get type from microservice
                     this._microservice.deleteFile(fileName);
@@ -94,7 +100,7 @@ namespace NodeServer.Services
                 {
                     return new UpdateFileResponse { Status = false, Message = "Unable to update file: The file isn't saved on the machine" };
                 }
-                
+
 
                 return new UpdateFileResponse { Status = true, Message = "File updated successfully." };
             }
@@ -119,36 +125,35 @@ namespace NodeServer.Services
                         int remaining = file.Length - offset;
                         int writingSize = Math.Min(remaining, chunkSize);
 
-                        DownloadFileResponse response = new DownloadFileResponse {Status = true, FileContent = ByteString.CopyFrom(file, offset, writingSize)};
+                        DownloadFileResponse response = new DownloadFileResponse { Status = true, FileContent = ByteString.CopyFrom(file, offset, writingSize) };
                         await responseStream.WriteAsync(response);
 
                         offset += writingSize;
                     }
                 }
-            }   
+            }
             catch (Exception ex)
             {
                 await responseStream.WriteAsync(new DownloadFileResponse { Status = false, Message = $"Error downloading the file: {ex.Message}", FileContent = ByteString.Empty });
                 return;
             }
-            
+
         }
 
         public override Task<DeleteFileResponse> DeleteFile(DeleteFileRequest request, ServerCallContext context)
         {
-            try 
+            try
             {
                 //consensus + S2S
                 this._microservice.deleteFile(request.FileId);
-                this._replicatedPlaces.Remove(request.FileId);
-                this._system.removeFile(); 
-                return Task.FromResult(new DeleteFileResponse {Status = true, Message = "File deleted successfully." });
-                }
+                this._system.removeFile(request.FileId);
+                return Task.FromResult(new DeleteFileResponse { Status = true, Message = "File deleted successfully." });
+            }
             catch (Exception ex)
             {
                 return Task.FromResult(new DeleteFileResponse { Status = false, Message = $"Error deleting the file: {ex.Message}" });
             }
-            
+
         }
     }
 }

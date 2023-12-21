@@ -33,6 +33,7 @@ RUN pip3 install --no-cache-dir -r ./file-saving-microservice/requirements.txt
 
 COPY entrypoint.sh .
 RUN chmod +x ./entrypoint.sh
+RUN cat ./entrypoint.sh
 
 RUN cat ./entrypoint.sh
 
