@@ -53,8 +53,11 @@ namespace cloud_server.Managers
         private Location getLocation()
         {
             // decide where to save the file
-            // Not implomented yet
-            return new Location("", "", "");
+            // Not implomented
+            // string servers = "172.18.0.4:172.18.0.5:172.18.0.6"; //Environment.GetEnvironmentVariable("NODES_IPS");
+            // string[] <> = servers.Split()
+            // List<string> <> = servers.Split().ToList()
+            return new Location("172.18.0.4", "172.18.0.5", "172.18.0.6");
         }
     }
 }

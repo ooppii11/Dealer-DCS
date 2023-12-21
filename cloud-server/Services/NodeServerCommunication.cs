@@ -133,10 +133,11 @@ namespace cloud_server.Services
                 {
                     FileId = fileId,
                     Type = type,
-                    SecondReplicationPlace = location.SecondBackupServer,
-                    ThirdReplicationPlace = location.FirstBackupServer,
                     FileContent = Google.Protobuf.ByteString.CopyFrom(chunk)
                 };
+                request.ServersAddressesWhereSaved.Add(location.FirstBackupServer);
+                request.ServersAddressesWhereSaved.Add(location.SecondBackupServer);
+
 
                  uploadFileRequests.Add(request);
             }
