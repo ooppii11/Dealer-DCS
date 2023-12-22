@@ -13,7 +13,6 @@ public class Startup
     {
         services.AddSingleton<FileSaving>(new FileSaving("127.0.0.1", 50051));
         services.AddSingleton<NodeSystemParse>(new NodeSystemParse());
-        //services.AddSingleton<Dictionary<string, List<string>>>(new Dictionary<string, List<string>>());
         services.AddGrpc(options =>
         {
             options.Interceptors.Add<ConnectionLoggerInterceptor>();
@@ -44,8 +43,8 @@ public class Program
             .ConfigureWebHostDefaults(webBuilder =>
             {
                 webBuilder.UseStartup<Startup>();
-                //webBuilder.UseUrls("http://localhost:50052");
-                webBuilder.UseUrls("http://0.0.0.0:50052");
+                webBuilder.UseUrls("http://localhost:50052");
+                //webBuilder.UseUrls("http://0.0.0.0:50052");
 
                 /*
                 webBuilder.ConfigureKestrel(options =>

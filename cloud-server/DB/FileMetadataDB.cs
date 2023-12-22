@@ -74,6 +74,30 @@ namespace cloud_server.DB
                     throw new Exception("File already exists");
                 }
             }
+        
+        }
+
+        public int getFileId(string filename, int userId)
+        {
+            int fileId = 0;
+            string query = @"SELECT id FROM file_metadata WHERE creator_id = @creator_id AND name = @name;";
+
+            try
+            {
+                using (NpgsqlCommand command = new NpgsqlCommand(query, this._conn))
+                {
+                    command.Parameters.AddWithValue("@creator_id", userId);
+                    command.Parameters.AddWithValue("@name", filename);
+
+                    fileId = Convert.ToInt32(command.ExecuteScalar());
+                }
+                return fileId;
+
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("File not exists");
+            }
         }
         private void addFileLocation(int fileId, Location location)
         {

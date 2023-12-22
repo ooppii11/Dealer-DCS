@@ -19,19 +19,24 @@ namespace cloud_server.Managers
         {
             FileMetadata file = new FileMetadata(userid, filename, type, (int)size);
             Location location = this.getLocation();
+            int fileId = 0;
 
             this._db.uploadFileMetadata(file, location);
+            fileId = this._db.getFileId(file.Name, file.CreatorId);
 
             // save the file
-            await this._nodes[0].uploadFile(filename, fileData, type, location);
+            await this._nodes[0].uploadFile($"{fileId}", fileData, type, location);
         }
 
         public void deleteFile(int userId, string filename)
         {
+            int fileId = 0;
+
+            fileId = this._db.getFileId(filename, userId);
             this._db.deleteFileMetadata(userId, filename);
 
             // Delete file from locations
-            this._nodes[0].deleteFile(filename);
+            this._nodes[0].deleteFile($"{fileId}");
         }
 
         public GrpcCloud.FileMetadata getFileMetadata(int userId, string filename)
@@ -46,7 +51,10 @@ namespace cloud_server.Managers
 
         public async Task<byte[]> downloadFile(int userId, string filename)
         {
-            return await this._nodes[0].DownloadFile(filename);
+            int fileId = 0;
+
+            fileId = this._db.getFileId(filename, userId);
+            return await this._nodes[0].DownloadFile($"{fileId}");
         }
          
 

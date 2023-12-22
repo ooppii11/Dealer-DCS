@@ -10,10 +10,15 @@ public class Startup
 {
     public void ConfigureServices(IServiceCollection services)
     {
-
+        /*
         services.AddSingleton<Authentication>(new Authentication(new AuthDB("DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres")));
         services.AddSingleton<FilesManager>(new FilesManager(
             new cloud_server.DB.FileMetadataDB("DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres"),
+             new NodeServerCommunication[1] { new NodeServerCommunication("http://localhost:50052") }));
+        */
+        services.AddSingleton<Authentication>(new Authentication(new AuthDB("DB/tables.sql", "localhost", "DBserver", "5432", "123AvIt456", "mydatabase")));
+        services.AddSingleton<FilesManager>(new FilesManager(
+            new cloud_server.DB.FileMetadataDB("DB/tables.sql", "localhost", "DBserver", "5432", "123AvIt456", "mydatabase"),
              new NodeServerCommunication[1] { new NodeServerCommunication("http://localhost:50052") }));
         services.AddGrpc();
     }
@@ -41,8 +46,8 @@ public class Program
             .ConfigureWebHostDefaults(webBuilder =>
             {
                 webBuilder.UseStartup<Startup>();
-                webBuilder.UseUrls("http://0.0.0.0:50053"); // Change the port as needed 
-                //webBuilder.UseUrls("http://localhost:50053");
+                //webBuilder.UseUrls("http://0.0.0.0:50053");
+                webBuilder.UseUrls("http://localhost:50053");
             });
 }
 
