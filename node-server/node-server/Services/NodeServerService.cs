@@ -2,6 +2,7 @@
 using Grpc.Core;
 using GrpcNodeServer;
 using NodeServer.Managers;
+using GrpcServerToServer;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,7 +13,8 @@ namespace NodeServer.Services
     {
         private FileSaving _microservice;
         private NodeSystemParse _system;
-        private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
+        //private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
+        private readonly string _serverIP = "testing";
         //logFileInfo 
         public NodeServerService(FileSaving micro, NodeSystemParse sys)
         {
@@ -29,8 +31,7 @@ namespace NodeServer.Services
                 string type = "";
                 List<string> otherNodeServersAddresses = new List<string>();
                 MemoryStream fileData = new MemoryStream();
-                List<string> places = ((Environment.GetEnvironmentVariable("NODES_IPS")).Split(':').ToList());
-                places.Remove(this._serverIP);
+                
 
 
 
@@ -53,8 +54,11 @@ namespace NodeServer.Services
                     this._system.addFile(fileName, otherNodeServersAddresses);
                     foreach (string serverAddress in otherNodeServersAddresses)
                     {
+                        fileData.Seek(0, SeekOrigin.Begin);
                         ServerToServerClient s2s = new ServerToServerClient(serverAddress, 50052);
-                        await s2s.passFile(fileName, type, otherNodeServersAddresses, fileData);
+                        PassFileResponse response = await s2s.passFile(fileName, type, otherNodeServersAddresses, fileData);
+                        Console.WriteLine($"status: {response.Status}, massenge: {response.Message}");
+
                     }
 
                     //consensus (if needed)

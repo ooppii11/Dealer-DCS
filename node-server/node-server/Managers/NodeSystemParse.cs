@@ -3,6 +3,7 @@ using System.IO;
 using Grpc.Core;
 using System;
 using Microsoft.VisualBasic.FileIO;
+using static Google.Protobuf.Reflection.SourceCodeInfo.Types;
 
 
 namespace NodeServer.Managers
@@ -11,7 +12,7 @@ namespace NodeServer.Managers
     {
         private const int _fileSize = 50; //MB
         private const int _systemSize = 1000; //MB -> 1GB
-        private const string _fileName = "Managers/System.csv";
+        private const string _fileName = @"Managers\System.csv";
         private const string subPath = "Managers";
 
         private int _numOfFilesInSystem = 0;
@@ -66,24 +67,26 @@ namespace NodeServer.Managers
         {
             this._locations[fileId] = locations;
             this._numOfFilesInSystem++;
-            File.WriteAllText(NodeSystemParse._fileName, fileId.ToString() + ",");
-            File.WriteAllText(NodeSystemParse._fileName, String.Join(",", locations.ToArray()));
-            File.WriteAllText(NodeSystemParse._fileName, "\n");
+            TextWriter tsw = new StreamWriter(NodeSystemParse._fileName, true);
+            tsw.WriteLine(fileId + "," + String.Join(",", locations.ToArray()));
+            tsw.Close();
         }
 
         public void removeFile(string fileId)
         {
             this._locations.Remove(fileId);
             this._numOfFilesInSystem--;
+            File.WriteAllText(NodeSystemParse._fileName, "");
             foreach (KeyValuePair<string, List<string>> entry in this._locations)
             {
-                File.WriteAllText(NodeSystemParse._fileName, entry.Key.ToString() + ",");
-                File.WriteAllText(NodeSystemParse._fileName, String.Join(",", entry.Value.ToArray()));
-                File.WriteAllText(NodeSystemParse._fileName, "\n");
+                TextWriter tsw = new StreamWriter(NodeSystemParse._fileName, true);
+                tsw.WriteLine(entry.Key + "," + String.Join(",", entry.Value.ToArray()));
+                tsw.Close();
             }
         }
         private void parseWhere()
         {
+            this._locations = new Dictionary<string, List<string>>();
             using (TextFieldParser parser = new TextFieldParser(NodeSystemParse._fileName))
             {
                 parser.TextFieldType = FieldType.Delimited;
