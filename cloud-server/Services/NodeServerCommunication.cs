@@ -15,28 +15,12 @@ namespace cloud_server.Services
         private GrpcChannel _channel; //Grpc.Core.Channel _channel;
         private GrpcNodeServer.NodeServices.NodeServicesClient _client;
         private const int MaxFileChunckLength = 3145728;
-
-        public static async Task Main(string[] args)
-        {
-            string fileName = "test2.txt";
-            byte[] data = Encoding.ASCII.GetBytes(fileName);
-            NodeServerCommunication node = new NodeServerCommunication("127.0.0.1", 50052);
-            var response1 = await node.uploadFile(fileName, data, "", new Location("", "", ""));
-            Console.Write(response1.ToString());
-            
-            var response2 = await node.DownloadFile(fileName);
-            node.deleteFile(fileName);
-
-           
-            Console.WriteLine(Encoding.ASCII.GetString(response2));    
-            
-        }
-        public NodeServerCommunication(string host, int port)
+        public NodeServerCommunication(string host)
         {
             try
             {
                 // Create Grpc connction:
-                this._channel = GrpcChannel.ForAddress("http://localhost:50052");
+                this._channel = GrpcChannel.ForAddress(host);
                 this._client = new NodeServices.NodeServicesClient(this._channel);
             }
             catch (Exception ex)
@@ -149,10 +133,11 @@ namespace cloud_server.Services
                 {
                     FileId = fileId,
                     Type = type,
-                    SecondReplicationPlace = location.SecondBackupServer,
-                    ThirdReplicationPlace = location.FirstBackupServer,
                     FileContent = Google.Protobuf.ByteString.CopyFrom(chunk)
                 };
+                request.ServersAddressesWhereSaved.Add(location.FirstBackupServer);
+                request.ServersAddressesWhereSaved.Add(location.SecondBackupServer);
+
 
                  uploadFileRequests.Add(request);
             }

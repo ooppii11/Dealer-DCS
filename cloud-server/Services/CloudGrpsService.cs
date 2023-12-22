@@ -80,8 +80,8 @@ namespace cloud_server.Services
             try
             {
                 User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
-                List<GrpcCloud.FileMetadata> fileMetadata = this._filesManager.getFiles(user.Id); // Get the metadata
-                
+                List<GrpcCloud.FileMetadata> fileMetadata = this._filesManager.getFilesMetadata(user.Id); // Get the metadata
+                            
                 // Init response:
                 response.Message = "";
                 response.Status = GrpcCloud.Status.Success;
@@ -105,7 +105,7 @@ namespace cloud_server.Services
                 
                 response.Message = "";
                 response.Status = GrpcCloud.Status.Success;
-                response.File = this._filesManager.getFile(user.Id, request.FileName);
+                response.File = this._filesManager.getFileMetadata(user.Id, request.FileName);
                 return Task.FromResult(response);
             }
             catch (Exception ex)
@@ -194,7 +194,7 @@ namespace cloud_server.Services
                     fileData.Write(chunk.FileData.ToArray(), 0, chunk.FileData.Length);
                 }
 
-                this._filesManager.uploadFile(user.Id, fileName, type, fileData.Length, fileData.ToArray());
+                await this._filesManager.uploadFile(user.Id, fileName, type, fileData.Length, fileData.ToArray());
 
                 return new UploadFileResponse()
                 { 
