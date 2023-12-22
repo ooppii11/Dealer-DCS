@@ -44,7 +44,7 @@ namespace NodeServer.Managers
                 // Upload chunks of file
                 using (var call = client.PassFile())
                 {
-                    var buffer = new byte[1024 * 1024];
+                    byte[] buffer = new byte[1024 * 1024];
                     while (fileData.Position < fileData.Length)
                     {
                         var readCount = fileData.Read(buffer, 0, buffer.Length);
