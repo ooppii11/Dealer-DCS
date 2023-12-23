@@ -3,6 +3,7 @@ using GrpcCloud;
 using cloud_server.Managers;
 using System.Linq.Expressions;
 using Google.Protobuf;
+using System;
 
 namespace cloud_server.Services
 {   
@@ -35,6 +36,7 @@ namespace cloud_server.Services
             }
             catch (Exception ex)
             {
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
                 // Send Error response:
                 return Task.FromResult(new SignupResponse
                 {
@@ -58,6 +60,7 @@ namespace cloud_server.Services
             }
             catch (Exception ex)
             {
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
                 // Send Error response:
                 return Task.FromResult(new LoginResponse
                 {
@@ -91,6 +94,7 @@ namespace cloud_server.Services
             }
             catch (Exception ex)
             {
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
                 response.Message = ex.Message;
                 response.Status = GrpcCloud.Status.Failure;
                 return Task.FromResult(response);
@@ -110,6 +114,7 @@ namespace cloud_server.Services
             }
             catch (Exception ex)
             {
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
                 response.Message = ex.Message;
                 response.Status = GrpcCloud.Status.Failure;
                 return Task.FromResult(response);
@@ -130,6 +135,7 @@ namespace cloud_server.Services
             }
             catch (Exception ex)
             {
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
                 return Task.FromResult(new DeleteFileResponse
                 { 
                     Status = GrpcCloud.Status.Failure,
@@ -163,6 +169,7 @@ namespace cloud_server.Services
             }
             catch (Exception ex)
             {
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
                 await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Error downloading the file: {ex.Message}", FileData = ByteString.Empty });
                 return;
             }
@@ -204,6 +211,7 @@ namespace cloud_server.Services
             }
             catch (Exception ex)
             {
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
                 return new UploadFileResponse()
                 {
                     Status = GrpcCloud.Status.Failure,

@@ -39,35 +39,28 @@ namespace NodeServer.Managers
 
         public async Task<PassFileResponse> passFile(string filename, string type, List<string> places, MemoryStream fileData)
         {
-            try
+            using (var call = client.PassFile())
             {
-                // Upload chunks of file
-                using (var call = client.PassFile())
+                byte[] buffer = new byte[1024 * 1024];
+                while (fileData.Position < fileData.Length)
                 {
-                    byte[] buffer = new byte[1024 * 1024];
-                    while (fileData.Position < fileData.Length)
+                    var readCount = fileData.Read(buffer, 0, buffer.Length);
+                    if (readCount <= 0)
                     {
-                        var readCount = fileData.Read(buffer, 0, buffer.Length);
-                        if (readCount <= 0)
-                        {
-                            break;
-                        }
-                        await call.RequestStream.WriteAsync(new PassFileRequest
-                        {
-                            FileId = filename,
-                            Type = type,
-                            FileContent = Google.Protobuf.ByteString.CopyFrom(buffer, 0, readCount),
-                            ServersAddressesWhereSaved = { places }
-                        });
+                        break;
                     }
-                    await call.RequestStream.CompleteAsync();
-                    var response = await call.ResponseAsync;
-                    return response;
+                    await call.RequestStream.WriteAsync(new PassFileRequest
+                    {
+                        FileId = filename,
+                        Type = type,
+                        FileContent = Google.Protobuf.ByteString.CopyFrom(buffer, 0, readCount),
+                        ServersAddressesWhereSaved = { places }
+                    });
                 }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error occurred while uploading this file");
+                await call.RequestStream.CompleteAsync();
+                var response = await call.ResponseAsync;
+                return response;
+
             }
         }
     }               

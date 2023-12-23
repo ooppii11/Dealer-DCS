@@ -41,7 +41,8 @@ def fils_test(stub):
         stub.logout(cloud_pb2.LogoutRequest(sessionId=sessionId))
         print("logout successfully")
         return True
-    except:
+    except Exception as e:
+        print(e)
         return False
 
 
@@ -55,16 +56,21 @@ def login_test(stub):
         response = stub.login(cloud_pb2.LoginRequest(username="test1", password="test1password"))
         sessionId = response.sessionId
         print(f"The session id is:{sessionId}")
-        
-        print("Try to login to connected user")
-        response = stub.login(cloud_pb2.LoginRequest(username="test1", password="test1password"))
-        print(response)
+
+        try:
+            print("Try to login to connected user")
+            response = stub.login(cloud_pb2.LoginRequest(username="test1", password="test1password"))
+            print(response)
+        except Exception as e:
+            print("Login failed as expected")
+            print(e)
 
         stub.logout(cloud_pb2.LogoutRequest(sessionId=sessionId))
         print("logout successfully")
         return True
 
     except Exception as e:
+        print(e)
         return False
 
 
@@ -74,9 +80,13 @@ def main():
 
     if login_test(stub):
         print("Login Test Passed")
+    else:
+        print("Login Test Failed")
 
     if fils_test(stub):
         print("File Test Passed")
+    else:
+        print("File Test Failed")   
 
     
     

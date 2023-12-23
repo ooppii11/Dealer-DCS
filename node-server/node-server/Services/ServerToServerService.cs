@@ -47,12 +47,14 @@ namespace NodeServer.Services
                 }
                 else
                 {
-                    return new PassFileResponse { Status = false, Message = "Unable to upload file: The file is already saved on the machine" };
+                    context.Status = new Status(StatusCode.AlreadyExists, $"File already exists on the machine - {this._serverIP}");
+                    return new PassFileResponse { Status = false, Message = $"Unable to update file: File already exists on the machine - {this._serverIP}"};
                 }
                 return new PassFileResponse { Status = true, Message = "File uploaded successfully." };
             }
             catch (Exception ex)
             {
+                context.Status = new Status(StatusCode.Internal, $"Error uploading file: {ex.Message}");
                 return new PassFileResponse { Status = false, Message = $"Error uploading file: {ex.Message}" };
             }
         }

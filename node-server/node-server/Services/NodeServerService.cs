@@ -3,9 +3,6 @@ using Grpc.Core;
 using GrpcNodeServer;
 using NodeServer.Managers;
 using GrpcServerToServer;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace NodeServer.Services
 {
@@ -24,20 +21,21 @@ namespace NodeServer.Services
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
         {
+            List<string> unreachableServers = new List<string>();
             try
             {
                 //consensus + S2S
-                string fileName = "";
+                string fileID = "";
                 string type = "";
                 List<string> otherNodeServersAddresses = new List<string>();
                 MemoryStream fileData = new MemoryStream();
-                
+                bool fileAlreadyExist = false;
 
 
 
                 await foreach (var chunk in requestStream.ReadAllAsync())
                 {
-                    fileName = chunk.FileId;
+                    fileID = chunk.FileId;
                     type = chunk.Type;
                     fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
                     foreach (var serverAddress in chunk.ServersAddressesWhereSaved)
@@ -47,35 +45,76 @@ namespace NodeServer.Services
                 }
                 otherNodeServersAddresses.Remove(this._serverIP);
 
-                if (!this._system.filExists(fileName))
+                if (!this._system.filExists(fileID))
                 {
-
-                    await this._microservice.uploadFile(fileName, fileData.ToArray(), type);
-                    this._system.addFile(fileName, otherNodeServersAddresses);
+                    await this._microservice.uploadFile(fileID, fileData.ToArray(), type);
+                    this._system.addFile(fileID, otherNodeServersAddresses);
                     foreach (string serverAddress in otherNodeServersAddresses)
-                    {
-                        fileData.Seek(0, SeekOrigin.Begin);
-                        ServerToServerClient s2s = new ServerToServerClient(serverAddress, 50052);
-                        PassFileResponse response = await s2s.passFile(fileName, type, otherNodeServersAddresses, fileData);
-                        Console.WriteLine($"status: {response.Status}, massenge: {response.Message}");
-
+                    {                
+                        try
+                        {
+                            fileData.Seek(0, SeekOrigin.Begin);
+                            ServerToServerClient s2s = new ServerToServerClient(serverAddress, 50052);
+                            PassFileResponse response = await s2s.passFile(fileID, type, otherNodeServersAddresses, fileData);
+                            Console.WriteLine($"status: {response.Status}, massenge: {response.Message}");
+                        }
+                        catch (RpcException ex)
+                        {
+                            if (!(ex.StatusCode == StatusCode.AlreadyExists))
+                            {
+                                unreachableServers.Add(serverAddress);
+                            }
+                        }
                     }
+
+
+                    Task.Run(() => tryPassingFile(fileID, type, unreachableServers, otherNodeServersAddresses, fileData));
+
 
                     //consensus (if needed)
                 }
                 else
                 {
-                    return new UploadFileResponse { Status = false, Message = "Unable to upload file: The file is already saved on the machine" };
+                    context.Status = new Status(StatusCode.AlreadyExists, $"File already exists on the machine - {this._serverIP}");
+                    return new UploadFileResponse { Status = false, Message = $"Unable to update file: File already exists on the machine - {this._serverIP}", UnreachableServers = {  } };
                 }
-                return new UploadFileResponse { Status = true, Message = "File uploaded successfully." };
+                return new UploadFileResponse { Status = true, Message = "File uploaded successfully.", UnreachableServers = { unreachableServers } };
             }
             catch (Exception ex)
             {
-                return new UploadFileResponse { Status = false, Message = $"Error uploading file: {ex.Message}" };
+                context.Status = new Status(StatusCode.Internal, $"Error uploading file: {ex.Message}");
+                return new UploadFileResponse { Status = false, Message = $"Error updating the file: {ex.Message}", UnreachableServers = { unreachableServers } }; ;
             }
         }
 
+        private async Task tryPassingFile(string fileID, string type, List<string> unreachableServers, List<string> otherNodeServersAddresses, MemoryStream fileData)
+        {
 
+            const int delayInSeconds = 120;
+            while (unreachableServers.Count > 0)
+            {
+                string serverAddress = unreachableServers.First();
+                unreachableServers.Remove(serverAddress);
+                try
+                {
+                    fileData.Seek(0, SeekOrigin.Begin);
+                    ServerToServerClient s2s = new ServerToServerClient(serverAddress, 50052);
+                    PassFileResponse response = await s2s.passFile(fileID, type, otherNodeServersAddresses, fileData);
+                    Console.WriteLine($"status: {response.Status}, massenge: {response.Message}");
+                }
+                catch (RpcException ex)
+                {
+                    unreachableServers.Add(serverAddress);
+                }
+
+                if (unreachableServers.Count > 0)
+                {
+                    Console.WriteLine($"Not all servers received the message. Retrying in {delayInSeconds} seconds...");
+                    Thread.Sleep(TimeSpan.FromSeconds(delayInSeconds));
+                }
+            }
+        }   
+        
         public override async Task<UpdateFileResponse> UpdateFile(IAsyncStreamReader<UpdateFileRequest> requestStream, ServerCallContext context)
         {
             try
@@ -102,6 +141,7 @@ namespace NodeServer.Services
                 }
                 else
                 {
+                    context.Status = new Status(StatusCode.NotFound, "File not found");
                     return new UpdateFileResponse { Status = false, Message = "Unable to update file: The file isn't saved on the machine" };
                 }
 
@@ -110,6 +150,7 @@ namespace NodeServer.Services
             }
             catch (Exception ex)
             {
+                context.Status = new Status(StatusCode.Internal, $"Error updating the file: {ex.Message}");
                 return new UpdateFileResponse { Status = false, Message = $"Error updating the file: {ex.Message}" };
             }
         }
@@ -138,6 +179,7 @@ namespace NodeServer.Services
             }
             catch (Exception ex)
             {
+                context.Status = new Status(StatusCode.Internal, $"Error downloading the file: {ex.Message}");
                 await responseStream.WriteAsync(new DownloadFileResponse { Status = false, Message = $"Error downloading the file: {ex.Message}", FileContent = ByteString.Empty });
                 return;
             }
@@ -155,6 +197,7 @@ namespace NodeServer.Services
             }
             catch (Exception ex)
             {
+                context.Status = new Status(StatusCode.Internal, $"Error deleting the file: {ex.Message}");
                 return Task.FromResult(new DeleteFileResponse { Status = false, Message = $"Error deleting the file: {ex.Message}" });
             }
 

@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nnode.proto\"o\n\x11UploadFileRequest\x12\x0f\n\x07\x66ile_id\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12\x14\n\x0c\x66ile_content\x18\x03 \x01(\x0c\x12%\n\x1dservers_addresses_where_saved\x18\x04 \x03(\t\"5\n\x12UploadFileResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"9\n\x11UpdateFileRequest\x12\x0f\n\x07\x66ile_id\x18\x01 \x01(\t\x12\x13\n\x0bnew_content\x18\x02 \x01(\x0c\"5\n\x12UpdateFileResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"&\n\x13\x44ownloadFileRequest\x12\x0f\n\x07\x66ile_id\x18\x01 \x01(\t\"^\n\x14\x44ownloadFileResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x12\x14\n\x0c\x66ile_content\x18\x02 \x01(\x0c\x12\x14\n\x07message\x18\x03 \x01(\tH\x00\x88\x01\x01\x42\n\n\x08_message\"$\n\x11\x44\x65leteFileRequest\x12\x0f\n\x07\x66ile_id\x18\x01 \x01(\t\"5\n\x12\x44\x65leteFileResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t2\xf6\x01\n\x0cNodeServices\x12\x37\n\nUploadFile\x12\x12.UploadFileRequest\x1a\x13.UploadFileResponse(\x01\x12\x37\n\nUpdateFile\x12\x12.UpdateFileRequest\x1a\x13.UpdateFileResponse(\x01\x12=\n\x0c\x44ownloadFile\x12\x14.DownloadFileRequest\x1a\x15.DownloadFileResponse0\x01\x12\x35\n\nDeleteFile\x12\x12.DeleteFileRequest\x1a\x13.DeleteFileResponseB\x11\xaa\x02\x0eGrpcNodeServerb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nnode.proto\"o\n\x11UploadFileRequest\x12\x0f\n\x07\x66ile_id\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12\x14\n\x0c\x66ile_content\x18\x03 \x01(\x0c\x12%\n\x1dservers_addresses_where_saved\x18\x04 \x03(\t\"R\n\x12UploadFileResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x1b\n\x13unreachable_servers\x18\x03 \x03(\t\"9\n\x11UpdateFileRequest\x12\x0f\n\x07\x66ile_id\x18\x01 \x01(\t\x12\x13\n\x0bnew_content\x18\x02 \x01(\x0c\"5\n\x12UpdateFileResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"&\n\x13\x44ownloadFileRequest\x12\x0f\n\x07\x66ile_id\x18\x01 \x01(\t\"^\n\x14\x44ownloadFileResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x12\x14\n\x0c\x66ile_content\x18\x02 \x01(\x0c\x12\x14\n\x07message\x18\x03 \x01(\tH\x00\x88\x01\x01\x42\n\n\x08_message\"$\n\x11\x44\x65leteFileRequest\x12\x0f\n\x07\x66ile_id\x18\x01 \x01(\t\"5\n\x12\x44\x65leteFileResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t2\xf6\x01\n\x0cNodeServices\x12\x37\n\nUploadFile\x12\x12.UploadFileRequest\x1a\x13.UploadFileResponse(\x01\x12\x37\n\nUpdateFile\x12\x12.UpdateFileRequest\x1a\x13.UpdateFileResponse(\x01\x12=\n\x0c\x44ownloadFile\x12\x14.DownloadFileRequest\x1a\x15.DownloadFileResponse0\x01\x12\x35\n\nDeleteFile\x12\x12.DeleteFileRequest\x1a\x13.DeleteFileResponseB\x11\xaa\x02\x0eGrpcNodeServerb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -25,19 +25,19 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_UPLOADFILEREQUEST']._serialized_start=14
   _globals['_UPLOADFILEREQUEST']._serialized_end=125
   _globals['_UPLOADFILERESPONSE']._serialized_start=127
-  _globals['_UPLOADFILERESPONSE']._serialized_end=180
-  _globals['_UPDATEFILEREQUEST']._serialized_start=182
-  _globals['_UPDATEFILEREQUEST']._serialized_end=239
-  _globals['_UPDATEFILERESPONSE']._serialized_start=241
-  _globals['_UPDATEFILERESPONSE']._serialized_end=294
-  _globals['_DOWNLOADFILEREQUEST']._serialized_start=296
-  _globals['_DOWNLOADFILEREQUEST']._serialized_end=334
-  _globals['_DOWNLOADFILERESPONSE']._serialized_start=336
-  _globals['_DOWNLOADFILERESPONSE']._serialized_end=430
-  _globals['_DELETEFILEREQUEST']._serialized_start=432
-  _globals['_DELETEFILEREQUEST']._serialized_end=468
-  _globals['_DELETEFILERESPONSE']._serialized_start=470
-  _globals['_DELETEFILERESPONSE']._serialized_end=523
-  _globals['_NODESERVICES']._serialized_start=526
-  _globals['_NODESERVICES']._serialized_end=772
+  _globals['_UPLOADFILERESPONSE']._serialized_end=209
+  _globals['_UPDATEFILEREQUEST']._serialized_start=211
+  _globals['_UPDATEFILEREQUEST']._serialized_end=268
+  _globals['_UPDATEFILERESPONSE']._serialized_start=270
+  _globals['_UPDATEFILERESPONSE']._serialized_end=323
+  _globals['_DOWNLOADFILEREQUEST']._serialized_start=325
+  _globals['_DOWNLOADFILEREQUEST']._serialized_end=363
+  _globals['_DOWNLOADFILERESPONSE']._serialized_start=365
+  _globals['_DOWNLOADFILERESPONSE']._serialized_end=459
+  _globals['_DELETEFILEREQUEST']._serialized_start=461
+  _globals['_DELETEFILEREQUEST']._serialized_end=497
+  _globals['_DELETEFILERESPONSE']._serialized_start=499
+  _globals['_DELETEFILERESPONSE']._serialized_end=552
+  _globals['_NODESERVICES']._serialized_start=555
+  _globals['_NODESERVICES']._serialized_end=801
 # @@protoc_insertion_point(module_scope)

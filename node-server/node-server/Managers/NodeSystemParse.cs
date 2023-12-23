@@ -63,18 +63,18 @@ namespace NodeServer.Managers
             return this._numOfFilesInSystem * NodeSystemParse._fileSize < NodeSystemParse._systemSize;
         }
 
-        public void addFile(string fileId, List<string> locations)
+        public void addFile(string fileID, List<string> locations)
         {
-            this._locations[fileId] = locations;
+            this._locations[fileID] = locations;
             this._numOfFilesInSystem++;
             TextWriter tsw = new StreamWriter(NodeSystemParse._fileName, true);
-            tsw.WriteLine(fileId + "," + String.Join(",", locations.ToArray()));
+            tsw.WriteLine(fileID + "," + String.Join(",", locations.ToArray()));
             tsw.Close();
         }
 
-        public void removeFile(string fileId)
+        public void removeFile(string fileID)
         {
-            this._locations.Remove(fileId);
+            this._locations.Remove(fileID);
             this._numOfFilesInSystem--;
             File.WriteAllText(NodeSystemParse._fileName, "");
             foreach (KeyValuePair<string, List<string>> entry in this._locations)
@@ -105,9 +105,9 @@ namespace NodeServer.Managers
             }
         }
 
-        public bool filExists(string fileId)
+        public bool filExists(string fileID)
         {
-            return this._locations.ContainsKey(fileId);
+            return this._locations.ContainsKey(fileID);
         }
     }
 }

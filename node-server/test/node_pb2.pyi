@@ -18,12 +18,14 @@ class UploadFileRequest(_message.Message):
     def __init__(self, file_id: _Optional[str] = ..., type: _Optional[str] = ..., file_content: _Optional[bytes] = ..., servers_addresses_where_saved: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class UploadFileResponse(_message.Message):
-    __slots__ = ("status", "message")
+    __slots__ = ("status", "message", "unreachable_servers")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    UNREACHABLE_SERVERS_FIELD_NUMBER: _ClassVar[int]
     status: bool
     message: str
-    def __init__(self, status: bool = ..., message: _Optional[str] = ...) -> None: ...
+    unreachable_servers: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, status: bool = ..., message: _Optional[str] = ..., unreachable_servers: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class UpdateFileRequest(_message.Message):
     __slots__ = ("file_id", "new_content")
