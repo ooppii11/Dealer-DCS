@@ -22,25 +22,6 @@ services:
             system-net:
                 ipv4_address: "172.18.0.2"
         command: ["postgres", "-c", "listen_addresses=*"]
-        
-    cloud_server:
-        image: cloud_server:0.1
-        container_name: cloud_server-container
-        ports:
-        - "50053:50053"
-        expose:
-        - "50053"
-        environment:
-        - NODES_IPS="172.18.0.4:172.18.0.5:172.18.0.6"
-        restart: always
-        depends_on:
-            - "db_server"
-            - "node_server"
-            - "node_server2"
-            - "node_server3"
-        networks:
-            system-net:
-                ipv4_address: "172.18.0.3"
      
     node_server:
         image: node_server:0.1
@@ -50,7 +31,7 @@ services:
         expose:
         - "50052"
         environment:
-        - NODE_SERVER_IP="172.18.0.4"
+        - NODE_SERVER_IP=172.18.0.4
         depends_on:
             - "db_server"
         restart: always
@@ -65,10 +46,10 @@ services:
         expose:
         - "50052"
         environment:
-        - NODE_SERVER_IP="172.18.0.5"
+        - NODE_SERVER_IP=172.18.0.5
         networks:
             system-net:
-                ipv4_address: "172.18.0.5"    
+                ipv4_address: "172.18.0.5"  
         
     node_server3:
         image: node_server:0.1
@@ -77,7 +58,26 @@ services:
         expose:
         - "50052"
         environment:
-        - NODE_SERVER_IP="172.18.0.6"
+        - NODE_SERVER_IP=172.18.0.6
         networks:
             system-net:
-                ipv4_address: "172.18.0.6"    
+                ipv4_address: "172.18.0.6"
+
+    cloud_server:
+        image: cloud_server:0.1
+        container_name: cloud_server-container
+        ports:
+        - "50053:50053"
+        expose:
+        - "50053"
+        environment:
+        - NODES_IPS=172.18.0.4:172.18.0.5:172.18.0.6
+        restart: always
+        depends_on:
+            - "db_server"
+            - "node_server"
+            - "node_server2"
+            - "node_server3"
+        networks:
+            system-net:
+                ipv4_address: "172.18.0.3"            

@@ -12,7 +12,24 @@ namespace cloud_server.Managers
         public FilesManager(FileMetadataDB db, NodeServerCommunication[] nodes)
         {
             this._db = db;
-            _nodes = nodes;
+            this._nodes = nodes;
+        }
+
+        public FilesManager(FileMetadataDB db)
+        {
+            this._db = db;
+            string servers = Environment.GetEnvironmentVariable("NODES_IPS");
+            if(servers == null)
+            {
+                servers = "localhost:localhost:localhost";
+            }
+            List<string> serversAddresses = servers.Split(":").ToList();
+            List<NodeServerCommunication> nodeServerCommunication = new List<NodeServerCommunication>();
+            foreach (string server in serversAddresses)
+            {
+                nodeServerCommunication.Add(new NodeServerCommunication($"http://{server}:50052"));
+            }
+            this._nodes = nodeServerCommunication.ToArray();
         }
 
         public async Task uploadFile(int userid, string filename, string type, long size, byte[] fileData)
@@ -57,15 +74,14 @@ namespace cloud_server.Managers
             return await this._nodes[0].DownloadFile($"{fileId}");
         }
          
+        
 
         private Location getLocation()
         {
             // decide where to save the file
             // Not implomented
-            // string servers = "172.18.0.4:172.18.0.5:172.18.0.6"; //Environment.GetEnvironmentVariable("NODES_IPS");
-            // string[] <> = servers.Split()
-            // List<string> <> = servers.Split().ToList()
             return new Location("172.18.0.4", "172.18.0.5", "172.18.0.6");
+
         }
     }
 }

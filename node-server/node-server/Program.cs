@@ -43,8 +43,8 @@ public class Program
             .ConfigureWebHostDefaults(webBuilder =>
             {
                 webBuilder.UseStartup<Startup>();
-                webBuilder.UseUrls("http://localhost:50052");
-                //webBuilder.UseUrls("http://0.0.0.0:50052");
+                //webBuilder.UseUrls("http://localhost:50052");
+                webBuilder.UseUrls("http://0.0.0.0:50052");
 
                 /*
                 webBuilder.ConfigureKestrel(options =>

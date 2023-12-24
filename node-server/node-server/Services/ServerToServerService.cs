@@ -37,7 +37,6 @@ namespace NodeServer.Services
                         otherNodeServersAddresses.Add(serverAddress);
                     }
                 }
-                otherNodeServersAddresses.Remove(this._serverIP);
 
                 if (!this._system.filExists(fileName))
                 {

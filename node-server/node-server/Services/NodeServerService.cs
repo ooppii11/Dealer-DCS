@@ -10,8 +10,7 @@ namespace NodeServer.Services
     {
         private FileSaving _microservice;
         private NodeSystemParse _system;
-        //private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
-        private readonly string _serverIP = "testing";
+        private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
         //logFileInfo 
         public NodeServerService(FileSaving micro, NodeSystemParse sys)
         {
@@ -43,12 +42,14 @@ namespace NodeServer.Services
                         otherNodeServersAddresses.Add(serverAddress);
                     }
                 }
-                otherNodeServersAddresses.Remove(this._serverIP);
+                
 
                 if (!this._system.filExists(fileID))
                 {
                     await this._microservice.uploadFile(fileID, fileData.ToArray(), type);
-                    this._system.addFile(fileID, otherNodeServersAddresses);
+                    List<string> serverList = otherNodeServersAddresses;
+                    serverList.Remove(this._serverIP);
+                    this._system.addFile(fileID, serverList);
                     foreach (string serverAddress in otherNodeServersAddresses)
                     {                
                         try
