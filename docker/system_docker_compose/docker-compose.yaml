@@ -32,6 +32,7 @@ services:
         - "50052"
         environment:
         - NODE_SERVER_IP=172.18.0.4
+        - REGION_ID=USA
         depends_on:
             - "db_server"
         restart: always
@@ -47,6 +48,7 @@ services:
         - "50052"
         environment:
         - NODE_SERVER_IP=172.18.0.5
+        - REGION_ID=UK
         networks:
             system-net:
                 ipv4_address: "172.18.0.5"  
@@ -59,6 +61,7 @@ services:
         - "50052"
         environment:
         - NODE_SERVER_IP=172.18.0.6
+        - REGION_ID=Asia
         networks:
             system-net:
                 ipv4_address: "172.18.0.6"
