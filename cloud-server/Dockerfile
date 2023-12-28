@@ -14,6 +14,7 @@ RUN dotnet restore "./cloud-server.csproj"
 COPY . .
 WORKDIR "/src/."
 RUN rm -f DB/tables.sql
+RUN rm  ./entrypoint.sh
 RUN dotnet build "cloud-server.csproj" -c Release -o /app/build
 
 FROM build AS publish
@@ -23,7 +24,12 @@ FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 COPY DB/tables.sql DB/tables.sql
-ENTRYPOINT ["dotnet", "cloud-server.dll"]
+
+
+COPY entrypoint.sh .
+RUN chmod +x ./entrypoint.sh
+
+ENTRYPOINT ["./entrypoint.sh"]
 
 
 #docker build -t cloud_server:0.1 .
