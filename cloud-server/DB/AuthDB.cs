@@ -88,7 +88,7 @@ public class AuthDB
 
     public User GetUser(string username, string password)
     {
-        string id = "";
+        int id = 0;
         string email = "";
         string phoneNumber = "";
         string query = @"
@@ -108,7 +108,7 @@ public class AuthDB
                     if (reader.HasRows) 
                     {
                         reader.Read();
-                        id = reader[0].ToString();
+                        id = Int32.Parse(reader[0].ToString());
                         email = reader[1].ToString();
                         phoneNumber = reader[2].ToString();
                     }

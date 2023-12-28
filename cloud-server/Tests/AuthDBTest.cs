@@ -5,7 +5,7 @@ public class AuthDBTest
     static void Main(string[] args)
     {
 
-        AuthDB db = new AuthDB("./DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres");
+        AuthDB db = new AuthDB("tables.sql", "172.18.0.2", "dBserver", "5432", "123AvIt456", "mydatabase");
 
         try
         {
@@ -17,6 +17,6 @@ public class AuthDBTest
         catch { }
 
     }
-}*/
-
+}
+*/
 
