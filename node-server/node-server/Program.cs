@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-
+/*
 
 public class Startup
 {
@@ -57,11 +57,11 @@ public class Program
 
                     options.Listen(IPAddress.Parse(ipAddress), port);
                 });
-                */
+                *//*
             })
             .ConfigureLogging(logging =>
             {
                 logging.ClearProviders(); 
                 logging.AddConsole();
             });
-}
+}*/
