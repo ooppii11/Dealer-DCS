@@ -1,16 +1,20 @@
 syntax = "proto3";
+import "google/protobuf/timestamp.proto";
 
 option csharp_namespace = "GrpcRaft";
 
 
 message LogEntry{
-	int32  term =1;
-	/*prev_log_index
-	prev_term
-	term
-	log_index
-	log_hash
-	data*/
+	
+	int32 prevLogIndex = 1;
+	int32 prevTerm = 2;
+	int32  term = 3;
+	int32 logIndex = 4;
+	google.protobuf.Timestamp timestamp = 5;
+	string operation = 6; 
+	string operationData = 7; 
+
+	string operationInputs = 8;
 }
 
 
