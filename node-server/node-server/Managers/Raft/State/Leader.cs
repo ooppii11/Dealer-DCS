@@ -1,16 +1,22 @@
 ﻿using System;
 using System.Timers;
+using Grpc.Core;
 using GrpcRaft;
-namespace node_server.Managers.Raft.State
+namespace node_server.Managers.Raft.States
 {
     public class Leader: State
     {
         private AppendEntriesRequest lastHeartbeatMessage;
         private System.Timers.Timer _timer;
-        private LogEntry lastLogEntry; 
+        private LogEntry lastLogEntry;
+        private bool _changeState;
+        private ManualResetEvent _stateChangeEvent;
+
         public Leader(RaftSettings raftSettings, Log logger):
             base(raftSettings, logger)
         {
+            this._changeState = false;
+            this._stateChangeEvent = new ManualResetEvent(false);
             this.lastHeartbeatMessage = new AppendEntriesRequest();
             // set lastHeartbeatMessage with defult values:
         }
@@ -23,16 +29,18 @@ namespace node_server.Managers.Raft.State
                 this._timer.Dispose();
             }
         }
-       
-        public void StartLeader()
+
+        public override Raft.StatesCode Start()
         {
             this._timer = new System.Timers.Timer();
-            this._timer.Interval = 150; 
-            this._timer.Elapsed += OnHeartBeatTimerElapsed; 
-            this._timer.AutoReset = true; // Timer will automatically restart
-
+            this._timer.Interval = 150;
+            this._timer.Elapsed += OnHeartBeatTimerElapsed;
+            this._timer.AutoReset = true;
             // Start the timer
-            this._timer.Start();            
+            this._timer.Start();
+
+            this._stateChangeEvent.WaitOne();
+            return Raft.StatesCode.Candidate;
         }
         private void OnHeartBeatTimerElapsed(object sender, ElapsedEventArgs e)
         {
@@ -61,18 +69,20 @@ namespace node_server.Managers.Raft.State
             }*/
         }
 
-        public void OnReceiveVoteRequest(RequestVoteRequest request)
+        public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
-            if(request.LastLogIndex > this._logger.GetLastLogEntry().Index)
+            if (request.LastLogIndex > this._logger.GetLastLogEntry().Index)
             {
-                //send to canidte good vote;
-                //leader die
+                return true;
             }
             else
             {
-                //denie canidiat request and return bad vote;
+                this._stateChangeEvent.Set();
+                throw new Exception("change from leader to follower");
             }
         }
+
+        
         public void OnReceiveAppendEntriesResponse(AppendEntriesResponse response)
         {
             if(response.Success)
@@ -91,5 +101,14 @@ namespace node_server.Managers.Raft.State
              // re send append entry request
             }
         }
+        public override AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
+        {
+            return new AppendEntriesResponse();
+        }
+        public override InstallSnapshotResponse OnReceiveInstallSnapshotRequestRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
+        { 
+            return new InstallSnapshotResponse();
+        }
+
     }
 }

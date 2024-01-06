@@ -1,23 +1,39 @@
-﻿using GrpcRaft;
+﻿using Grpc.Core;
+using GrpcRaft;
 
-namespace node_server.Managers.Raft.State
+namespace node_server.Managers.Raft.States
 {
     public class Follower: State
     {
-        public Follower(RaftSettings settings) :
-            base(settings)
-        { 
+        private bool _changeState;
+        private ManualResetEvent _stateChangeEvent;
+
+        public Follower(RaftSettings settings, Log logger) :
+            base(settings, logger)
+        {
+            this._changeState = false;
+            this._stateChangeEvent = new ManualResetEvent(false);
+        }
+        public override Raft.StatesCode Start()
+        {
+            this._stateChangeEvent.WaitOne();
+            return Raft.StatesCode.Candidate;
         }
 
-        public AppendEntriesResponse AppendEntries(AppendEntriesRequest request)
+        public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
-           // save log if need
-           // commit if need
-           // return response
+            return true;
+        }
+        public override AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
+        {
+           //if unvalid leader:  this._stateChangeEvent.Set();
             return new AppendEntriesResponse();
         }
-        // public OnReceiveVoteRequest()
+        public override InstallSnapshotResponse OnReceiveInstallSnapshotRequestRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
+        {
+            //if unvalid leader:  this._stateChangeEvent.Set();
+            return new InstallSnapshotResponse();
+        }
 
-        // public OnReceiveAppendEntries()
     }
 }

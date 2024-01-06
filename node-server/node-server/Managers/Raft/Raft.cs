@@ -1,4 +1,5 @@
-﻿namespace node_server.Managers.Raft
+﻿using node_server.Managers.Raft.States;
+namespace node_server.Managers.Raft
 {
     public class Raft
     {
@@ -8,65 +9,59 @@
             Candidate,
             Leader
         }
-        private StatesCode _currentState;
+        private StatesCode _currentStateCode;
+        private State _state;
+        private RaftSettings _settings;
+        private Log _logger;
 
-        //private RaftSettings _settings;
-        //  private Log _logger;
-
-        public StatesCode RaftStateCode 
+        public StatesCode RaftStateCode
         {
-            get { return _currentState; }
+            get { return _currentStateCode; }
         }
-       
-        public Raft(/*RaftSettings settings*/)
+        public State State { get { return _state; } }
+        public RaftSettings Settings { get { return this._settings; } }
+
+        public Raft(RaftSettings settings)
         {
-            this._currentState = StatesCode.Follower;
-           // this._settings = settings;
+            this._currentStateCode = StatesCode.Follower;
+            this._settings = settings;
            // this._logger(settings.loggerPath);
         }
 
-        public void start()
+        public void Start()
         {
-            this.run();
+            Thread thread = new Thread(new ThreadStart(Run));
+            thread.Start();
         }
 
-        private void run()
+        private void Run()
         {
             while (true)
             {
-                if (this._currentState == StatesCode.Follower)
+                if (this._state == null)
                 {
-                    this.followerSatate();
-                    this._currentState = StatesCode.Candidate;
-                }
-                if (this._currentState == StatesCode.Candidate)
-                {
-                    if (this.caniddate())
+                    if (this._currentStateCode == StatesCode.Follower)
                     {
-                        this._currentState = StatesCode.Leader;
-                        this.leaderState();
+                        this._state = new Follower(this._settings, this._logger);
+                        this._state.Start();
+
+                        this._state = null;
+                        this._currentStateCode = StatesCode.Candidate;
+                    }
+                    else if (this._currentStateCode == StatesCode.Candidate)
+                    {
+                        this._state = new Candidate(this._settings, this._logger);
+                        this._currentStateCode = this._state.Start();
+                        this._state = null;
+                    }
+                    else if (this._currentStateCode == StatesCode.Leader)
+                    {
+                        this._state = new Leader(this._settings, this._logger);
+                        this._state.Start();
+                        this._state = null;
                     }
                 }
             }    
-        }
-
-        private bool caniddate()
-        {
-            //Caniddate caniddate();
-            //return caniddate.StartElction();
-            return false;
-        }
-
-        private void leaderState()
-        {
-            //Leader leader();
-            //ledaer.Start();
-        }
-
-        private void followerSatate()
-        {
-            //Follower follower();
-            //follower.Start();
         }
     }
 }

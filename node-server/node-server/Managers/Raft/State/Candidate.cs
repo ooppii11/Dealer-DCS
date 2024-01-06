@@ -1,6 +1,7 @@
-﻿using GrpcRaft;
+﻿using Grpc.Core;
+using GrpcRaft;
 
-namespace node_server.Managers.Raft.State
+namespace node_server.Managers.Raft.States
 {
     public class Candidate : State
     {
@@ -11,14 +12,19 @@ namespace node_server.Managers.Raft.State
             this._alradyVote = false;
         }
 
-        public bool StartElection()
+        public override Raft.StatesCode Start()
+        {            
+            return (elcted)? Raft.StatesCode.Candidate: Raft.StatesCode.Leader;
+        }
+
+        private bool StartElection()
         {
+            bool elcted = false;
             // for(ip:this._settings.ips)
             // {
             // ip.sendrequestVote(this.RequestVote())
             // }
-
-            return false;
+            return elcted;
         }
         public RequestVoteRequest RequestVote()
         {
@@ -34,7 +40,7 @@ namespace node_server.Managers.Raft.State
             return request;
         }
 
-        public bool OnReceiveVoteResponse(RequestVoteRequest request)
+        public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
             if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex)
             {
@@ -48,7 +54,15 @@ namespace node_server.Managers.Raft.State
             return true;
         }
 
-        //public  OnReceiveAppendEntriesResponse()
+
+        public override AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
+        {
+            return new AppendEntriesResponse();
+        }
+        public override InstallSnapshotResponse OnReceiveInstallSnapshotRequestRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
+        {
+            return new InstallSnapshotResponse();
+        }
 
     }
 }
