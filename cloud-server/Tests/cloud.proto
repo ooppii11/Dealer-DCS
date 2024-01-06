@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "google/protobuf/timestamp.proto";
 
 option csharp_namespace = "GrpcCloud";
 
@@ -9,50 +10,111 @@ enum Status {
     FAILURE = 1;
 }
 
+message FileMetadata{
+	string filename = 1;
+	string type = 2;
+	int32 size = 4;
+	google.protobuf.Timestamp creationDate = 5;
+    google.protobuf.Timestamp  lastModified = 6;
+}
 
-message loginRequest {
+message LoginRequest {
 	string username = 1;
     string password = 2;
 }
 
-
-message loginResponse {
+message LoginResponse {
 	Status status = 1;
 	string sessionId = 2;
 }
 
-
-message signupRequest {
+message SignupRequest {
 	string username = 1;
     string password = 2;
 	string email = 3;
 	string phoneNumber = 4;
-
 }
 
-
-message signupResponse {
-	
-  
+message SignupResponse {
   Status status = 1;
   string message = 2;
-
 }
 
-
-message logoutRequest {
+message LogoutRequest {
 	string sessionId = 1;
 }
 
-
-message logoutResponse {
+message LogoutResponse {
 
 }
 
+message UploadFileRequest {
+	string sessionId = 1;
+    string fileName = 2;
+    string type = 3;
+    bytes fileData = 4;
+}
+
+message UploadFileResponse {
+	Status status = 1;
+	string message = 2;
+}
+
+message DownloadFileRequest {
+	string sessionId = 1;
+	string fileName = 2;
+}
+
+message DownloadFileResponse {
+	Status status = 1;
+	string message = 2;
+	bytes fileData = 3;
+}
+
+message DeleteFileRequest {
+	string sessionId = 1;
+    string fileName = 2;
+}
+
+message DeleteFileResponse {
+	Status status = 1;
+	string message = 2;
+}
+
+message GetListOfFilesRequest{
+	string sessionId = 1; 
+}
+
+message GetListOfFilesResponse {
+    Status status = 1;
+    string message = 2;
+    repeated FileMetadata files = 3;
+}
+
+message GetFileMetadataRequest{
+	string sessionId = 1;
+    string fileName = 2;
+}
+
+message GetFileMetadataResponse{
+	Status status = 1;
+	string message = 2;
+	FileMetadata file = 3;
+}
 
 service Cloud {
-	rpc login(loginRequest) returns (loginResponse);
-	rpc signup(signupRequest) returns (signupResponse);
-	rpc logout(logoutRequest) returns (logoutResponse);
 
+	// Auth:
+	rpc login(LoginRequest) returns (LoginResponse);
+	rpc signup(SignupRequest) returns (SignupResponse);
+	rpc logout(LogoutRequest) returns (LogoutResponse);
+	
+	// Metadata:
+	rpc getListOfFiles(GetListOfFilesRequest) returns(GetListOfFilesResponse);
+	rpc getFileMetadata(GetFileMetadataRequest) returns(GetFileMetadataResponse) ;
+
+	// File methods:
+	rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse);
+    rpc DownloadFile(DownloadFileRequest) returns (stream DownloadFileResponse);
+    rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
 }

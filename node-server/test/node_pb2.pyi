@@ -1,30 +1,31 @@
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Optional as _Optional
+from typing import ClassVar as _ClassVar, Iterable as _Iterable, Optional as _Optional
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class UploadFileRequest(_message.Message):
-    __slots__ = ("file_id", "type", "file_content", "SecondReplicationPlace", "ThirdReplicationPlace")
+    __slots__ = ("file_id", "type", "file_content", "servers_addresses_where_saved")
     FILE_ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     FILE_CONTENT_FIELD_NUMBER: _ClassVar[int]
-    SECONDREPLICATIONPLACE_FIELD_NUMBER: _ClassVar[int]
-    THIRDREPLICATIONPLACE_FIELD_NUMBER: _ClassVar[int]
+    SERVERS_ADDRESSES_WHERE_SAVED_FIELD_NUMBER: _ClassVar[int]
     file_id: str
     type: str
     file_content: bytes
-    SecondReplicationPlace: str
-    ThirdReplicationPlace: str
-    def __init__(self, file_id: _Optional[str] = ..., type: _Optional[str] = ..., file_content: _Optional[bytes] = ..., SecondReplicationPlace: _Optional[str] = ..., ThirdReplicationPlace: _Optional[str] = ...) -> None: ...
+    servers_addresses_where_saved: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, file_id: _Optional[str] = ..., type: _Optional[str] = ..., file_content: _Optional[bytes] = ..., servers_addresses_where_saved: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class UploadFileResponse(_message.Message):
-    __slots__ = ("status", "message")
+    __slots__ = ("status", "message", "unreachable_servers")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    UNREACHABLE_SERVERS_FIELD_NUMBER: _ClassVar[int]
     status: bool
     message: str
-    def __init__(self, status: bool = ..., message: _Optional[str] = ...) -> None: ...
+    unreachable_servers: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, status: bool = ..., message: _Optional[str] = ..., unreachable_servers: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class UpdateFileRequest(_message.Message):
     __slots__ = ("file_id", "new_content")

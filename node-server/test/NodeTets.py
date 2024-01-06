@@ -10,7 +10,7 @@ def main():
     channel = grpc.insecure_channel('localhost:50052')
     stub = node_pb2_grpc.NodeServicesStub(channel)
     try:
-        upload_file_request = node_pb2.UploadFileRequest(file_id=FILE_NAME, file_content=FILE_DATA.encode(), type=FILE_TYPE, SecondReplicationPlace='place2', ThirdReplicationPlace='place3')
+        upload_file_request = node_pb2.UploadFileRequest(file_id=FILE_NAME, file_content=FILE_DATA.encode(), type=FILE_TYPE, servers_addresses_where_saved=["localhost", "localhost", "localhost"])
         upload_file_response = stub.UploadFile(iter([upload_file_request]))
         print(f'UploadFileResponse: {upload_file_response.message}')
         """
@@ -25,10 +25,11 @@ def main():
         for response in download_file_response:
             print(f'DownloadFileResponse: {response.file_content.decode()}')
         #print(f'DownloadFileResponse: {download_file_response.message}')
-
+        """
         delete_file_request = node_pb2.DeleteFileRequest(file_id=FILE_NAME)
         delete_file_response = stub.DeleteFile(delete_file_request)
         print(f'DeleteFileResponse: {delete_file_response.message}')
+        """
     except Exception as e:
         print(e)
     
@@ -36,3 +37,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+#python -m grpc_tools.protoc -I. --python_out=. --pyi_out=. --grpc_python_out=. node.proto

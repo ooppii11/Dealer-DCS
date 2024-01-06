@@ -12,6 +12,7 @@ public class Startup
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<FileSaving>(new FileSaving("127.0.0.1", 50051));
+        services.AddSingleton<NodeSystemParse>(new NodeSystemParse());
         services.AddGrpc(options =>
         {
             options.Interceptors.Add<ConnectionLoggerInterceptor>();
@@ -23,6 +24,7 @@ public class Startup
         app.UseRouting();
         app.UseEndpoints(endpoints =>
         {
+            endpoints.MapGrpcService<ServerToServerService>();
             endpoints.MapGrpcService<NodeServerService>();
             endpoints.MapGet("/", context => context.Response.WriteAsync("Communication with gRPC endpoints must be made through a gRPC client."));
         });

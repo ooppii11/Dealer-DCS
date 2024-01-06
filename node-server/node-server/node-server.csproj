@@ -14,8 +14,7 @@
 	<Protobuf Include="Protos\Raft.proto" GrpcServices="Server" />
 
 	<Protobuf Include="Protos\microservice_file_saving.proto" GrpcServices="Client" />
-	<Protobuf Include="Protos\Raft.proto" GrpcServices="Client" />
-
+	<Protobuf Include="Protos\ServerToServer.proto" GrpcServices="Both" />
   </ItemGroup>
 
   <ItemGroup>
