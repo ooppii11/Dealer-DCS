@@ -5,8 +5,8 @@ namespace node_server.Managers.Raft.State
     public class Candidate : State
     {
         bool _alradyVote;
-        public Candidate(RaftSettings settings) :
-            base(settings)
+        public Candidate(RaftSettings settings, Log logger) :
+            base(settings, logger)
         {
             this._alradyVote = false;
         }

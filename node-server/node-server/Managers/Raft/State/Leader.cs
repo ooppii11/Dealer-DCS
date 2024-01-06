@@ -8,8 +8,8 @@ namespace node_server.Managers.Raft.State
         private AppendEntriesRequest lastHeartbeatMessage;
         private System.Timers.Timer _timer;
         private LogEntry lastLogEntry; 
-        public Leader(RaftSettings raftSettings):
-            base(raftSettings)
+        public Leader(RaftSettings raftSettings, Log logger):
+            base(raftSettings, logger)
         {
             this.lastHeartbeatMessage = new AppendEntriesRequest();
             // set lastHeartbeatMessage with defult values:

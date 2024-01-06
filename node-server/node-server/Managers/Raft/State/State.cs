@@ -4,9 +4,10 @@
     {
         protected RaftSettings _settings;
         protected Log _logger;
-        public State(RaftSettings settings) 
+        public State(RaftSettings settings, Log logger) 
         {
-            _settings = settings;
+            this._settings = settings;
+            this._logger = logger;
         }
     }
 }
