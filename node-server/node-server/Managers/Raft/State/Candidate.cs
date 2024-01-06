@@ -14,7 +14,7 @@ namespace node_server.Managers.Raft.States
 
         public override Raft.StatesCode Start()
         {            
-            return (elcted)? Raft.StatesCode.Candidate: Raft.StatesCode.Leader;
+            return (StartElection()) ? Raft.StatesCode.Candidate: Raft.StatesCode.Leader;
         }
 
         private bool StartElection()
