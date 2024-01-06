@@ -1,4 +1,7 @@
-﻿namespace node_server.Managers.Raft
+﻿using System;
+using static System.Net.Mime.MediaTypeNames;
+
+namespace node_server.Managers.Raft
 {
     public class Log
     {
@@ -9,30 +12,42 @@
             this._logFilePath = logFilePath;
         }
 
-        public void AppendEntry(/*LogEntry entry*/)
+        public void AppendEntry(LogEntry entry)
         {
-            /*
-             *open file
-               write last line entry.ToString();
-             */
+            List<string> fileContent = new List<string>();
+            if (File.Exists(this._logFilePath))
+            {
+                fileContent = File.ReadAllLines(this._logFilePath).ToList();
+            }
+            fileContent.Add(entry.ToString());
+            File.WriteAllLines(this._logFilePath, fileContent);
         }
 
         public void CommitEntry(int index)
         {
-            /*
-             open log file
-            add commit sign
-             */
+            string logLine = "";
+            string[] fileContent;
+            LogEntry entry;
+
+            fileContent = File.ReadAllLines(this._logFilePath);
+
+            logLine = fileContent[index];
+            entry = new LogEntry(logLine);
+            entry.SetCommit(true);
+            fileContent[index] = entry.ToString();
+
+            File.WriteAllLines(this._logFilePath, fileContent);
         }
 
         public LogEntry GetLastLogEntry() 
         {
-            /*
-             *open log file
-             *read last line to log entry
-             *return log entry
-             */
-            return new LogEntry();
+            string logLine = "";
+            LogEntry entry;
+
+            logLine = File.ReadLines(this._logFilePath).Last();
+            entry = new LogEntry(logLine);
+
+            return entry;
         }
 
     }
