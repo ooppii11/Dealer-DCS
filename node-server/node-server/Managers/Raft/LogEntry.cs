@@ -1,4 +1,4 @@
-﻿namespace node_server.Managers.Raft
+﻿namespace NodeServer.Managers.Raft
 {
     public class LogEntry
     {

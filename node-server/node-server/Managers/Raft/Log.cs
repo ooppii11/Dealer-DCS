@@ -1,7 +1,8 @@
 ﻿using System;
 using static System.Net.Mime.MediaTypeNames;
+using System.Collections.Generic;
 
-namespace node_server.Managers.Raft
+namespace NodeServer.Managers.Raft
 {
     public class Log
     {

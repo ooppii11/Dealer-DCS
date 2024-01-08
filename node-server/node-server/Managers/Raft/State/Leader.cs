@@ -2,7 +2,7 @@
 using System.Timers;
 using Grpc.Core;
 using GrpcRaft;
-namespace node_server.Managers.Raft.States
+namespace NodeServer.Managers.Raft.States
 {
     public class Leader: State
     {

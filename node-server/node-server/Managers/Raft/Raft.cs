@@ -1,5 +1,5 @@
-﻿using node_server.Managers.Raft.States;
-namespace node_server.Managers.Raft
+﻿using NodeServer.Managers.Raft.States;
+namespace NodeServer.Managers.Raft
 {
     public class Raft
     {
