@@ -1,5 +1,5 @@
 ﻿using Grpc.Core;
-using GrpcRaft;
+using GrpcServerToServer;
 
 namespace NodeServer.Managers.Raft.States
 {
@@ -15,7 +15,7 @@ namespace NodeServer.Managers.Raft.States
              
         }
 
-        public abstract Raft.StatesCode Start();
+        public abstract Task<Raft.StatesCode> Start();
         public abstract bool OnReceiveVoteRequest(RequestVoteRequest request);
         public abstract AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request);
         public abstract InstallSnapshotResponse OnReceiveInstallSnapshotRequestRequest(IAsyncStreamReader<InstallSnapshotRequest> request);

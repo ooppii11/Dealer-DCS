@@ -1,5 +1,7 @@
 ﻿syntax = "proto3";
 
+import "Protos/Raft.proto";
+
 option csharp_namespace = "GrpcServerToServer";
 
 
@@ -17,4 +19,7 @@ message PassFileResponse {
 
 service ServerToServer {
   rpc PassFile(stream PassFileRequest) returns (PassFileResponse);
+  rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse);
+  rpc AppendEntries(stream AppendEntriesRequest) returns (AppendEntriesResponse);
+  rpc InstallSnapshot(stream InstallSnapshotRequest) returns (InstallSnapshotResponse);
 }

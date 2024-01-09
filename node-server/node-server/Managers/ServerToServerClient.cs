@@ -63,5 +63,11 @@ namespace NodeServer.Managers
 
             }
         }
+
+        public async Task<RequestVoteResponse> sendNomination(RequestVoteRequest request)
+        {
+            var response = await client.RequestVoteAsync(request);
+            return response;
+        }
     }               
 }

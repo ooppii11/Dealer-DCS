@@ -1,30 +1,38 @@
 ﻿using Grpc.Core;
-using GrpcRaft;
+using GrpcServerToServer;
+using System.Runtime.CompilerServices;
 
 namespace NodeServer.Managers.Raft.States
 {
     public class Candidate : State
     {
-        bool _alradyVote;
         public Candidate(RaftSettings settings, Log logger) :
             base(settings, logger)
         {
-            this._alradyVote = false;
+            this._settings.VotedFor = 0;
         }
 
-        public override Raft.StatesCode Start()
-        {            
-            return (StartElection()) ? Raft.StatesCode.Candidate: Raft.StatesCode.Leader;
-        }
-
-        private bool StartElection()
+        public async override Task<Raft.StatesCode> Start()
         {
-            bool elcted = false;
-            // for(ip:this._settings.ips)
-            // {
-            // ip.sendrequestVote(this.RequestVote())
-            // }
-            return elcted;
+            ;
+            return (await StartElection()) ? Raft.StatesCode.Candidate : Raft.StatesCode.Leader;
+        }
+
+        private async Task<bool> StartElection()
+        {
+            int count = 1;
+            this._settings.CurrentTerm++;
+            this._settings.VotedFor = this._settings.ServerId;
+            foreach (string address in this._settings.ServersAddresses)
+            {
+                ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                RequestVoteResponse response = await s2s.sendNomination(this.RequestVote());
+                if (response.Vote)
+                {
+                    count++;
+                }
+            }
+            return this._settings.ServersAddresses.Count / 2 < count;
         }
         public RequestVoteRequest RequestVote()
         {
@@ -33,25 +41,28 @@ namespace NodeServer.Managers.Raft.States
             {
                 LastLogIndex = lastEntry.Index,
                 LastLogTerm = lastEntry.Term,
-                // CandidateId = this._settings.myId;
-                //Term = this._settings.currentTerm,
-
+                CandidateId = this._settings.ServerId,
+                Term = this._settings.CurrentTerm,
             };
             return request;
         }
 
         public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
-            if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex)
+            bool vote = false;
+            if (this._settings.VotedFor == 0)
             {
-                // cancel my elction and return true
+                vote = false;
             }
-            if (this._alradyVote)
+            else if (this._logger.GetLastLogEntry()._index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
             {
-                return false;
+                this._settings.CurrentTerm = request.Term;
+                this._settings.VotedFor = request.CandidateId;
+                vote = true;
+                //log action - vote for candidate - write current raft settings to log
             }
-            this._alradyVote = true;
-            return true;
+
+            return vote;
         }
 
 

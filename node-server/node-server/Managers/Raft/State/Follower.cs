@@ -1,5 +1,5 @@
 ﻿using Grpc.Core;
-using GrpcRaft;
+using GrpcServerToServer;
 
 namespace NodeServer.Managers.Raft.States
 {
@@ -14,7 +14,7 @@ namespace NodeServer.Managers.Raft.States
             this._changeState = false;
             this._stateChangeEvent = new ManualResetEvent(false);
         }
-        public override Raft.StatesCode Start()
+        public async override Task<Raft.StatesCode> Start()
         {
             this._stateChangeEvent.WaitOne();
             return Raft.StatesCode.Candidate;

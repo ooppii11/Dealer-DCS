@@ -34,7 +34,7 @@ namespace NodeServer.Managers.Raft
             thread.Start();
         }
 
-        private void Run()
+        private async void Run()
         {
             while (true)
             {
@@ -43,7 +43,7 @@ namespace NodeServer.Managers.Raft
                     if (this._currentStateCode == StatesCode.Follower)
                     {
                         this._state = new Follower(this._settings, this._logger);
-                        this._state.Start();
+                        await this._state.Start();
 
                         this._state = null;
                         this._currentStateCode = StatesCode.Candidate;
@@ -51,13 +51,13 @@ namespace NodeServer.Managers.Raft
                     else if (this._currentStateCode == StatesCode.Candidate)
                     {
                         this._state = new Candidate(this._settings, this._logger);
-                        this._currentStateCode = this._state.Start();
+                        this._currentStateCode = await this._state.Start();
                         this._state = null;
                     }
                     else if (this._currentStateCode == StatesCode.Leader)
                     {
                         this._state = new Leader(this._settings, this._logger);
-                        this._state.Start();
+                        await this._state.Start();
                         this._state = null;
                     }
                 }

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Timers;
 using Grpc.Core;
-using GrpcRaft;
+using GrpcServerToServer;
 namespace NodeServer.Managers.Raft.States
 {
     public class Leader: State
@@ -30,7 +30,7 @@ namespace NodeServer.Managers.Raft.States
             }
         }
 
-        public override Raft.StatesCode Start()
+        public async override Task<Raft.StatesCode> Start()
         {
             this._timer = new System.Timers.Timer();
             this._timer.Interval = 150;
@@ -71,15 +71,24 @@ namespace NodeServer.Managers.Raft.States
 
         public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
-            if (request.LastLogIndex > this._logger.GetLastLogEntry().Index)
+            bool vote = false;
+            if (this._settings.VotedFor == 0)
             {
-                return true;
+                vote = false;
+            }
+            else if (this._logger.GetLastLogEntry()._index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+            {
+                this._settings.CurrentTerm = request.Term;
+                this._settings.VotedFor = request.CandidateId;
+                vote = true;
+                //log action - vote for candidate - write current raft settings to log
             }
             else
             {
                 this._stateChangeEvent.Set();
                 throw new Exception("change from leader to follower");
             }
+            return vote;
         }
 
         
