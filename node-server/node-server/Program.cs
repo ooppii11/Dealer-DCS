@@ -1,11 +1,6 @@
 using NodeServer.Services;
 using NodeServer.Managers;
-using System.Net;
-using Microsoft.AspNetCore.Hosting.Server.Features;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-/*
+using NodeServer.Managers.Raft;
 
 public class Startup
 {
@@ -13,6 +8,8 @@ public class Startup
     {
         services.AddSingleton<FileSaving>(new FileSaving("127.0.0.1", 50051));
         services.AddSingleton<NodeSystemParse>(new NodeSystemParse());
+        services.AddSingleton<RaftSettings>(new RaftSettings());
+        services.AddSingleton<Log>(new Log(""));
         services.AddGrpc(options =>
         {
             options.Interceptors.Add<ConnectionLoggerInterceptor>();
@@ -59,11 +56,11 @@ public class Program
 
                     options.Listen(IPAddress.Parse(ipAddress), port);
                 });
-                *//*
+                */
             })
             .ConfigureLogging(logging =>
             {
                 logging.ClearProviders(); 
                 logging.AddConsole();
             });
-}*/
+}

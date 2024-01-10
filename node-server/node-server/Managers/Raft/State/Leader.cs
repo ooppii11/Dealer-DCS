@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using System.Timers;
 using Grpc.Core;
 using GrpcServerToServer;
@@ -11,14 +12,16 @@ namespace NodeServer.Managers.Raft.States
         private LogEntry lastLogEntry;
         private bool _changeState;
         private ManualResetEvent _stateChangeEvent;
+        private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
 
         public Leader(RaftSettings raftSettings, Log logger):
             base(raftSettings, logger)
         {
+            this._settings.VotedFor = 0;
             this._changeState = false;
             this._stateChangeEvent = new ManualResetEvent(false);
             this.lastHeartbeatMessage = new AppendEntriesRequest();
-            // set lastHeartbeatMessage with defult values:
+            // set lastHeartbeatMessage with default values:
         }
 
         ~Leader()
@@ -33,8 +36,10 @@ namespace NodeServer.Managers.Raft.States
         public async override Task<Raft.StatesCode> Start()
         {
             this._timer = new System.Timers.Timer();
-            this._timer.Interval = 150;
-            this._timer.Elapsed += OnHeartBeatTimerElapsed;
+            this._timer.Interval = this._settings.HeartbeatTimeout;
+            //this._timer.Elapsed += OnHeartBeatTimerElapsed;
+            //this._timer.Elapsed += (sender, e) => this.OnHeartBeatTimerElapsed(sender, e);  
+            this._timer.Elapsed += new ElapsedEventHandler(OnHeartBeatTimerElapsed);
             this._timer.AutoReset = true;
             // Start the timer
             this._timer.Start();
@@ -44,15 +49,21 @@ namespace NodeServer.Managers.Raft.States
         }
         private void OnHeartBeatTimerElapsed(object sender, ElapsedEventArgs e)
         {
-            this.SendHeartbeatResponse();
+            this.SendHeartbeatRequest();
         }
 
-        private void SendHeartbeatResponse()
+        private void SendHeartbeatRequest()
         {
-            /*for (follwer:this._settings.follwers)
+            foreach (string address in this._settings.ServersAddresses)
             {
-                follwer.sendAppenEntries(this.lastHeartbeatMessage);
-            }*/
+                if(address == this._serverIP)
+                {
+                    continue;
+                }
+                ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                //RequestVoteResponse response = await s2s.sendHeartBeat(/*function that returns the last heartbeat*/);
+            }
+            
         }
 
         public void AppendEntries()
@@ -114,7 +125,7 @@ namespace NodeServer.Managers.Raft.States
         {
             return new AppendEntriesResponse();
         }
-        public override InstallSnapshotResponse OnReceiveInstallSnapshotRequestRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
+        public override InstallSnapshotResponse OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
         { 
             return new InstallSnapshotResponse();
         }

@@ -70,7 +70,7 @@ namespace NodeServer.Managers.Raft.States
         {
             return new AppendEntriesResponse();
         }
-        public override InstallSnapshotResponse OnReceiveInstallSnapshotRequestRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
+        public override InstallSnapshotResponse OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
         {
             return new InstallSnapshotResponse();
         }

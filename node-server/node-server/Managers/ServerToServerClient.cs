@@ -69,5 +69,13 @@ namespace NodeServer.Managers
             var response = await client.RequestVoteAsync(request);
             return response;
         }
-    }               
+
+        public async Task<AppendEntriesResponse> sendHeartBeat(AppendEntriesRequest request)
+        {
+            //
+            var response = new AppendEntriesResponse();
+            return response;
+        }
+        //AppendEntries
+    }
 }

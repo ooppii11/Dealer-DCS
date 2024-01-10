@@ -1,5 +1,6 @@
 ﻿namespace NodeServer.Managers.Raft.RaftTests
 {
+    /*
     public class LoggerTest
     {
         static void Main(string[] args)
@@ -13,4 +14,5 @@
 
         }
     }
+    */
 }
