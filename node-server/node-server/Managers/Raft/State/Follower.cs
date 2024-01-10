@@ -15,12 +15,16 @@ namespace NodeServer.Managers.Raft.States
         {
             //this._changeState = false;
             this._stateChangeEvent = new ManualResetEvent(false);
+            this._settings.VotedFor = 0;
         }
 
         ~Follower()
         {
-            this._timer.Stop();
-            this._timer.Dispose();
+            if (this._timer != null)
+            {
+                this._timer.Stop();
+                this._timer.Dispose();
+            }
         }
 
         public async override Task<Raft.StatesCode> Start()
@@ -28,7 +32,6 @@ namespace NodeServer.Managers.Raft.States
             this._timer = new System.Timers.Timer();
             this._timer.Interval = this._settings.ElectionTimeout;
             this._timer.Elapsed += new ElapsedEventHandler(OnHeartBeatTimerElapsed);
-            this._timer.AutoReset = true;
             this._timer.Start();
             this._stateChangeEvent.WaitOne();
             return Raft.StatesCode.Candidate;
@@ -36,8 +39,11 @@ namespace NodeServer.Managers.Raft.States
 
         private void resetTimer()
         {
-            this._timer.Stop();
-            this._timer.Start();
+            if (this._timer != null)
+            {
+                this._timer.Stop();
+                this._timer.Start();
+            }
         }   
 
         private void OnHeartBeatTimerElapsed(object sender, ElapsedEventArgs e)
@@ -47,7 +53,20 @@ namespace NodeServer.Managers.Raft.States
 
         public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
-            return true;
+            bool vote = false;
+            if (this._settings.VotedFor != 0)
+            {
+                vote = false;
+            }
+            else if (this._logger.GetLastLogEntry()._index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+            {
+                this._settings.CurrentTerm = request.Term;
+                this._settings.VotedFor = request.CandidateId;
+                vote = true;
+                //log action - vote for candidate - write current raft settings to log
+            }
+
+            return vote;
         }
         public override AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
         {

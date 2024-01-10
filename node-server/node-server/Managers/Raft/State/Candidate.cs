@@ -50,7 +50,7 @@ namespace NodeServer.Managers.Raft.States
         public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
             bool vote = false;
-            if (this._settings.VotedFor == 0)
+            if (this._settings.VotedFor != 0)
             {
                 vote = false;
             }
