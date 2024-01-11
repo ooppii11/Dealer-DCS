@@ -104,7 +104,7 @@ namespace NodeServer.Services
 
             try
             {
-                response = this._raft.State.OnReceiveInstallSnapshotRequestRequest(requestStream);
+                response = this._raft.State.OnReceiveInstallSnapshotRequest(requestStream);
             }
             catch
             {

@@ -9,6 +9,8 @@
         public int ElectionTimeout { get; } = (new Random().Next(150, 301));
         public int HeartbeatTimeout { get;} = 100;
         public int MaxLogEntriesPerRequest { get;} = 5;
+        public string LogFilePath { get; set; } = "raftLog.log";
+        public int ServersPort { get; set; } = 50052;
         public List<string> ServersAddresses { get; set; } = (Environment.GetEnvironmentVariable("NODES_IPS"))?.Split(":")?.ToList();
         public int ServerId { get; set; } = Int32.Parse(Environment.GetEnvironmentVariable("NODE_SERVER_ID") ?? "0");
     }

@@ -6,14 +6,12 @@ namespace NodeServer.Managers.Raft.States
 {
     public class Follower: State
     {
-        //private bool _changeState;
         private ManualResetEvent _stateChangeEvent;
         private System.Timers.Timer _timer;
 
         public Follower(RaftSettings settings, Log logger) :
             base(settings, logger)
         {
-            //this._changeState = false;
             this._stateChangeEvent = new ManualResetEvent(false);
             this._settings.VotedFor = 0;
         }
@@ -26,13 +24,22 @@ namespace NodeServer.Managers.Raft.States
                 this._timer.Dispose();
             }
         }
-
-        public async override Task<Raft.StatesCode> Start()
+        private void StartTimer()
         {
+            if (this._timer != null)
+            {
+                this._timer.Stop();
+                this._timer.Dispose();
+            }
             this._timer = new System.Timers.Timer();
             this._timer.Interval = this._settings.ElectionTimeout;
             this._timer.Elapsed += new ElapsedEventHandler(OnHeartBeatTimerElapsed);
             this._timer.Start();
+        }
+
+        public async override Task<Raft.StatesCode> Start()
+        {
+            this.StartTimer();
             this._stateChangeEvent.WaitOne();
             return Raft.StatesCode.Candidate;
         }
@@ -58,7 +65,7 @@ namespace NodeServer.Managers.Raft.States
             {
                 vote = false;
             }
-            else if (this._logger.GetLastLogEntry()._index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+            else if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
             {
                 this._settings.CurrentTerm = request.Term;
                 this._settings.VotedFor = request.CandidateId;
@@ -70,14 +77,27 @@ namespace NodeServer.Managers.Raft.States
         }
         public override AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
         {
-            //restart timer
-           //if unvalid leader:  
+            //restart timer:
+            this.StartTimer();
+
+            // check if unvalid leader:
+                // if unvlid send to sender error + this._stateChangeEvent.Set();
+
+
+            // procss changes:
+
+            // return response to leader
             return new AppendEntriesResponse();
         }
         public override InstallSnapshotResponse OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
         {
             //restart timer
+            this.StartTimer();
+
             //if unvalid leader:  this._stateChangeEvent.Set();
+
+            // procss changes:
+
             return new InstallSnapshotResponse();
         }
 

@@ -70,12 +70,26 @@ namespace NodeServer.Managers
             return response;
         }
 
-        public async Task<AppendEntriesResponse> sendHeartBeat(AppendEntriesRequest request)
+        public async Task<AppendEntriesResponse> sendAppendEntriesRequest(AppendEntriesRequest appendEntries)
         {
-            //
-            var response = new AppendEntriesResponse();
-            return response;
+            using (var call = this.client.AppendEntries())
+            {
+                await call.RequestStream.WriteAsync(appendEntries);
+                await call.RequestStream.CompleteAsync();
+                var response = await call.ResponseAsync;
+                return response;
+            }
         }
-        //AppendEntries
+
+        public async Task<InstallSnapshotResponse> sendInstallSnapshot(InstallSnapshotRequest installSnapshot)
+        {
+            using (var call = this.client.InstallSnapshot())
+            {
+                await call.RequestStream.WriteAsync(installSnapshot);
+                await call.RequestStream.CompleteAsync();
+                var response = await call.ResponseAsync;
+                return response;
+            }
+        }
     }
 }

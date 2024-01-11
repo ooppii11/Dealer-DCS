@@ -3,17 +3,17 @@
     public class LogEntry
     {
         private bool _commit;
-        public readonly int _index;
+        private readonly int _index;
 
-        public readonly int _term;
+        private readonly int _term;
 
-        public readonly DateTime _timestamp;
+        private readonly DateTime _timestamp;
 
-        public readonly string _leaderIp;
+        private readonly string _leaderIp;
 
-        public readonly string _operation;
+        private readonly string _operation;
 
-        public readonly string _operationArgs;
+        private readonly string _operationArgs;
         public int Index => _index;
         
         public int Term => _term;

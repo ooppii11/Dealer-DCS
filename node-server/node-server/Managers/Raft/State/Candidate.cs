@@ -13,8 +13,7 @@ namespace NodeServer.Managers.Raft.States
         }
 
         public async override Task<Raft.StatesCode> Start()
-        {
-            ;
+        { 
             return (await StartElection()) ? Raft.StatesCode.Candidate : Raft.StatesCode.Leader;
         }
 
@@ -54,7 +53,7 @@ namespace NodeServer.Managers.Raft.States
             {
                 vote = false;
             }
-            else if (this._logger.GetLastLogEntry()._index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+            else if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
             {
                 this._settings.CurrentTerm = request.Term;
                 this._settings.VotedFor = request.CandidateId;

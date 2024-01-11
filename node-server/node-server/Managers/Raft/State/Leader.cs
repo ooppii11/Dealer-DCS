@@ -7,7 +7,7 @@ namespace NodeServer.Managers.Raft.States
 {
     public class Leader: State
     {
-        private AppendEntriesRequest lastHeartbeatMessage;
+        private AppendEntriesRequest _lastHeartbeatMessage;
         private System.Timers.Timer _timer;
         private LogEntry lastLogEntry;
         private bool _changeState;
@@ -20,7 +20,7 @@ namespace NodeServer.Managers.Raft.States
             this._settings.VotedFor = 0;
             this._changeState = false;
             this._stateChangeEvent = new ManualResetEvent(false);
-            this.lastHeartbeatMessage = new AppendEntriesRequest();
+            this._lastHeartbeatMessage = new AppendEntriesRequest();
             // set lastHeartbeatMessage with default values:
         }
 
@@ -37,8 +37,6 @@ namespace NodeServer.Managers.Raft.States
         {
             this._timer = new System.Timers.Timer();
             this._timer.Interval = this._settings.HeartbeatTimeout;
-            //this._timer.Elapsed += OnHeartBeatTimerElapsed;
-            //this._timer.Elapsed += (sender, e) => this.OnHeartBeatTimerElapsed(sender, e);  
             this._timer.Elapsed += new ElapsedEventHandler(OnHeartBeatTimerElapsed);
             this._timer.AutoReset = true;
             // Start the timer
@@ -52,16 +50,15 @@ namespace NodeServer.Managers.Raft.States
             this.SendHeartbeatRequest();
         }
 
-        private void SendHeartbeatRequest()
+        private async void SendHeartbeatRequest()
         {
             foreach (string address in this._settings.ServersAddresses)
             {
-                if(address == this._serverIP)
+                if(address != this._serverIP)
                 {
-                    continue;
+                    ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                    AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._lastHeartbeatMessage);
                 }
-                ServerToServerClient s2s = new ServerToServerClient(address, 50052);
-                //RequestVoteResponse response = await s2s.sendHeartBeat(/*function that returns the last heartbeat*/);
             }
             
         }
@@ -87,7 +84,7 @@ namespace NodeServer.Managers.Raft.States
             {
                 vote = false;
             }
-            else if (this._logger.GetLastLogEntry()._index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+            else if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
             {
                 this._settings.CurrentTerm = request.Term;
                 this._settings.VotedFor = request.CandidateId;

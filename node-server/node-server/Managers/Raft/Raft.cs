@@ -25,7 +25,7 @@ namespace NodeServer.Managers.Raft
         {
             this._currentStateCode = StatesCode.Follower;
             this._settings = settings;
-           // this._logger(settings.loggerPath);
+            this._logger = new Log(this._settings.LogFilePath);
         }
 
         public void Start()
