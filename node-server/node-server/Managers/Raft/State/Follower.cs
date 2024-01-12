@@ -26,11 +26,6 @@ namespace NodeServer.Managers.Raft.States
         }
         private void StartTimer()
         {
-            if (this._timer != null)
-            {
-                this._timer.Stop();
-                this._timer.Dispose();
-            }
             this._timer = new System.Timers.Timer();
             this._timer.Interval = this._settings.ElectionTimeout;
             this._timer.Elapsed += new ElapsedEventHandler(OnHeartBeatTimerElapsed);
@@ -78,7 +73,7 @@ namespace NodeServer.Managers.Raft.States
         public override AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
         {
             //restart timer:
-            this.StartTimer();
+            this.resetTimer();
 
             // check if unvalid leader:
                 // if unvlid send to sender error + this._stateChangeEvent.Set();
@@ -92,7 +87,7 @@ namespace NodeServer.Managers.Raft.States
         public override InstallSnapshotResponse OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
         {
             //restart timer
-            this.StartTimer();
+            this.resetTimer();
 
             //if unvalid leader:  this._stateChangeEvent.Set();
 

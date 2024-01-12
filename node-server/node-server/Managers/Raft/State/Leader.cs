@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Timers;
 using Grpc.Core;
 using GrpcServerToServer;
@@ -7,9 +8,9 @@ namespace NodeServer.Managers.Raft.States
 {
     public class Leader: State
     {
-        private AppendEntriesRequest _lastHeartbeatMessage;
+        private Dictionary<string, AppendEntriesRequest> _heartbeatMessages;
         private System.Timers.Timer _timer;
-        private LogEntry lastLogEntry;
+        private LogEntry _lastLogEntry;
         private bool _changeState;
         private ManualResetEvent _stateChangeEvent;
         private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
@@ -20,8 +21,20 @@ namespace NodeServer.Managers.Raft.States
             this._settings.VotedFor = 0;
             this._changeState = false;
             this._stateChangeEvent = new ManualResetEvent(false);
-            this._lastHeartbeatMessage = new AppendEntriesRequest();
-            // set lastHeartbeatMessage with default values:
+            this._lastLogEntry = this._logger.GetLastLogEntry();
+            foreach (string address in this._settings.ServersAddresses)
+            {
+                if (address != this._serverIP)
+                {
+                    this._heartbeatMessages[address] = new AppendEntriesRequest()
+                    {
+                        Term = this._settings.CurrentTerm,
+                        PrevTerm = this._settings.PreviousTerm,
+                        PrevIndex = _lastLogEntry.Index,
+                        CommitIndex = (_lastLogEntry.IsCommited()) ? _lastLogEntry.Index : (_lastLogEntry.Index - 1 > 0) ? _lastLogEntry.Index : 0
+                    };
+                }
+            }
         }
 
         ~Leader()
@@ -43,7 +56,7 @@ namespace NodeServer.Managers.Raft.States
             this._timer.Start();
 
             this._stateChangeEvent.WaitOne();
-            return Raft.StatesCode.Candidate;
+            return Raft.StatesCode.Follower;
         }
         private void OnHeartBeatTimerElapsed(object sender, ElapsedEventArgs e)
         {
@@ -57,7 +70,7 @@ namespace NodeServer.Managers.Raft.States
                 if(address != this._serverIP)
                 {
                     ServerToServerClient s2s = new ServerToServerClient(address, 50052);
-                    AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._lastHeartbeatMessage);
+                    AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
                 }
             }
             
@@ -120,6 +133,7 @@ namespace NodeServer.Managers.Raft.States
         }
         public override AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
         {
+
             return new AppendEntriesResponse();
         }
         public override InstallSnapshotResponse OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)

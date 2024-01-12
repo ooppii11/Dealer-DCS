@@ -3,6 +3,7 @@
     public class RaftSettings
     {
         public int CurrentTerm { get; set; } = 1;
+        public int PreviousTerm { get; set; } = 0;
         public int VotedFor { get; set; } = 0;
         public int CommitIndex { get; set; } = 0;
         public int LastApplied { get; set; } = 0;

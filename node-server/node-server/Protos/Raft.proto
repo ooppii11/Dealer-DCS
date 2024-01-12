@@ -43,11 +43,10 @@ message AppendEntriesRequest{
 	int32 prevIndex = 2;
 	int32 prevTerm = 3;
 
-	int32 log_index = 4;
-	LogEntry logEntry = 5;	
-	int32  commitIndex = 6;
+	LogEntry logEntry = 4;	
+	int32  commitIndex = 5;
 
-	operationArgs args = 7;
+	operationArgs args = 6;
 }
 
 
