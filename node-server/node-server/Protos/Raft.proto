@@ -1,4 +1,4 @@
-syntax = "proto3";
+/*syntax = "proto3";
 import "google/protobuf/timestamp.proto";
 
 
@@ -75,3 +75,4 @@ message InstallSnapshotResponse{
 	bool success = 3;
 
 }
+*/

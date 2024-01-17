@@ -2,6 +2,7 @@
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Timers;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using GrpcServerToServer;
 namespace NodeServer.Managers.Raft.States
@@ -22,6 +23,11 @@ namespace NodeServer.Managers.Raft.States
             this._changeState = false;
             this._stateChangeEvent = new ManualResetEvent(false);
             this._lastLogEntry = this._logger.GetLastLogEntry();
+            this.InitHeartbeatMessages();
+        }
+
+        private void InitHeartbeatMessages()
+        {
             foreach (string address in this._settings.ServersAddresses)
             {
                 if (address != this._serverIP)
@@ -36,6 +42,7 @@ namespace NodeServer.Managers.Raft.States
                 }
             }
         }
+
 
         ~Leader()
         {
@@ -76,18 +83,37 @@ namespace NodeServer.Managers.Raft.States
             
         }
 
-        public void AppendEntries()
+        public async void  AppendEntries(LogEntry entry)
         {
-            // change last log entry:
-            // ...
+            this._logger.AppendEntry(entry);
+            this._lastLogEntry = entry;
+            
 
-            // create apeend entry request:
-            //...
-
-            /*for (follwer:this._settings.follwers)
+            foreach (string address in _heartbeatMessages.Keys.ToList())
             {
-                follwer.sendAppenEntries(appenEntryMessege);
-            }*/
+                this._heartbeatMessages[address] = new AppendEntriesRequest()
+                {
+                    Term = this._settings.CurrentTerm,
+                    PrevTerm = this._settings.PreviousTerm,
+                    PrevIndex = _lastLogEntry.Index,
+                    CommitIndex = (_lastLogEntry.IsCommited()) ? _lastLogEntry.Index : (_lastLogEntry.Index - 1 > 0) ? _lastLogEntry.Index : 0,
+                    LogEntry = new GrpcServerToServer.LogEntry()
+                    {
+                        LogIndex = _lastLogEntry.Index,
+                        Operation = _lastLogEntry.Operation,
+                        OperationData = _lastLogEntry.OperationArgs,
+                        PrevLogIndex = (_lastLogEntry.Index - 1 >= 0) ? _lastLogEntry.Index - 1 : 0,
+                        PrevTerm = this._settings.PreviousTerm,
+                        Term = this._settings.CurrentTerm,
+                        Timestamp = this._lastLogEntry.Timestamp.ToTimestamp()
+                    },
+
+                    Args = new operationArgs() { Args = this._lastLogEntry.OperationArgs }
+                };
+                ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
+
+            }
         }
 
         public override bool OnReceiveVoteRequest(RequestVoteRequest request)
@@ -113,33 +139,29 @@ namespace NodeServer.Managers.Raft.States
         }
 
         
-        public void OnReceiveAppendEntriesResponse(AppendEntriesResponse response)
+        public async void OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
         {
-            if(response.Success)
+            if(response.Success && response.MatchIndex == _lastLogEntry.Index)
             {
-                /*
-           1. commit in leader log
-           2. send to folower commit this log
-           3. updare heart beat msg
-               */
-                this._logger.CommitEntry(response.MatchIndex);
-                // 2.send to folower commit this log:
-                // 3.updare heart beat msg:
-            }        
-            else
-            {
-             // re send append entry request
+                this._logger.CommitEntry(_lastLogEntry.Index);
+                this._settings.CommitIndex = _lastLogEntry.Index;
+                this._heartbeatMessages[address].CommitIndex = _lastLogEntry.Index;
+                this._heartbeatMessages[address].LogEntry = null;
+
+                ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
             }
-        }
-        public override AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
-        {
+            else if (response.MatchIndex != _lastLogEntry.Index) 
+            {
+                // send install sanpshot from response.MatchIndex
+            }
+            else 
+            {
+                // send the previus message
+                ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
+            }
 
-            return new AppendEntriesResponse();
         }
-        public override InstallSnapshotResponse OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
-        { 
-            return new InstallSnapshotResponse();
-        }
-
     }
 }

@@ -86,7 +86,7 @@ namespace NodeServer.Services
 
             try
             {
-                response = this._raft.State.OnReceiveAppendEntriesRequest(requestStream);
+                response = this._raft.OnReceiveAppendEntriesRequest(requestStream);
             }
             catch
             {
@@ -104,7 +104,7 @@ namespace NodeServer.Services
 
             try
             {
-                response = this._raft.State.OnReceiveInstallSnapshotRequest(requestStream);
+                response = this._raft.OnReceiveInstallSnapshotRequest(requestStream);
             }
             catch
             {

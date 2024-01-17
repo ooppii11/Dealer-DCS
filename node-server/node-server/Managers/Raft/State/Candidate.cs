@@ -63,16 +63,5 @@ namespace NodeServer.Managers.Raft.States
 
             return vote;
         }
-
-
-        public override AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
-        {
-            return new AppendEntriesResponse();
-        }
-        public override InstallSnapshotResponse OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
-        {
-            return new InstallSnapshotResponse();
-        }
-
     }
 }

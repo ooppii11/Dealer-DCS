@@ -17,7 +17,5 @@ namespace NodeServer.Managers.Raft.States
 
         public abstract Task<Raft.StatesCode> Start();
         public abstract bool OnReceiveVoteRequest(RequestVoteRequest request);
-        public abstract AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request);
-        public abstract InstallSnapshotResponse OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request);
     }
 }

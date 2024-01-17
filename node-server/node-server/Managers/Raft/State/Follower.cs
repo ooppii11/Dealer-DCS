@@ -70,31 +70,6 @@ namespace NodeServer.Managers.Raft.States
 
             return vote;
         }
-        public override AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
-        {
-            //restart timer:
-            this.resetTimer();
-
-            // check if unvalid leader:
-                // if unvlid send to sender error + this._stateChangeEvent.Set();
-
-
-            // procss changes:
-
-            // return response to leader
-            return new AppendEntriesResponse();
-        }
-        public override InstallSnapshotResponse OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
-        {
-            //restart timer
-            this.resetTimer();
-
-            //if unvalid leader:  this._stateChangeEvent.Set();
-
-            // procss changes:
-
-            return new InstallSnapshotResponse();
-        }
-
+        
     }
 }

@@ -1,4 +1,6 @@
-﻿using NodeServer.Managers.Raft.States;
+﻿using Grpc.Core;
+using GrpcServerToServer;
+using NodeServer.Managers.Raft.States;
 namespace NodeServer.Managers.Raft
 {
     public class Raft
@@ -32,6 +34,14 @@ namespace NodeServer.Managers.Raft
         {
             Thread thread = new Thread(new ThreadStart(Run));
             thread.Start();
+        }
+        public  AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
+        {
+            return new AppendEntriesResponse();
+        }
+        public InstallSnapshotResponse OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
+        {
+            return new InstallSnapshotResponse();
         }
 
         private async void Run()
