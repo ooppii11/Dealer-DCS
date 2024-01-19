@@ -112,7 +112,7 @@ namespace NodeServer.Managers.Raft.States
                 };
                 ServerToServerClient s2s = new ServerToServerClient(address, 50052);
                 AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
-
+                this.OnReceiveAppendEntriesResponse(response, address);
             }
         }
 

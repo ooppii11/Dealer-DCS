@@ -26,6 +26,15 @@
 
         public string OperationArgs => _operationArgs;
 
+        public LogEntry(int index, DateTime Timestamp, string leaderIp, string operation, string operationArgs, bool commit)
+        {
+            this._index = index;
+            this._timestamp = Timestamp;
+            this._leaderIp = leaderIp;
+            this._operation = operation;
+            this._operationArgs = operationArgs;
+            this._commit = commit;
+        }
 
         public LogEntry(string logLine)
         {

@@ -35,9 +35,33 @@ namespace NodeServer.Managers.Raft
             Thread thread = new Thread(new ThreadStart(Run));
             thread.Start();
         }
-        public  AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
+        public AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
         {
-            return new AppendEntriesResponse();
+            int lastLogIndex = this._logger.GetLastLogEntry().Index;
+            bool success = false;
+            if (request.Current.CommitIndex == lastLogIndex)
+            {
+                this._logger.CommitEntry(lastLogIndex);
+                this._settings.CommitIndex = lastLogIndex;
+                success = true;
+            }
+            if (request.Current.LogEntry != null && request.Current.LogEntry.LogIndex > lastLogIndex)
+            {
+
+                this._logger.AppendEntry(
+                    new LogEntry(
+                        request.Current.LogEntry.LogIndex,
+                        DateTime.Parse(request.Current.LogEntry.Timestamp.ToString()),
+                        "ip",
+                        request.Current.LogEntry.Operation,
+                        request.Current.LogEntry.OperationData,
+                        request.Current.CommitIndex == request.Current.LogEntry.LogIndex
+                    ));
+                lastLogIndex = request.Current.LogEntry.LogIndex;
+                success = true;
+            }
+
+            return new AppendEntriesResponse() { MatchIndex = lastLogIndex, Success = success, Term = this._settings.CurrentTerm};
         }
         public InstallSnapshotResponse OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
         {
