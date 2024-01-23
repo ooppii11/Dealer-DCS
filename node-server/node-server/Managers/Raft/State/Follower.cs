@@ -13,7 +13,7 @@ namespace NodeServer.Managers.Raft.States
             base(settings, logger)
         {
             this._stateChangeEvent = new ManualResetEvent(false);
-            this._settings.VotedFor = 0;
+            
         }
 
         ~Follower()
@@ -39,15 +39,6 @@ namespace NodeServer.Managers.Raft.States
             return Raft.StatesCode.Candidate;
         }
 
-        private void resetTimer()
-        {
-            if (this._timer != null)
-            {
-                this._timer.Stop();
-                this._timer.Start();
-            }
-        }   
-
         private void OnHeartBeatTimerElapsed(object sender, ElapsedEventArgs e)
         {
             this._stateChangeEvent.Set();
@@ -55,20 +46,17 @@ namespace NodeServer.Managers.Raft.States
 
         public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
-            bool vote = false;
-            if (this._settings.VotedFor != 0)
+            if (this._settings.CurrentTerm == request.Term && this._settings.VotedFor == 0)
             {
-                vote = false;
+                return true;
             }
             else if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
             {
                 this._settings.CurrentTerm = request.Term;
                 this._settings.VotedFor = request.CandidateId;
-                vote = true;
-                //log action - vote for candidate - write current raft settings to log
+                return true;
             }
-
-            return vote;
+            return false;
         }
         
     }

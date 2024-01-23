@@ -19,7 +19,6 @@ namespace NodeServer.Managers.Raft.States
         public Leader(RaftSettings raftSettings, Log logger):
             base(raftSettings, logger)
         {
-            this._settings.VotedFor = 0;
             this._changeState = false;
             this._stateChangeEvent = new ManualResetEvent(false);
             this._lastLogEntry = this._logger.GetLastLogEntry();
@@ -118,24 +117,19 @@ namespace NodeServer.Managers.Raft.States
 
         public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
-            bool vote = false;
-            if (this._settings.VotedFor != 0)
+            if (this._settings.CurrentTerm == request.Term && this._settings.VotedFor == 0)
             {
-                vote = false;
+                this._stateChangeEvent.Set();
+                return true;
             }
             else if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
             {
                 this._settings.CurrentTerm = request.Term;
                 this._settings.VotedFor = request.CandidateId;
-                vote = true;
-                //log action - vote for candidate - write current raft settings to log
-            }
-            else
-            {
                 this._stateChangeEvent.Set();
-                throw new Exception("change from leader to follower");
+                return true;
             }
-            return vote;
+            return false;
         }
 
         

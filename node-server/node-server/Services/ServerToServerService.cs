@@ -80,13 +80,13 @@ namespace NodeServer.Services
             return Task.FromResult(response);
         }
 
-        public override Task<AppendEntriesResponse> AppendEntries(IAsyncStreamReader<AppendEntriesRequest> requestStream, ServerCallContext context)
+        public async override Task<AppendEntriesResponse> AppendEntries(IAsyncStreamReader<AppendEntriesRequest> requestStream, ServerCallContext context)
         {
             AppendEntriesResponse response;
 
             try
             {
-                response = this._raft.OnReceiveAppendEntriesRequest(requestStream);
+                response = await this._raft.OnReceiveAppendEntriesRequest(requestStream);
             }
             catch
             {
@@ -94,7 +94,7 @@ namespace NodeServer.Services
 
                 throw new RpcException(status);
             }
-            return Task.FromResult(response);
+            return response;
 
         }
 

@@ -35,8 +35,9 @@ namespace NodeServer.Managers.Raft
             Thread thread = new Thread(new ThreadStart(Run));
             thread.Start();
         }
-        public AppendEntriesResponse OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
+        public async Task<AppendEntriesResponse> OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> request)
         {
+            
             int lastLogIndex = this._logger.GetLastLogEntry().Index;
             bool success = false;
             if (request.Current.CommitIndex == lastLogIndex)
@@ -60,7 +61,8 @@ namespace NodeServer.Managers.Raft
                 lastLogIndex = request.Current.LogEntry.LogIndex;
                 success = true;
             }
-
+            this._state = new Follower(this._settings, this._logger);
+            this._currentStateCode = await this._state.Start();
             return new AppendEntriesResponse() { MatchIndex = lastLogIndex, Success = success, Term = this._settings.CurrentTerm};
         }
         public InstallSnapshotResponse OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
@@ -77,10 +79,8 @@ namespace NodeServer.Managers.Raft
                     if (this._currentStateCode == StatesCode.Follower)
                     {
                         this._state = new Follower(this._settings, this._logger);
-                        await this._state.Start();
-
+                        this._currentStateCode = await this._state.Start();
                         this._state = null;
-                        this._currentStateCode = StatesCode.Candidate;
                     }
                     else if (this._currentStateCode == StatesCode.Candidate)
                     {
@@ -91,7 +91,7 @@ namespace NodeServer.Managers.Raft
                     else if (this._currentStateCode == StatesCode.Leader)
                     {
                         this._state = new Leader(this._settings, this._logger);
-                        await this._state.Start();
+                        this._currentStateCode = await this._state.Start();
                         this._state = null;
                     }
                 }

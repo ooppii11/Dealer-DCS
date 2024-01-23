@@ -9,12 +9,11 @@ namespace NodeServer.Managers.Raft.States
         public Candidate(RaftSettings settings, Log logger) :
             base(settings, logger)
         {
-            this._settings.VotedFor = 0;
         }
 
         public async override Task<Raft.StatesCode> Start()
         { 
-            return (await StartElection()) ? Raft.StatesCode.Candidate : Raft.StatesCode.Leader;
+            return (await StartElection()) ? Raft.StatesCode.Follower : Raft.StatesCode.Leader;
         }
 
         private async Task<bool> StartElection()
@@ -48,20 +47,17 @@ namespace NodeServer.Managers.Raft.States
 
         public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
-            bool vote = false;
-            if (this._settings.VotedFor != 0)
+            if (this._settings.CurrentTerm == request.Term && this._settings.VotedFor == 0)
             {
-                vote = false;
+                return true;
             }
             else if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
             {
                 this._settings.CurrentTerm = request.Term;
                 this._settings.VotedFor = request.CandidateId;
-                vote = true;
-                //log action - vote for candidate - write current raft settings to log
+                return true;
             }
-
-            return vote;
+            return false;
         }
     }
 }
