@@ -1,7 +1,7 @@
 ﻿using Grpc.Core;
 using GrpcServerToServer;
 
-namespace NodeServer.Managers.Raft.States
+namespace NodeServer.Managers.RaftNameSpace.States
 {
     public abstract class State
     {

@@ -2,7 +2,7 @@
 using GrpcServerToServer;
 using System.Timers;
 
-namespace NodeServer.Managers.Raft.States
+namespace NodeServer.Managers.RaftNameSpace.States
 {
     public class Follower: State
     {

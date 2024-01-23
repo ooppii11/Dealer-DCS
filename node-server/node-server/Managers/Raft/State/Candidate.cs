@@ -2,7 +2,7 @@
 using GrpcServerToServer;
 using System.Runtime.CompilerServices;
 
-namespace NodeServer.Managers.Raft.States
+namespace NodeServer.Managers.RaftNameSpace.States
 {
     public class Candidate : State
     {

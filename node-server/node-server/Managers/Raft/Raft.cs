@@ -1,7 +1,7 @@
 ﻿using Grpc.Core;
 using GrpcServerToServer;
-using NodeServer.Managers.Raft.States;
-namespace NodeServer.Managers.Raft
+using NodeServer.Managers.RaftNameSpace.States;
+namespace NodeServer.Managers.RaftNameSpace
 {
     public class Raft
     {

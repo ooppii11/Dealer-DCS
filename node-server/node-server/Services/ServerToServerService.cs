@@ -2,24 +2,31 @@
 using Grpc.Core;
 using GrpcServerToServer;
 using NodeServer.Managers;
-using NodeServer.Managers.Raft;
+using NodeServer.Managers.RaftNameSpace;
 
 namespace NodeServer.Services
 {
     public class ServerToServerService : ServerToServer.ServerToServerBase
     {
         private Raft _raft;
-        private FileSaving _microservice;
-        private NodeSystemParse _system;
+        //private FileSaving _microservice;
+        //private NodeSystemParse _system;
         private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
         public ServerToServerService(RaftSettings settings, NodeSystemParse sys, FileSaving micro) 
         {
-            this._system = sys;
-            this._microservice = micro;
+            //this._system = sys;
+            //this._microservice = micro;
             this._raft = new Raft(settings);
             this._raft.Start();
         }
 
+        public ServerToServerService(RaftSettings settings)
+        {
+            this._raft = new Raft(settings);
+            this._raft.Start();
+        }
+
+        /*
         public override async Task<PassFileResponse> PassFile(IAsyncStreamReader<PassFileRequest> requestStream, ServerCallContext context)
         {
             try
@@ -30,7 +37,7 @@ namespace NodeServer.Services
                 List<string> otherNodeServersAddresses = new List<string>();
                 MemoryStream fileData = new MemoryStream();
 
-
+                
                 await foreach (var chunk in requestStream.ReadAllAsync())
                 {
                     fileName = chunk.FileId;
@@ -61,7 +68,7 @@ namespace NodeServer.Services
                 return new PassFileResponse { Status = false, Message = $"Error uploading file: {ex.Message}" };
             }
         }
-
+        */
 
         public override Task<RequestVoteResponse> RequestVote(RequestVoteRequest request, ServerCallContext context)
         {

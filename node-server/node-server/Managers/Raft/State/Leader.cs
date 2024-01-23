@@ -5,7 +5,7 @@ using System.Timers;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using GrpcServerToServer;
-namespace NodeServer.Managers.Raft.States
+namespace NodeServer.Managers.RaftNameSpace.States
 {
     public class Leader: State
     {

@@ -1,4 +1,4 @@
-﻿/*namespace NodeServer.Managers.Raft.RaftTests
+﻿/*namespace NodeServer.Managers.Raft.RaftTestsNameSpace
 {
     
     public class LoggerTest

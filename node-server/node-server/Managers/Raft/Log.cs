@@ -2,7 +2,7 @@
 using static System.Net.Mime.MediaTypeNames;
 using System.Collections.Generic;
 
-namespace NodeServer.Managers.Raft
+namespace NodeServer.Managers.RaftNameSpace
 {
     public class Log
     {

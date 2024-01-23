@@ -1,4 +1,4 @@
-﻿namespace NodeServer.Managers.Raft
+﻿namespace NodeServer.Managers.RaftNameSpace
 {
     public class RaftSettings
     {
