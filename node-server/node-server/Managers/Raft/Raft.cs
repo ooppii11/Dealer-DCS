@@ -76,6 +76,8 @@ namespace NodeServer.Managers.RaftNameSpace
             {
                 if (this._state == null)
                 {
+                    Console.WriteLine(this._currentStateCode);
+
                     if (this._currentStateCode == StatesCode.Follower)
                     {
                         this._state = new Follower(this._settings, this._logger);

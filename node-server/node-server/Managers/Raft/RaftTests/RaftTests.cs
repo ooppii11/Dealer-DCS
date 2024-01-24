@@ -1,5 +1,6 @@
 ﻿using NodeServer.Managers.RaftNameSpace;
 using NodeServer.Services;
+using static Google.Protobuf.Compiler.CodeGeneratorResponse.Types;
 namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
 {
     public class Startup
@@ -27,17 +28,15 @@ namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
     {
         public static void Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
+            CreateHostBuilder(new string[0], args[0]).Build().Run();
         }
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
+        public static IHostBuilder CreateHostBuilder(string[] args, string adress) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
-                    Console.WriteLine("PORT:");
-                    webBuilder.UseUrls($"http://0.0.0.0:{Console.ReadLine()}");
-
+                    webBuilder.UseUrls($"http://127.0.0.1:{adress}");
 
                 });
     }
