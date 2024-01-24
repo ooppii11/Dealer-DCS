@@ -1,5 +1,6 @@
 ﻿using Grpc.Core;
 using GrpcServerToServer;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NodeServer.Managers.RaftNameSpace.States;
 namespace NodeServer.Managers.RaftNameSpace
 {
@@ -28,6 +29,7 @@ namespace NodeServer.Managers.RaftNameSpace
             this._currentStateCode = StatesCode.Follower;
             this._settings = settings;
             this._logger = new Log(this._settings.LogFilePath);
+            this.Start();
         }
 
         public void Start()
@@ -76,22 +78,25 @@ namespace NodeServer.Managers.RaftNameSpace
             {
                 if (this._state == null)
                 {
-                    Console.WriteLine(this._currentStateCode);
 
                     if (this._currentStateCode == StatesCode.Follower)
                     {
+                        Console.WriteLine("Follower");
                         this._state = new Follower(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start();
                         this._state = null;
                     }
                     else if (this._currentStateCode == StatesCode.Candidate)
                     {
+                        Console.WriteLine("Candidate");
+
                         this._state = new Candidate(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start();
                         this._state = null;
                     }
                     else if (this._currentStateCode == StatesCode.Leader)
                     {
+                        Console.WriteLine("leader");
                         this._state = new Leader(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start();
                         this._state = null;

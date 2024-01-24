@@ -12,8 +12,12 @@ namespace NodeServer.Managers.RaftNameSpace.States
         }
 
         public async override Task<Raft.StatesCode> Start()
-        { 
-            return (await StartElection()) ? Raft.StatesCode.Follower : Raft.StatesCode.Leader;
+        {
+            if (await StartElection())
+            {
+                return Raft.StatesCode.Leader;
+            }
+            return Raft.StatesCode.Follower;
         }
 
         private async Task<bool> StartElection()
@@ -23,14 +27,29 @@ namespace NodeServer.Managers.RaftNameSpace.States
             this._settings.VotedFor = this._settings.ServerId;
             foreach (string address in this._settings.ServersAddresses)
             {
-                ServerToServerClient s2s = new ServerToServerClient(address, 50052);
-                RequestVoteResponse response = await s2s.sendNomination(this.RequestVote());
-                if (response.Vote)
+                if (address == this._settings.ServerAddres)
                 {
-                    count++;
+                    continue;
+                }
+                try
+                {
+                    ServerToServerClient s2s = new ServerToServerClient(address);
+                    RequestVoteResponse response = await s2s.sendNomination(this.RequestVote());
+
+                    if (response.Vote)
+                    {
+                        count++;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.ToString());    
                 }
             }
-            return this._settings.ServersAddresses.Count / 2 < count;
+            Console.WriteLine($"my count {count}, num of servers = {this._settings.ServersAddresses.Count()}");
+            Console.WriteLine(this._settings.ServersAddresses.Count() /2 < count);
+
+            return this._settings.ServersAddresses.Count() / 2 < count;
         }
         public RequestVoteRequest RequestVote()
         {
@@ -47,7 +66,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
-            if (this._settings.CurrentTerm == request.Term && this._settings.VotedFor == 0)
+            if (this._settings.CurrentTerm == request.Term && this._settings.VotedFor == -1)
             {
                 return true;
             }

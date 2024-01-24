@@ -10,7 +10,12 @@ namespace NodeServer.Managers.RaftNameSpace
 
         public Log(string logFilePath)
         {
+            Console.WriteLine(logFilePath);
             this._logFilePath = logFilePath;
+            if (!File.Exists(this._logFilePath))
+            {
+                File.Create(this._logFilePath).Close();
+            }
         }
 
         public void AppendEntry(LogEntry entry)
@@ -40,13 +45,22 @@ namespace NodeServer.Managers.RaftNameSpace
             File.WriteAllLines(this._logFilePath, fileContent);
         }
 
-        public LogEntry GetLastLogEntry() 
+        public LogEntry GetLastLogEntry()
         {
             string logLine = "";
             LogEntry entry;
 
-            logLine = File.ReadLines(this._logFilePath).Last();
-            entry = new LogEntry(logLine);
+            var logLines = File.ReadLines(this._logFilePath);
+            if (logLines.Count() == 0)
+            {
+                logLine = "";
+                entry = new LogEntry(0, DateTime.MinValue, "null", "null", "null", false);
+            }
+            else
+            {
+                logLine = logLines.Last();
+                entry = new LogEntry(logLine);
+            }
 
             return entry;
         }

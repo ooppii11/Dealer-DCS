@@ -117,7 +117,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
-            if (this._settings.CurrentTerm == request.Term && this._settings.VotedFor == 0)
+            if (this._settings.CurrentTerm == request.Term && this._settings.VotedFor == -1)
             {
                 this._stateChangeEvent.Set();
                 return true;

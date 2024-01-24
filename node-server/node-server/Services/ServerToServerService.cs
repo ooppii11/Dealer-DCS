@@ -12,18 +12,11 @@ namespace NodeServer.Services
         //private FileSaving _microservice;
         //private NodeSystemParse _system;
         private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
-        public ServerToServerService(RaftSettings settings, NodeSystemParse sys, FileSaving micro) 
+    
+        public ServerToServerService(Raft raft)
         {
-            //this._system = sys;
-            //this._microservice = micro;
-            this._raft = new Raft(settings);
-            this._raft.Start();
-        }
-
-        public ServerToServerService(RaftSettings settings)
-        {
-            this._raft = new Raft(settings);
-            this._raft.Start();
+            Console.WriteLine("hi servise");
+            this._raft = raft;
         }
 
         /*
@@ -73,11 +66,7 @@ namespace NodeServer.Services
         public override Task<RequestVoteResponse> RequestVote(RequestVoteRequest request, ServerCallContext context)
         {
             bool vote = this._raft.State.OnReceiveVoteRequest(request);
-            if (vote && this._raft.RaftStateCode == Raft.StatesCode.Leader)
-            {
-                // this._raft.ChangeState(Raft.StatesCode.Follower);
-            }
-
+           
             RequestVoteResponse response = new RequestVoteResponse()
             {
                 Term = this._raft.Settings.CurrentTerm,
