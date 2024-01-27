@@ -27,18 +27,18 @@ namespace NodeServer.Managers.RaftNameSpace.States
             this._settings.VotedFor = this._settings.ServerId;
             foreach (string address in this._settings.ServersAddresses)
             {
-                if (address == this._settings.ServerAddres)
-                {
-                    continue;
-                }
                 try
                 {
-                    ServerToServerClient s2s = new ServerToServerClient(address);
-                    RequestVoteResponse response = await s2s.sendNomination(this.RequestVote());
-
-                    if (response.Vote)
+                    if (address != this._settings.ServerAddress)
                     {
-                        count++;
+                        //ServerToServerClient s2s = new ServerToServerClient($"{address}:{this._settings.ServersPort}");
+                        ServerToServerClient s2s = new ServerToServerClient(address);
+                        RequestVoteResponse response = await s2s.sendNomination(this.RequestVote());
+
+                        if (response.Vote)
+                        {
+                            count++;
+                        }
                     }
                 }
                 catch (Exception e)
@@ -66,11 +66,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
-            if (this._settings.CurrentTerm == request.Term && this._settings.VotedFor == -1)
-            {
-                return true;
-            }
-            else if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+           if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
             {
                 this._settings.CurrentTerm = request.Term;
                 this._settings.VotedFor = request.CandidateId;

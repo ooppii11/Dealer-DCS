@@ -15,7 +15,6 @@ namespace NodeServer.Services
     
         public ServerToServerService(Raft raft)
         {
-            Console.WriteLine("hi servise");
             this._raft = raft;
         }
 
@@ -65,7 +64,8 @@ namespace NodeServer.Services
 
         public override Task<RequestVoteResponse> RequestVote(RequestVoteRequest request, ServerCallContext context)
         {
-            bool vote = this._raft.State.OnReceiveVoteRequest(request);
+            Console.WriteLine("Voting");
+            bool vote = this._raft.OnReceiveVoteRequest(request);
            
             RequestVoteResponse response = new RequestVoteResponse()
             {
@@ -94,13 +94,13 @@ namespace NodeServer.Services
 
         }
 
-        public override Task<InstallSnapshotResponse> InstallSnapshot(IAsyncStreamReader<InstallSnapshotRequest> requestStream, ServerCallContext context)
+        public async override Task<InstallSnapshotResponse> InstallSnapshot(IAsyncStreamReader<InstallSnapshotRequest> requestStream, ServerCallContext context)
         {
             InstallSnapshotResponse response;
 
             try
             {
-                response = this._raft.OnReceiveInstallSnapshotRequest(requestStream);
+                response = await this._raft.OnReceiveInstallSnapshotRequest(requestStream);
             }
             catch
             {
@@ -108,7 +108,7 @@ namespace NodeServer.Services
 
                 throw new RpcException(status);
             }
-            return Task.FromResult(response);
+            return response;
         }
     }
 }

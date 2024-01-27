@@ -46,16 +46,13 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
-            if (this._settings.CurrentTerm == request.Term && this._settings.VotedFor == -1)
-            {
-                return true;
-            }
-            else if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
-            {
-                this._settings.CurrentTerm = request.Term;
-                this._settings.VotedFor = request.CandidateId;
-                return true;
-            }
+            
+           if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+           {
+               this._settings.CurrentTerm = request.Term;
+               this._settings.VotedFor = request.CandidateId;
+               return true;
+           }
             return false;
         }
 

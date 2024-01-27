@@ -4,18 +4,22 @@ using System.Net;
 using static Google.Protobuf.Compiler.CodeGeneratorResponse.Types;
 namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
 {
+    public class GlobalVariables
+    {
+        public static string args = "";
+    }
     public class Startup
     {
-        private readonly string _addressId;
-
-        public Startup(string addressId)
-        {
-            _addressId = addressId;
-        }
+        
         public void ConfigureServices(IServiceCollection services)
         {
+            RaftSettings settings = new RaftSettings();
+            settings.ServersPort = int.Parse(GlobalVariables.args);
+            settings.ServerId = int.Parse(GlobalVariables.args);
+            settings.ServerAddress = $"127.0.0.1:{settings.ServersPort}";
+            settings.ServersAddresses= new List<string> { "127.0.0.1:1111", "127.0.0.1:2222", "127.0.0.1:3333" };
 
-            services.AddSingleton<Raft>(new Raft(new RaftSettings(_addressId)));
+            services.AddSingleton<Raft>(new Raft(settings));
             services.AddGrpc();
             services.AddScoped<ServerToServerService>();
 
@@ -37,6 +41,7 @@ namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
         public static void Main(string[] args)
         {
             Console.WriteLine(args[0]);
+            GlobalVariables.args = args[0];
             CreateHostBuilder(new string[0], args[0]).Build().Run();
         }
 
@@ -44,7 +49,7 @@ namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    webBuilder.UseStartup(new Startup(address));
+                    webBuilder.UseStartup<Startup>();
                     webBuilder.UseUrls($"http://0.0.0.0:{address}");
 
                 });

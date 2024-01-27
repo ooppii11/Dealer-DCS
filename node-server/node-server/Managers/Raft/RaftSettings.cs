@@ -10,14 +10,10 @@
         public int ElectionTimeout { get; } = (new Random().Next(150, 301));
         public int HeartbeatTimeout { get;} = 100;
         public int MaxLogEntriesPerRequest { get;} = 5;
-        public string LogFilePath { get; set; } = "raftLog.log";
+        public string LogFilePath { get; } = "raftLog.log";
         public int ServersPort { get; set; } = 50052;
-        public List<string> ServersAddresses { get; set; } = new List<string> { "127.0.0.1:1111" , "127.0.0.1:2222", "127.0.0.1:3333"};/*(Environment.GetEnvironmentVariable("NODES_IPS"))?.Split(":")?.ToList();*/
-        public int ServerId { get; set; } = int.Parse(Environment.GetEnvironmentVariable("NODE_SERVER_ID") ?? "0");
-        public string ServerAddres = "";
-        public RaftSettings( string serverAddres)
-        {
-            ServerAddres = serverAddres;
-        }
+        public List<string> ServersAddresses { get; set; } = new List<string>();//(Environment.GetEnvironmentVariable("NODES_IPS"))?.Split(":")?.ToList();
+        public string ServerAddress { get; set; } = "";// Environment.GetEnvironmentVariable("NODE_SERVER_IP");
+        public int ServerId { get; set; } = -1;//int.Parse(Environment.GetEnvironmentVariable("NODE_SERVER_ID"));
     }
 }

@@ -6,6 +6,8 @@ namespace NodeServer.Managers.RaftNameSpace
 {
     public class Raft
     {
+        //private readonly object _lockObject = new object();
+
         public enum StatesCode
         {
             Follower,
@@ -63,13 +65,35 @@ namespace NodeServer.Managers.RaftNameSpace
                 lastLogIndex = request.Current.LogEntry.LogIndex;
                 success = true;
             }
-            this._state = new Follower(this._settings, this._logger);
-            this._currentStateCode = await this._state.Start();
+
+            this._currentStateCode = StatesCode.Follower;
+            this._state = null;
+            /*
+            if the 2 lines above doesn't work, can try:
+            
+            this._currentStateCode = StatesCode.Follower;
+            
+            and if still doesn't work, we can add abort function in state (and follower, leader and candidate) that stop the start function
+             */
             return new AppendEntriesResponse() { MatchIndex = lastLogIndex, Success = success, Term = this._settings.CurrentTerm};
         }
-        public InstallSnapshotResponse OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
+
+        public bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
-            return new InstallSnapshotResponse();
+            if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+            {
+                this._settings.CurrentTerm = request.Term;
+                this._settings.VotedFor = request.CandidateId;
+                return true;
+            }
+            this._currentStateCode = StatesCode.Follower;
+            this._state = null;
+            return false;
+        }
+
+        public Task<InstallSnapshotResponse> OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
+        {
+            return Task.FromResult(new InstallSnapshotResponse());
         }
 
         private async void Run()
@@ -78,7 +102,6 @@ namespace NodeServer.Managers.RaftNameSpace
             {
                 if (this._state == null)
                 {
-
                     if (this._currentStateCode == StatesCode.Follower)
                     {
                         Console.WriteLine("Follower");

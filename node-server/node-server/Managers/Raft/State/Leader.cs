@@ -14,7 +14,6 @@ namespace NodeServer.Managers.RaftNameSpace.States
         private LogEntry _lastLogEntry;
         private bool _changeState;
         private ManualResetEvent _stateChangeEvent;
-        private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
 
         public Leader(RaftSettings raftSettings, Log logger):
             base(raftSettings, logger)
@@ -29,8 +28,10 @@ namespace NodeServer.Managers.RaftNameSpace.States
         {
             foreach (string address in this._settings.ServersAddresses)
             {
-                if (address != this._serverIP)
+                if (address != this._settings.ServerAddress)
                 {
+                    
+                    //this._heartbeatMessages[$"{address}:{this._settings.ServersPort}"] = new AppendEntriesRequest()
                     this._heartbeatMessages[address] = new AppendEntriesRequest()
                     {
                         Term = this._settings.CurrentTerm,
@@ -73,9 +74,11 @@ namespace NodeServer.Managers.RaftNameSpace.States
         {
             foreach (string address in this._settings.ServersAddresses)
             {
-                if(address != this._serverIP)
+                if(address != this._settings.ServerAddress)
                 {
-                    ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                    //ServerToServerClient s2s = new ServerToServerClient($"{address}:{this._settings.ServersPort}");
+                    //ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                    ServerToServerClient s2s = new ServerToServerClient(address);
                     AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
                 }
             }
@@ -109,7 +112,8 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
                     Args = new operationArgs() { Args = this._lastLogEntry.OperationArgs }
                 };
-                ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                //ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                ServerToServerClient s2s = new ServerToServerClient(address);
                 AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
                 this.OnReceiveAppendEntriesResponse(response, address);
             }
@@ -117,12 +121,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         public override bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
-            if (this._settings.CurrentTerm == request.Term && this._settings.VotedFor == -1)
-            {
-                this._stateChangeEvent.Set();
-                return true;
-            }
-            else if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+            if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
             {
                 this._settings.CurrentTerm = request.Term;
                 this._settings.VotedFor = request.CandidateId;
@@ -141,8 +140,9 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 this._settings.CommitIndex = _lastLogEntry.Index;
                 this._heartbeatMessages[address].CommitIndex = _lastLogEntry.Index;
                 this._heartbeatMessages[address].LogEntry = null;
-
-                ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                //ServerToServerClient s2s = new ServerToServerClient($"{address}:{this._settings.ServersPort}");
+                //ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                ServerToServerClient s2s = new ServerToServerClient(address);
                 await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
             }
             else if (response.MatchIndex != _lastLogEntry.Index) 
@@ -152,7 +152,8 @@ namespace NodeServer.Managers.RaftNameSpace.States
             else 
             {
                 // send the previus message
-                ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                //ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                ServerToServerClient s2s = new ServerToServerClient(address);
                 await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
             }
 

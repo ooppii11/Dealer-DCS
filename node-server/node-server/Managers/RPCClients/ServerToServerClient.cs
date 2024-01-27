@@ -26,13 +26,13 @@ namespace NodeServer.Managers
                 throw new Exception("Cannot connect to the service");
             }
         }
-        public ServerToServerClient(string adress)
+        public ServerToServerClient(string address)
         {
             try
             {
                 // Create Grpc connction:
                 //channel = new Channel("127.0.0.1:1111", ChannelCredentials.Insecure);
-                channel = new Channel($"{adress}", ChannelCredentials.Insecure);
+                channel = new Channel($"{address}", ChannelCredentials.Insecure);
                 client = new ServerToServer.ServerToServerClient(channel);
             }
             catch (Exception ex)
