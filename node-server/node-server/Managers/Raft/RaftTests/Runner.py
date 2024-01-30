@@ -13,6 +13,7 @@ def main():
     # Set the working directory
     os.chdir(directory)
 
+    #ports = ["1111", "2222", "3333"]
     ports = ["1111", "2222", "3333"]
 
     for port in ports:

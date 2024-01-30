@@ -1,6 +1,7 @@
 ﻿using Grpc.Core;
 using GrpcServerToServer;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace NodeServer.Managers.RaftNameSpace.States
 {
@@ -11,10 +12,14 @@ namespace NodeServer.Managers.RaftNameSpace.States
         {
         }
 
-        public async override Task<Raft.StatesCode> Start()
+        public async override Task<Raft.StatesCode> Start(CancellationToken cancellationToken)
         {
             if (await StartElection())
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return Raft.StatesCode.Follower;
+                }
                 return Raft.StatesCode.Leader;
             }
             return Raft.StatesCode.Follower;
@@ -22,8 +27,11 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         private async Task<bool> StartElection()
         {
+            Console.WriteLine("Start Election");
             int count = 1;
             this._settings.CurrentTerm++;
+            this._settings.PreviousTerm++;
+            Console.WriteLine($"My term (in leader election): {this._settings.CurrentTerm}");
             this._settings.VotedFor = this._settings.ServerId;
             foreach (string address in this._settings.ServersAddresses)
             {

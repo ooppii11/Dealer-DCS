@@ -17,7 +17,7 @@ message LogEntry{
 	int32 logIndex = 4;
 	google.protobuf.Timestamp timestamp = 5;
 	string operation = 6; 
-	string operationData = 7; 
+	string operationData = 7;
 }
 
 
@@ -50,7 +50,7 @@ message AppendEntriesRequest{
 	LogEntry logEntry = 4;	
 	int32  commitIndex = 5;
 
-	operationArgs args = 6;
+	operationArgs Args = 6;
 }
 
 

@@ -7,41 +7,43 @@ using Grpc.Core;
 using GrpcServerToServer;
 namespace NodeServer.Managers.RaftNameSpace.States
 {
-    public class Leader: State
+    public class Leader : State
     {
         private Dictionary<string, AppendEntriesRequest> _heartbeatMessages;
         private System.Timers.Timer _timer;
         private LogEntry _lastLogEntry;
         private bool _changeState;
         private ManualResetEvent _stateChangeEvent;
-
-        public Leader(RaftSettings raftSettings, Log logger):
+        private CancellationToken _cancellationToken;
+        private TaskCompletionSource<bool> _completionSource;
+        public Leader(RaftSettings raftSettings, Log logger) :
             base(raftSettings, logger)
         {
             this._changeState = false;
             this._stateChangeEvent = new ManualResetEvent(false);
             this._lastLogEntry = this._logger.GetLastLogEntry();
+            this._heartbeatMessages = new Dictionary<string, AppendEntriesRequest>();
             this.InitHeartbeatMessages();
         }
 
         private void InitHeartbeatMessages()
         {
-            foreach (string address in this._settings.ServersAddresses)
+            for (int i = 0; i < this._settings.ServersAddresses.Count; i++)
             {
-                if (address != this._settings.ServerAddress)
+                if (this._settings.ServersAddresses[i] != this._settings.ServerAddress)
                 {
-                    
-                    //this._heartbeatMessages[$"{address}:{this._settings.ServersPort}"] = new AppendEntriesRequest()
-                    this._heartbeatMessages[address] = new AppendEntriesRequest()
+                    this._heartbeatMessages.Add(this._settings.ServersAddresses[i], new AppendEntriesRequest()
                     {
                         Term = this._settings.CurrentTerm,
                         PrevTerm = this._settings.PreviousTerm,
                         PrevIndex = _lastLogEntry.Index,
                         CommitIndex = (_lastLogEntry.IsCommited()) ? _lastLogEntry.Index : (_lastLogEntry.Index - 1 > 0) ? _lastLogEntry.Index : 0
-                    };
+                    });
                 }
             }
         }
+
+
 
 
         ~Leader()
@@ -53,18 +55,29 @@ namespace NodeServer.Managers.RaftNameSpace.States
             }
         }
 
-        public async override Task<Raft.StatesCode> Start()
+        public async override Task<Raft.StatesCode> Start(CancellationToken cancellationToken)
         {
+            this._cancellationToken = cancellationToken;
+            this._completionSource = new TaskCompletionSource<bool>();
+
+
             this._timer = new System.Timers.Timer();
             this._timer.Interval = this._settings.HeartbeatTimeout;
             this._timer.Elapsed += new ElapsedEventHandler(OnHeartBeatTimerElapsed);
             this._timer.AutoReset = true;
-            // Start the timer
+
+            this._cancellationToken.Register(() =>
+            {
+                this._completionSource.SetResult(true);
+            });
+
             this._timer.Start();
 
-            this._stateChangeEvent.WaitOne();
+            await this._completionSource.Task;
+
             return Raft.StatesCode.Follower;
         }
+
         private void OnHeartBeatTimerElapsed(object sender, ElapsedEventArgs e)
         {
             this.SendHeartbeatRequest();
@@ -74,22 +87,29 @@ namespace NodeServer.Managers.RaftNameSpace.States
         {
             foreach (string address in this._settings.ServersAddresses)
             {
-                if(address != this._settings.ServerAddress)
+                if (address != this._settings.ServerAddress)
                 {
                     //ServerToServerClient s2s = new ServerToServerClient($"{address}:{this._settings.ServersPort}");
                     //ServerToServerClient s2s = new ServerToServerClient(address, 50052);
-                    ServerToServerClient s2s = new ServerToServerClient(address);
-                    AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
+                    try
+                    {
+                        // Console.WriteLine($"send hert beat to {address}");
+                        ServerToServerClient s2s = new ServerToServerClient(address);
+                        AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"error send to {address}");
+                        Console.WriteLine(ex.ToString());
+                    }
                 }
             }
-            
         }
 
-        public async void  AppendEntries(LogEntry entry)
+        public async void AppendEntries(LogEntry entry)
         {
             this._logger.AppendEntry(entry);
             this._lastLogEntry = entry;
-            
 
             foreach (string address in _heartbeatMessages.Keys.ToList())
             {
@@ -128,13 +148,14 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 this._stateChangeEvent.Set();
                 return true;
             }
+            this._stateChangeEvent.Set();
             return false;
         }
 
-        
+
         public async void OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
         {
-            if(response.Success && response.MatchIndex == _lastLogEntry.Index)
+            if (response.Success && response.MatchIndex == _lastLogEntry.Index)
             {
                 this._logger.CommitEntry(_lastLogEntry.Index);
                 this._settings.CommitIndex = _lastLogEntry.Index;
@@ -145,11 +166,11 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 ServerToServerClient s2s = new ServerToServerClient(address);
                 await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
             }
-            else if (response.MatchIndex != _lastLogEntry.Index) 
+            else if (response.MatchIndex != _lastLogEntry.Index)
             {
                 // send install sanpshot from response.MatchIndex
             }
-            else 
+            else
             {
                 // send the previus message
                 //ServerToServerClient s2s = new ServerToServerClient(address, 50052);

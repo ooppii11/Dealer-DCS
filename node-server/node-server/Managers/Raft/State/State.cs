@@ -1,5 +1,6 @@
 ﻿using Grpc.Core;
 using GrpcServerToServer;
+using System.Threading;
 
 namespace NodeServer.Managers.RaftNameSpace.States
 {
@@ -12,10 +13,9 @@ namespace NodeServer.Managers.RaftNameSpace.States
         {
             this._settings = settings;
             this._logger = logger;
-             
         }
 
-        public abstract Task<Raft.StatesCode> Start();
+        public abstract Task<Raft.StatesCode> Start(CancellationToken cancellationToken);
         public abstract bool OnReceiveVoteRequest(RequestVoteRequest request);
     }
 }
