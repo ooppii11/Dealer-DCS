@@ -39,7 +39,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
             this._cancellationToken.Register(() =>
             {
-                lock (_lockObject) 
+                lock (_lockObject)
                 {
                     this._completionSource.SetResult(true);
                 }
@@ -59,19 +59,12 @@ namespace NodeServer.Managers.RaftNameSpace.States
         {
             lock (_lockObject)
             {
-                this._completionSource.SetResult(true);
+                //!_cancellationToken.IsCancellationRequested
+                if (!_completionSource.Task.IsCompleted)
+                {
+                    this._completionSource.SetResult(true);
+                }
             }
-        }
-
-        public override bool OnReceiveVoteRequest(RequestVoteRequest request)
-        { 
-           if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
-           {
-               this._settings.CurrentTerm = request.Term;
-               this._settings.VotedFor = request.CandidateId;
-               return true;
-           }
-            return false;
         }
     }
 }

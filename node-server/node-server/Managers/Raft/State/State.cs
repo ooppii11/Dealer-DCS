@@ -16,6 +16,5 @@ namespace NodeServer.Managers.RaftNameSpace.States
         }
 
         public abstract Task<Raft.StatesCode> Start(CancellationToken cancellationToken);
-        public abstract bool OnReceiveVoteRequest(RequestVoteRequest request);
     }
 }

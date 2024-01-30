@@ -29,6 +29,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
         {
             Console.WriteLine("Start Election");
             int count = 1;
+            int numOfDownServers = 0;
             this._settings.CurrentTerm++;
             this._settings.PreviousTerm++;
             Console.WriteLine($"My term (in leader election): {this._settings.CurrentTerm}");
@@ -49,13 +50,21 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         }
                     }
                 }
+                catch (RpcException e)
+                {
+                    if (e.StatusCode == StatusCode.Unavailable)
+                    {
+                        numOfDownServers++;
+                    }
+                }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e.ToString());    
+                    Console.WriteLine(e.ToString());
                 }
             }
             Console.WriteLine($"my count {count}, num of servers = {this._settings.ServersAddresses.Count()}");
-            Console.WriteLine(this._settings.ServersAddresses.Count() /2 < count);
+            Console.WriteLine(numOfDownServers > (this._settings.ServersAddresses.Count() / 2) ? "Most of the servers in my group/cluster are down so election can't work" : "Election has run smoothly"); //Is it possible to change the algorithm so that it works according to the live servers? Then a leader is chosen for the whole system by the servers that are online...
+            Task.Delay(1000).Wait();
 
             return this._settings.ServersAddresses.Count() / 2 < count;
         }
@@ -70,17 +79,6 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 Term = this._settings.CurrentTerm,
             };
             return request;
-        }
-
-        public override bool OnReceiveVoteRequest(RequestVoteRequest request)
-        {
-           if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
-            {
-                this._settings.CurrentTerm = request.Term;
-                this._settings.VotedFor = request.CandidateId;
-                return true;
-            }
-            return false;
         }
     }
 }

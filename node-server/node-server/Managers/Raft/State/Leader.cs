@@ -13,14 +13,12 @@ namespace NodeServer.Managers.RaftNameSpace.States
         private System.Timers.Timer _timer;
         private LogEntry _lastLogEntry;
         private bool _changeState;
-        private ManualResetEvent _stateChangeEvent;
         private CancellationToken _cancellationToken;
         private TaskCompletionSource<bool> _completionSource;
         public Leader(RaftSettings raftSettings, Log logger) :
             base(raftSettings, logger)
         {
             this._changeState = false;
-            this._stateChangeEvent = new ManualResetEvent(false);
             this._lastLogEntry = this._logger.GetLastLogEntry();
             this._heartbeatMessages = new Dictionary<string, AppendEntriesRequest>();
             this.InitHeartbeatMessages();
@@ -97,6 +95,13 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         ServerToServerClient s2s = new ServerToServerClient(address);
                         AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
                     }
+                    catch (RpcException e)
+                    {
+                        if (e.StatusCode == StatusCode.Unavailable)
+                        {
+                            Console.WriteLine($"Server at {address} is Unavailable (down)");
+                        }
+                    }
                     catch (Exception ex)
                     {
                         Console.WriteLine($"error send to {address}");
@@ -137,19 +142,6 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
                 this.OnReceiveAppendEntriesResponse(response, address);
             }
-        }
-
-        public override bool OnReceiveVoteRequest(RequestVoteRequest request)
-        {
-            if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
-            {
-                this._settings.CurrentTerm = request.Term;
-                this._settings.VotedFor = request.CandidateId;
-                this._stateChangeEvent.Set();
-                return true;
-            }
-            this._stateChangeEvent.Set();
-            return false;
         }
 
 
