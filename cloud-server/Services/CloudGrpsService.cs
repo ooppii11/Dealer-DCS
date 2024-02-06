@@ -1,25 +1,98 @@
 ﻿using Grpc.Core;
 using GrpcCloud;
 using cloud_server.Managers;
-using System.Linq.Expressions;
 using Google.Protobuf;
-using System;
+using System.Collections.Concurrent;
+using cloud_server.Utilities;
 
 namespace cloud_server.Services
 {   
-    public class CloudGrpsService: Cloud.CloudBase
+    public class CloudGrpcService: Cloud.CloudBase
     {
         private Authentication _authManager;
         private FilesManager _filesManager;
-        private readonly ILogger<CloudGrpsService> _logger;
+        private readonly ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)> _requestQueue = new ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>();
+        private readonly object _lockObject = new object();
+        private readonly ManualResetEventSlim _queueEvent = new ManualResetEventSlim(false);
+        RaftViewerLogger _raftLogger = new RaftViewerLogger();
 
-        public CloudGrpsService(ILogger<CloudGrpsService> logger, Authentication auth, FilesManager filesManager)
+
+        private readonly ILogger<CloudGrpcService> _logger;
+
+        public CloudGrpcService(ILogger<CloudGrpcService> logger, Authentication auth, FilesManager filesManager)
         {
             this._logger = logger;
             this._authManager = auth; 
-            this._filesManager = filesManager; 
+            this._filesManager = filesManager;
+            Task.Factory.StartNew(ProcessQueue, TaskCreationOptions.LongRunning);
         }
-      
+
+        private Task<T> EnqueueRequestAsync<T>(Delegate action, params object[] parameters)
+        {
+            var completionSource = new TaskCompletionSource<T>();
+            var completionSourceObject = completionSource as TaskCompletionSource<object>;
+            this._requestQueue.Enqueue((action, completionSourceObject, parameters));
+            this._queueEvent.Set();
+            return completionSource.Task;
+        }
+
+
+        private async Task ProcessQueue()
+        {
+            while (true)
+            {
+                this._queueEvent.Wait();
+
+                lock (this._lockObject)
+                {
+                    try
+                    {
+                        // Check if there is a leader available before processing requests.
+                        while (this._raftLogger.getCurrLeaderIP() != "" && this._requestQueue.TryDequeue(out var requestPair))
+                        {
+                            try
+                            {
+                                // Execute the function with the parameters.
+                                var result = requestPair.Action.DynamicInvoke(requestPair.Parameters);
+                                if (result is Task taskResult)
+                                {
+                                    // If the result is a task, wait for its completion.
+                                    taskResult.ContinueWith(t =>
+                                    {
+                                        requestPair.Completion.TrySetResult(t.GetType().GetProperty("Result")?.GetValue(t));
+                                    }, TaskScheduler.Default);
+                                }
+                                else
+                                {
+                                    // If the result is not a task, set the completion directly.
+                                    requestPair.Completion.TrySetResult(result);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                requestPair.Completion.TrySetException(ex);
+                            }
+                        }
+                    }
+                    catch (NoLeaderException ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                    }
+                    this._queueEvent.Reset();
+                }
+            }
+        }
+
+
+
+        public override Task<LeaderHeartBeatResponse> GetOrUpdateSystemLeader(LeaderHeartBeatRequest request, ServerCallContext context)
+        {
+            this. _raftLogger.insertEntry(request);
+            //this._leaderIP = request.LeaderIp;
+            this._queueEvent.Set();
+            this._filesManager.LeaderIP = request.LeaderIP;
+            return base.GetOrUpdateSystemLeader(request, context);
+        }
         public override Task<SignupResponse> signup(SignupRequest request, ServerCallContext context)
         {
             try
@@ -77,19 +150,57 @@ namespace cloud_server.Services
             return Task.FromResult(new LogoutResponse());
         }
 
-        public override Task<GetListOfFilesResponse> getListOfFiles(GetListOfFilesRequest request, ServerCallContext context)
+        public override async Task<GetListOfFilesResponse> getListOfFiles(GetListOfFilesRequest request, ServerCallContext context)
+        {
+            var task = EnqueueRequestAsync<GetListOfFilesResponse>(ProcessGetListOfFiles, request, context);
+            return await task;
+        }
+
+        public override async Task<GetFileMetadataResponse> getFileMetadata(GetFileMetadataRequest request, ServerCallContext context)
+        {
+            var task = EnqueueRequestAsync<GetFileMetadataResponse>(ProcessGetFileMetadata, request, context);
+            return await task;
+        }
+
+        public override async Task<DeleteFileResponse> DeleteFile(DeleteFileRequest request, ServerCallContext context)
+        {
+            var task = EnqueueRequestAsync<DeleteFileResponse>(ProcessDeleteFile, request, context);
+            return await task;
+        }
+
+        public override Task DownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)
+        {
+            EnqueueRequestAsync<Task>(ProcessDownloadFile, request, responseStream, context);
+            return base.DownloadFile(request, responseStream, context);
+        }
+
+        public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
+        {
+            var task = EnqueueRequestAsync<UploadFileResponse>(ProcessUploadFile, requestStream, context);
+            return await task;
+        }
+
+        private Task<GetListOfFilesResponse> ProcessGetListOfFiles(GetListOfFilesRequest request, ServerCallContext context)
         {
             GetListOfFilesResponse response = new GetListOfFilesResponse();
             try
             {
                 User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
                 List<GrpcCloud.FileMetadata> fileMetadata = this._filesManager.getFilesMetadata(user.Id); // Get the metadata
-                            
+
                 // Init response:
                 response.Message = "";
                 response.Status = GrpcCloud.Status.Success;
                 response.Files.Add(fileMetadata);
 
+                return Task.FromResult(response);
+            }
+            catch (RpcException ex)
+            {
+                this._raftLogger.insertInvalidLeader();
+                context.Status = new Grpc.Core.Status(StatusCode.Unavailable, ex.Message);
+                response.Message = ex.Message;
+                response.Status = GrpcCloud.Status.Failure;
                 return Task.FromResult(response);
             }
             catch (Exception ex)
@@ -100,7 +211,7 @@ namespace cloud_server.Services
                 return Task.FromResult(response);
             }
         }
-        public override Task<GetFileMetadataResponse> getFileMetadata(GetFileMetadataRequest request, ServerCallContext context)
+        private Task<GetFileMetadataResponse> ProcessGetFileMetadata(GetFileMetadataRequest request, ServerCallContext context)
         {
             GetFileMetadataResponse response = new GetFileMetadataResponse();
             try 
@@ -112,6 +223,14 @@ namespace cloud_server.Services
                 response.File = this._filesManager.getFileMetadata(user.Id, request.FileName);
                 return Task.FromResult(response);
             }
+            catch (RpcException ex)
+            {
+                this._raftLogger.insertInvalidLeader();
+                context.Status = new Grpc.Core.Status(StatusCode.Unavailable, ex.Message);
+                response.Message = ex.Message;
+                response.Status = GrpcCloud.Status.Failure;
+                return Task.FromResult(response);
+            }
             catch (Exception ex)
             {
                 context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
@@ -120,7 +239,7 @@ namespace cloud_server.Services
                 return Task.FromResult(response);
             }
         }
-        public override Task<DeleteFileResponse> DeleteFile(DeleteFileRequest request, ServerCallContext context)
+        private Task<DeleteFileResponse> ProcessDeleteFile(DeleteFileRequest request, ServerCallContext context)
         {
             try
             {
@@ -132,6 +251,16 @@ namespace cloud_server.Services
                     Status = GrpcCloud.Status.Success,
                     Message = "" }
                 );
+            }
+            catch (RpcException ex)
+            {
+                this._raftLogger.insertInvalidLeader();
+                context.Status = new Grpc.Core.Status(StatusCode.Unavailable, ex.Message);
+                return Task.FromResult(new DeleteFileResponse
+                {
+                    Status = GrpcCloud.Status.Failure,
+                    Message = $"Error deleting the file: {ex.Message}"
+                });
             }
             catch (Exception ex)
             {
@@ -145,7 +274,7 @@ namespace cloud_server.Services
 
         }
 
-        public override async Task DownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)
+        private async Task ProcessDownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)
         {
             try
             {
@@ -167,6 +296,12 @@ namespace cloud_server.Services
                     }
                 }
             }
+            catch (RpcException ex)
+            {
+                this._raftLogger.insertInvalidLeader();
+                context.Status = new Grpc.Core.Status(StatusCode.Unavailable, ex.Message);
+                await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Error downloading the file: {ex.Message}", FileData = ByteString.Empty });
+            }
             catch (Exception ex)
             {
                 context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
@@ -176,7 +311,7 @@ namespace cloud_server.Services
 
         }
 
-        public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
+        private async Task<UploadFileResponse> ProcessUploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
         {
             try
             {
@@ -207,6 +342,16 @@ namespace cloud_server.Services
                 { 
                     Status = GrpcCloud.Status.Success,
                     Message = "File uploaded successfully." 
+                };
+            }
+            catch (RpcException ex)
+            {
+                this._raftLogger.insertInvalidLeader();
+                context.Status = new Grpc.Core.Status(StatusCode.Unavailable, ex.Message);
+                return new UploadFileResponse
+                {
+                    Status = GrpcCloud.Status.Failure,
+                    Message = $"Error deleting the file: {ex.Message}"
                 };
             }
             catch (Exception ex)

@@ -1,35 +1,30 @@
 ﻿using cloud_server.DB;
 using cloud_server.Services;
 using cloud_server.Utilities;
+using Grpc.Core;
 
 namespace cloud_server.Managers
 {
     public class FilesManager
     {
         private FileMetadataDB _db;
-        private NodeServerCommunication[] _nodes;
+        private string _leaderIP;
 
-        public FilesManager(FileMetadataDB db, NodeServerCommunication[] nodes)
+        public string LeaderIP
         {
-            this._db = db;
-            this._nodes = nodes;
+            get => _leaderIP;
+            set => _leaderIP = value;
         }
-
         public FilesManager(FileMetadataDB db)
         {
             this._db = db;
-            string servers = Environment.GetEnvironmentVariable("NODES_IPS");
-            if(servers == null)
-            {
-                servers = "localhost:localhost:localhost";
-            }
-            List<string> serversAddresses = servers.Split(":").ToList();
-            List<NodeServerCommunication> nodeServerCommunication = new List<NodeServerCommunication>();
-            foreach (string server in serversAddresses)
-            {
-                nodeServerCommunication.Add(new NodeServerCommunication($"http://{server}:50052"));
-            }
-            this._nodes = nodeServerCommunication.ToArray();
+            this._leaderIP = "";
+        }
+
+        public FilesManager(FileMetadataDB db, string leaderIP)
+        {
+            this._db = db;
+            this._leaderIP = leaderIP;
         }
 
         public async Task uploadFile(int userid, string filename, string type, long size, byte[] fileData)
@@ -41,8 +36,9 @@ namespace cloud_server.Managers
             this._db.uploadFileMetadata(file, location);
             fileId = this._db.getFileId(file.Name, file.CreatorId);
 
+            
             // save the file
-            await this._nodes[0].uploadFile($"{fileId}", fileData, type, location);
+            await (new NodeServerCommunication($"http://{this._leaderIP}:50052")).uploadFile($"{fileId}", fileData, type, location);
         }
 
         public void deleteFile(int userId, string filename)
@@ -53,7 +49,7 @@ namespace cloud_server.Managers
             this._db.deleteFileMetadata(userId, filename);
 
             // Delete file from locations
-            this._nodes[0].deleteFile($"{fileId}");
+            (new NodeServerCommunication($"http://{this._leaderIP}:50052")).deleteFile($"{fileId}");
         }
 
         public GrpcCloud.FileMetadata getFileMetadata(int userId, string filename)
@@ -71,7 +67,7 @@ namespace cloud_server.Managers
             int fileId = 0;
 
             fileId = this._db.getFileId(filename, userId);
-            return await this._nodes[0].DownloadFile($"{fileId}");
+            return await (new NodeServerCommunication($"http://{this._leaderIP}:50052")).DownloadFile($"{fileId}");
         }
          
         

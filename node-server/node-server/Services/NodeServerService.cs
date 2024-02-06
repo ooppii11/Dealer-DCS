@@ -3,6 +3,8 @@ using Grpc.Core;
 using GrpcNodeServer;
 using NodeServer.Managers;
 using GrpcServerToServer;
+using NodeServer.Managers.RaftNameSpace;
+using NodeServer.Managers.RaftNameSpace.States;
 
 namespace NodeServer.Services
 {
@@ -11,11 +13,13 @@ namespace NodeServer.Services
         private FileSaving _microservice;
         private NodeSystemParse _system;
         private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
+        private Raft _raft;
         //logFileInfo 
-        public NodeServerService(FileSaving micro, NodeSystemParse sys)
+        public NodeServerService(FileSaving micro, NodeSystemParse sys, Raft raft)
         {
             this._microservice = micro;
             this._system = sys;
+            this._raft = raft;
         }
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
@@ -49,6 +53,7 @@ namespace NodeServer.Services
                 List<string> serverList = otherNodeServersAddresses;
                 serverList.Remove(this._serverIP);
                 this._system.addFile(fileID, otherNodeServersAddresses);
+
                 foreach (string serverAddress in serverList)
                 {
                     try
