@@ -7,9 +7,41 @@ using Grpc.Core;
 using GrpcServerToServer;
 namespace NodeServer.Managers.RaftNameSpace.States
 {
-    public class Leader : State
+    class Node
     {
-        private Dictionary<string, AppendEntriesRequest> _heartbeatMessages;
+        private readonly string addres;
+        private int _matchIndex;
+        private int _commitIndex;
+        private AppendEntriesRequest _request;
+
+        public Node(string addres)
+        {
+            this.addres = addres;
+            this._matchIndex = 0;
+            this._commitIndex = 0;
+        }
+
+        public int CommitIndex
+        {
+            get => _commitIndex;
+            set => _commitIndex = value;
+        }
+
+        public int MatchIndex
+        {
+            get => _matchIndex;
+            set => _matchIndex = value;
+        }
+
+        public AppendEntriesRequest Request
+        {
+            get => _request;
+            set => _request = value;
+        }
+    }
+        public class Leader : State
+    {
+        private Dictionary<string, Node> _followers;
         private System.Timers.Timer _timer;
         private LogEntry _lastLogEntry;
         private bool _changeState;
@@ -20,8 +52,10 @@ namespace NodeServer.Managers.RaftNameSpace.States
         {
             this._changeState = false;
             this._lastLogEntry = this._logger.GetLastLogEntry();
-            this._heartbeatMessages = new Dictionary<string, AppendEntriesRequest>();
+            this._followers = new Dictionary<string, Node>();
             this.InitHeartbeatMessages();
+            LogEntry entry = new LogEntry(1, DateTime.UtcNow, "null", "null", "null", false);
+            this.AppendEntries(entry);
         }
 
         private void InitHeartbeatMessages()
@@ -30,19 +64,18 @@ namespace NodeServer.Managers.RaftNameSpace.States
             {
                 if (this._settings.ServersAddresses[i] != this._settings.ServerAddress)
                 {
-                    this._heartbeatMessages.Add(this._settings.ServersAddresses[i], new AppendEntriesRequest()
+                    this._followers.Add(this._settings.ServersAddresses[i], new Node(this._settings.ServersAddresses[i]));
+                    this._followers[this._settings.ServersAddresses[i]].Request =  new AppendEntriesRequest()
                     {
                         Term = this._settings.CurrentTerm,
                         PrevTerm = this._settings.PreviousTerm,
                         PrevIndex = _lastLogEntry.Index,
                         CommitIndex = (_lastLogEntry.IsCommited()) ? _lastLogEntry.Index : (_lastLogEntry.Index - 1 > 0) ? _lastLogEntry.Index : 0
-                    });
+                    };
+                   
                 }
             }
         }
-
-
-
 
         ~Leader()
         {
@@ -87,13 +120,11 @@ namespace NodeServer.Managers.RaftNameSpace.States
             {
                 if (address != this._settings.ServerAddress)
                 {
-                    //ServerToServerClient s2s = new ServerToServerClient($"{address}:{this._settings.ServersPort}");
-                    //ServerToServerClient s2s = new ServerToServerClient(address, 50052);
                     try
                     {
-                        // Console.WriteLine($"send hert beat to {address}");
                         ServerToServerClient s2s = new ServerToServerClient(address);
-                        AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
+                        AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
+                        this.OnReceiveAppendEntriesResponse(response, address);
                     }
                     catch (RpcException e)
                     {
@@ -116,9 +147,13 @@ namespace NodeServer.Managers.RaftNameSpace.States
             this._logger.AppendEntry(entry);
             this._lastLogEntry = entry;
 
-            foreach (string address in _heartbeatMessages.Keys.ToList())
+            Console.WriteLine("leader append entry to the log");
+            this._settings.LastLogIndex += 1;
+
+            foreach (string address in _followers.Keys.ToList())
             {
-                this._heartbeatMessages[address] = new AppendEntriesRequest()
+                Console.WriteLine($"{address}");
+                this._followers[address].Request = new AppendEntriesRequest()
                 {
                     Term = this._settings.CurrentTerm,
                     PrevTerm = this._settings.PreviousTerm,
@@ -132,43 +167,63 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         PrevLogIndex = (_lastLogEntry.Index - 1 >= 0) ? _lastLogEntry.Index - 1 : 0,
                         PrevTerm = this._settings.PreviousTerm,
                         Term = this._settings.CurrentTerm,
-                        Timestamp = this._lastLogEntry.Timestamp.ToTimestamp()
+                        Timestamp = Timestamp.FromDateTime(this._lastLogEntry.Timestamp)
                     },
 
                     Args = new operationArgs() { Args = this._lastLogEntry.OperationArgs }
-                };
-                //ServerToServerClient s2s = new ServerToServerClient(address, 50052);
+                };    
                 ServerToServerClient s2s = new ServerToServerClient(address);
-                AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
+                AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
                 this.OnReceiveAppendEntriesResponse(response, address);
             }
         }
 
+        private bool MajorityAgreeOnMatchIndex(int matchIndexToCheck)
+        {
+            int nodesCount = _followers.Count + 1;
+            int agreeCount = 0;
+
+            if(this._lastLogEntry.Index >= matchIndexToCheck) { agreeCount++; }
+
+            foreach (var follower in _followers.Values)
+            {
+                if (follower.MatchIndex >= matchIndexToCheck)
+                {
+                    agreeCount++;
+                }
+            }
+
+            return agreeCount > nodesCount / 2;
+        }
 
         public async void OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
         {
-            if (response.Success && response.MatchIndex == _lastLogEntry.Index)
+            ServerToServerClient s2s = new ServerToServerClient(address);
+
+            if (response.Success)
             {
-                this._logger.CommitEntry(_lastLogEntry.Index);
-                this._settings.CommitIndex = _lastLogEntry.Index;
-                this._heartbeatMessages[address].CommitIndex = _lastLogEntry.Index;
-                this._heartbeatMessages[address].LogEntry = null;
-                //ServerToServerClient s2s = new ServerToServerClient($"{address}:{this._settings.ServersPort}");
-                //ServerToServerClient s2s = new ServerToServerClient(address, 50052);
-                ServerToServerClient s2s = new ServerToServerClient(address);
-                await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
+                if (this._followers[address].MatchIndex < response.MatchIndex)
+                {
+                    this._followers[address].MatchIndex = response.MatchIndex;
+                }
+                if(this._followers[address].MatchIndex != this._followers[address].CommitIndex && MajorityAgreeOnMatchIndex(response.MatchIndex))
+                {
+                    this._followers[address].CommitIndex = response.MatchIndex;
+
+                    this._settings.CommitIndex = Math.Max(this._settings.CommitIndex, _lastLogEntry.Index);
+                    this._logger.CommitEntry(this._settings.CommitIndex - 1);
+                    this._lastLogEntry.SetCommit(true);
+                    this._followers[address].Request.LogEntry = null;
+
+                    await s2s.sendAppendEntriesRequest(this._followers[address].Request);
+                }
             }
-            else if (response.MatchIndex != _lastLogEntry.Index)
+            else if (response.MatchIndex + 1 == _lastLogEntry.Index)
             {
-                // send install sanpshot from response.MatchIndex
+                // send the previus message:
+                await s2s.sendAppendEntriesRequest(this._followers[address].Request);
             }
-            else
-            {
-                // send the previus message
-                //ServerToServerClient s2s = new ServerToServerClient(address, 50052);
-                ServerToServerClient s2s = new ServerToServerClient(address);
-                await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
-            }
+            // else install snapshot
 
         }
     }

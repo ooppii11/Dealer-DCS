@@ -4,13 +4,14 @@ using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NodeServer.Managers.RaftNameSpace.States;
 using System;
 using System.Threading;
+using Google.Protobuf.WellKnownTypes;
+
 using static Grpc.Core.Metadata;
 
 namespace NodeServer.Managers.RaftNameSpace
 {
     public class Raft
     {
-        //private readonly object _lockObject = new object();
         private CancellationTokenSource _cancellationTokenSource;
 
         public enum StatesCode
@@ -39,6 +40,16 @@ namespace NodeServer.Managers.RaftNameSpace
             this._cancellationTokenSource = new CancellationTokenSource();
             this.Start();
         }
+        public bool appendEntry(LogEntry entry)
+        {
+            if (this._currentStateCode == StatesCode.Leader)
+            {
+                Leader leaderObject = this._state as Leader;
+                leaderObject.AppendEntries(entry);
+
+            }
+            return false;
+        }
 
         ~Raft()
         {
@@ -48,56 +59,59 @@ namespace NodeServer.Managers.RaftNameSpace
 
         public void Start()
         {
-            //Thread thread = new Thread(() => Run());
-            //thread.Start();
             Run();
 
         }
         public async Task<AppendEntriesResponse> OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> requests)
         {
-            int lastLogIndex = this._logger.GetLastLogEntry().Index;
+           // int lastLogIndex = this._logger.GetLastLogEntry().Index;
             bool success = false;
             _cancellationTokenSource.Cancel();
             try
             {
                 await foreach (var request in requests.ReadAllAsync())
                 {
-                    if (requests.Current.CommitIndex == lastLogIndex)
+                    if (requests.Current.CommitIndex == this._settings.LastLogIndex)
                     {
-                        if (lastLogIndex != 0)
+                        if (this._settings.LastLogIndex != 0)
                         {
-                            this._logger.CommitEntry(lastLogIndex);
-                            this._settings.CommitIndex = lastLogIndex;
+                            Console.WriteLine("commit entreis");
+                            Console.WriteLine(this._settings.LastLogIndex - 1);
+                            this._logger.CommitEntry(this._settings.LastLogIndex-1);
+                            this._settings.CommitIndex = this._settings.LastLogIndex;
                         }
                         success = true;
                     }
 
-                    if (requests.Current.LogEntry != null && requests.Current.LogEntry.LogIndex > lastLogIndex)
+                    if (requests.Current.LogEntry != null && requests.Current.LogEntry.LogIndex > this._settings.LastLogIndex)
                     {
+                        Console.WriteLine("append entreis");
+                      
                         this._logger.AppendEntry(
                             new LogEntry(
                                 requests.Current.LogEntry.LogIndex,
-                                DateTime.Parse(requests.Current.LogEntry.Timestamp.ToString()),
+                                requests.Current.LogEntry.Timestamp.ToDateTime(),
                                 "ip",
                                 requests.Current.LogEntry.Operation,
                                 requests.Current.LogEntry.OperationData,
                                 requests.Current.CommitIndex == requests.Current.LogEntry.LogIndex
                             ));
-                        lastLogIndex = requests.Current.LogEntry.LogIndex;
+                        this._settings.LastLogIndex += 1;
                         success = true;
                     }
-                    return new AppendEntriesResponse() { MatchIndex = lastLogIndex, Success = success, Term = this._settings.CurrentTerm };
+                    return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = success, Term = this._settings.CurrentTerm };
                 }
+                Console.Write("");
                 throw new Exception("EMPTY STREAM");
 
 
             }
             catch (Exception ex)
             {
+                Console.Write(ex.Message);
 
-                throw new Exception("A");
+                throw new Exception("stream error");
             }
-            
         }
 
         public bool OnReceiveVoteRequest(RequestVoteRequest request)
