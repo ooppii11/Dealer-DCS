@@ -25,6 +25,7 @@ namespace NodeServer.Managers.RaftNameSpace
             {
                 fileContent = File.ReadAllLines(this._logFilePath).ToList();
             }
+            entry.Index = fileContent.Count();
             fileContent.Add(entry.ToString());
             File.WriteAllLines(this._logFilePath, fileContent);
         }
@@ -36,7 +37,6 @@ namespace NodeServer.Managers.RaftNameSpace
             LogEntry entry;
 
             fileContent = File.ReadAllLines(this._logFilePath);
-
             logLine = fileContent[index];
             entry = new LogEntry(logLine);
             entry.SetCommit(true);

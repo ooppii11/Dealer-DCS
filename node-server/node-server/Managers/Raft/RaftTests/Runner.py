@@ -1,5 +1,5 @@
 import os
-
+import time
 def open_terminal_and_run_exe(exe_path):
     os.system(f'start cmd /k "{exe_path}"')
 
@@ -19,6 +19,7 @@ def main():
     for port in ports:
         full_path = f'"{base_path}" {port}'
         print(full_path)
+        time.sleep(0.2)
         open_terminal_and_run_exe(full_path)
 
 if __name__ == "__main__":

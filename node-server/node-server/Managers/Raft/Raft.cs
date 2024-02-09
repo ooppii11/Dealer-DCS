@@ -64,6 +64,79 @@ namespace NodeServer.Managers.RaftNameSpace
         }
         public async Task<AppendEntriesResponse> OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> requests)
         {
+            bool success = false;
+            _cancellationTokenSource.Cancel();
+
+            try
+            {
+                int totalTerm = 0;
+                int totalPrevIndex = 0;
+                int totalPrevTerm = 0;
+                int totalCommitIndex = 0;
+                var totalLogEntries = new List<GrpcServerToServer.LogEntry>();
+                var totalArgs = new List<GrpcServerToServer.operationArgs>();
+
+                await foreach (var request in requests.ReadAllAsync())
+                {
+                    totalTerm = request.Term;
+                    totalPrevIndex = request.PrevIndex;
+                    totalPrevTerm = request.PrevTerm;
+                    totalCommitIndex = request.CommitIndex;
+                    if (request.LogEntry != null)
+                        totalLogEntries.Add(request.LogEntry);
+                    totalArgs.Add(request.Args);
+                }
+                Console.WriteLine("Total Term: " + totalTerm);
+                Console.WriteLine("Total Previous Index: " + totalPrevIndex);
+                Console.WriteLine("Total Previous Term: " + totalPrevTerm);
+                Console.WriteLine("Total Commit Index: " + totalCommitIndex);
+
+                // Print accumulated log entries
+                Console.WriteLine("Total Log Entries" + totalLogEntries.Count());
+                foreach (var logEntry in totalLogEntries)
+                {
+                    Console.WriteLine($"- Term: {logEntry.Term}, LogIndex: {logEntry.LogIndex}, Operation: {logEntry.Operation}, OperationData: {logEntry.OperationData}, Timestamp: {logEntry.Timestamp}");
+                }
+                
+                if(totalCommitIndex  == this._settings.LastLogIndex)
+                {
+                    if (this._settings.LastLogIndex != 0)
+                    {
+                        this._logger.CommitEntry(this._settings.LastLogIndex - 1);
+                        this._settings.CommitIndex = this._settings.LastLogIndex;
+                    }
+                    success = true;
+                }
+
+                if (totalLogEntries.Count() > 0 && totalLogEntries[0].LogIndex > this._settings.LastLogIndex || this._settings.LastLogIndex == 0)
+                {
+                    Console.WriteLine("Append entries");
+
+                    this._logger.AppendEntry(
+                        new LogEntry(
+                                totalLogEntries[0].LogIndex,
+                                totalLogEntries[0].Timestamp.ToDateTime(),
+                            "ip",
+                                totalLogEntries[0].Operation,
+                                totalLogEntries[0].OperationData,
+                            totalCommitIndex == totalLogEntries[0].LogIndex
+                        ));
+                    this._settings.LastLogIndex += 1;
+                    success = true;
+                }
+                
+
+                return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = success, Term = this._settings.CurrentTerm };
+            }
+            catch (Exception ex)
+            {
+                Console.Write(ex.Message);
+                throw new Exception("Stream error");
+            }
+        }
+
+        /*public async Task<AppendEntriesResponse> OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> requests)
+        {
            // int lastLogIndex = this._logger.GetLastLogEntry().Index;
             bool success = false;
             _cancellationTokenSource.Cancel();
@@ -75,13 +148,15 @@ namespace NodeServer.Managers.RaftNameSpace
                     {
                         if (this._settings.LastLogIndex != 0)
                         {
-                            Console.WriteLine("commit entreis");
-                            Console.WriteLine(this._settings.LastLogIndex - 1);
+                            //Console.WriteLine("commit entreis");
+                            //Console.WriteLine(this._settings.LastLogIndex - 1);
                             this._logger.CommitEntry(this._settings.LastLogIndex-1);
                             this._settings.CommitIndex = this._settings.LastLogIndex;
                         }
                         success = true;
                     }
+                    Console.WriteLine(requests.Current.ToString());
+                    Console.WriteLine(requests.MoveNext().ToString());
 
                     if (requests.Current.LogEntry != null && requests.Current.LogEntry.LogIndex > this._settings.LastLogIndex)
                     {
@@ -101,7 +176,7 @@ namespace NodeServer.Managers.RaftNameSpace
                     }
                     return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = success, Term = this._settings.CurrentTerm };
                 }
-                Console.Write("");
+                Console.Write("stream error");
                 throw new Exception("EMPTY STREAM");
 
 
@@ -112,7 +187,7 @@ namespace NodeServer.Managers.RaftNameSpace
 
                 throw new Exception("stream error");
             }
-        }
+        }*/
 
         public bool OnReceiveVoteRequest(RequestVoteRequest request)
         { 
@@ -139,28 +214,23 @@ namespace NodeServer.Managers.RaftNameSpace
             while (true)
             {
                 CancellationToken cancellationToken = _cancellationTokenSource.Token;
-                Console.WriteLine($"is Cancelled requested: { _cancellationTokenSource.Token.IsCancellationRequested.ToString()}");
 
                 if (this._state == null)
                 {
                     if (this._currentStateCode == StatesCode.Follower)
                     {
-                        Console.WriteLine("Follower");
                         this._state = new Follower(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
                     }
                     else if (this._currentStateCode == StatesCode.Candidate)
                     {
-                        Console.WriteLine("Candidate");
-
                         this._state = new Candidate(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
                     }
                     else if (this._currentStateCode == StatesCode.Leader)
                     {
-                        Console.WriteLine("leader");
                         this._state = new Leader(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;

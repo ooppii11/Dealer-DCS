@@ -50,11 +50,12 @@ namespace NodeServer.Managers.RaftNameSpace.States
         public Leader(RaftSettings raftSettings, Log logger) :
             base(raftSettings, logger)
         {
+            Console.WriteLine("leader");
             this._changeState = false;
             this._lastLogEntry = this._logger.GetLastLogEntry();
             this._followers = new Dictionary<string, Node>();
             this.InitHeartbeatMessages();
-            LogEntry entry = new LogEntry(1, DateTime.UtcNow, "null", "null", "null", false);
+            LogEntry entry = new LogEntry(1, DateTime.UtcNow, this._settings.ServerAddress, "TEST APPEND ENTRIES", "null", false);
             this.AppendEntries(entry);
         }
 
@@ -136,7 +137,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     catch (Exception ex)
                     {
                         Console.WriteLine($"error send to {address}");
-                        Console.WriteLine(ex.ToString());
+                       // Console.WriteLine(ex.ToString());
                     }
                 }
             }
@@ -161,20 +162,30 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     CommitIndex = (_lastLogEntry.IsCommited()) ? _lastLogEntry.Index : (_lastLogEntry.Index - 1 > 0) ? _lastLogEntry.Index : 0,
                     LogEntry = new GrpcServerToServer.LogEntry()
                     {
-                        LogIndex = _lastLogEntry.Index,
-                        Operation = _lastLogEntry.Operation,
-                        OperationData = _lastLogEntry.OperationArgs,
-                        PrevLogIndex = (_lastLogEntry.Index - 1 >= 0) ? _lastLogEntry.Index - 1 : 0,
                         PrevTerm = this._settings.PreviousTerm,
                         Term = this._settings.CurrentTerm,
-                        Timestamp = Timestamp.FromDateTime(this._lastLogEntry.Timestamp)
-                    },
+                        PrevLogIndex = (_lastLogEntry.Index - 1 >= 0) ? _lastLogEntry.Index - 1 : 0,
+                        LogIndex = _lastLogEntry.Index,
+                        Timestamp = Timestamp.FromDateTime(this._lastLogEntry.Timestamp),
+                        Operation = _lastLogEntry.Operation,
+                        OperationData = _lastLogEntry.OperationArgs,
 
+                    },
                     Args = new operationArgs() { Args = this._lastLogEntry.OperationArgs }
-                };    
-                ServerToServerClient s2s = new ServerToServerClient(address);
-                AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
-                this.OnReceiveAppendEntriesResponse(response, address);
+                };
+
+                Console.WriteLine(this._followers[address].Request.ToString());
+                try
+                {
+                    Console.WriteLine($"send new append entries to {address}");
+                    ServerToServerClient s2s = new ServerToServerClient(address);
+                    AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
+                    this.OnReceiveAppendEntriesResponse(response, address);
+                }
+                catch (Exception e) 
+                {
+                    Console.WriteLine($"error send append entries to {address}");
+                }
             }
         }
 
@@ -202,26 +213,40 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
             if (response.Success)
             {
-                if (this._followers[address].MatchIndex < response.MatchIndex)
+                this._followers[address].Request.LogEntry = null;
+                this._followers[address].MatchIndex = Math.Max(this._followers[address].MatchIndex, response.MatchIndex);
+               
+                                
+                if (this._followers[address].MatchIndex != this._followers[address].CommitIndex)
                 {
-                    this._followers[address].MatchIndex = response.MatchIndex;
+                    if (MajorityAgreeOnMatchIndex(response.MatchIndex))
+                    {
+                        if(this._settings.CommitIndex < response.MatchIndex)
+                        {
+                            this._settings.CommitIndex = response.MatchIndex;
+                            Console.WriteLine($"leader commit index {this._settings.CommitIndex}");
+                            this._logger.CommitEntry(this._settings.CommitIndex - 1);
+                        }
+                        this._followers[address].CommitIndex = response.MatchIndex;
+                        this._followers[address].Request.CommitIndex = response.MatchIndex;
+                    }
                 }
-                if(this._followers[address].MatchIndex != this._followers[address].CommitIndex && MajorityAgreeOnMatchIndex(response.MatchIndex))
+                try
                 {
-                    this._followers[address].CommitIndex = response.MatchIndex;
-
-                    this._settings.CommitIndex = Math.Max(this._settings.CommitIndex, _lastLogEntry.Index);
-                    this._logger.CommitEntry(this._settings.CommitIndex - 1);
-                    this._lastLogEntry.SetCommit(true);
-                    this._followers[address].Request.LogEntry = null;
-
                     await s2s.sendAppendEntriesRequest(this._followers[address].Request);
                 }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"error send commit to {address}\n\n\n");
+                    Console.WriteLine(e.Message);
+                }
+
             }
-            else if (response.MatchIndex + 1 == _lastLogEntry.Index)
+            else// if (response.MatchIndex + 1 == _lastLogEntry.Index)
             {
+              //  Console.WriteLine(response.ToString()); 
                 // send the previus message:
-                await s2s.sendAppendEntriesRequest(this._followers[address].Request);
+               // await s2s.sendAppendEntriesRequest(this._followers[address].Request);
             }
             // else install snapshot
 

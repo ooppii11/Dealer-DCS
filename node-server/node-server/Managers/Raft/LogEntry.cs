@@ -3,7 +3,7 @@
     public class LogEntry
     {
         private bool _commit;
-        private readonly int _index;
+        private int _index;
 
         private readonly int _term;
 
@@ -14,7 +14,12 @@
         private readonly string _operation;
 
         private readonly string _operationArgs;
-        public int Index => _index;
+       public int Index
+        {
+            get { return _index; }
+
+            set { _index = value; }
+        }
         
         public int Term => _term;
         
