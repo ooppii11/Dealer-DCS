@@ -102,17 +102,17 @@ message GetFileMetadataResponse{
 	FileMetadata file = 3;
 }
 
-message LeaderHeartBeatRequest
+message LeaderToViewerHeartBeatRequest
 {
 	int32 term = 1;
-	int32 systemPrevIndex = 2;
+	int32 systemLastIndex = 2;
 	string LeaderIP = 3; //or leader id
 }
 
-message LeaderHeartBeatResponse
+message LeaderToViewerHeartBeatResponse
 {
 	bool status = 1;
-	string message = 2;
+	optional string message = 2;
 }
 
 service Cloud {
@@ -132,5 +132,5 @@ service Cloud {
     rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
 
 	//Raft:
-	rpc GetOrUpdateSystemLeader(LeaderHeartBeatRequest) returns (LeaderHeartBeatResponse);
+	rpc GetOrUpdateSystemLeader(LeaderToViewerHeartBeatRequest) returns (LeaderToViewerHeartBeatResponse);
 }

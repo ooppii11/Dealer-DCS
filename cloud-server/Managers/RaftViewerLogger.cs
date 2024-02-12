@@ -20,7 +20,7 @@ namespace cloud_server.Managers
             }
         }
 
-        public void insertEntry(LeaderHeartBeatRequest entry)
+        public void insertEntry(LeaderToViewerHeartBeatRequest entry)
         {
             List<string> fileContent = new List<string>();
             if (File.Exists(this._filePath))
@@ -45,12 +45,12 @@ namespace cloud_server.Managers
             fileContent.Add("");
             File.WriteAllLines(this._filePath, fileContent);
         }
-        private string entryObjToLogLine(LeaderHeartBeatRequest entry)
+        private string entryObjToLogLine(LeaderToViewerHeartBeatRequest entry)
         { 
-            return (new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()).ToString() + "\t" + entry.LeaderIP + "\t" + (entry.Term).ToString() + "\t" + (entry.SystemPrevIndex).ToString();
+            return (new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()).ToString() + "\t" + entry.LeaderIP + "\t" + (entry.Term).ToString() + "\t" + (entry.SystemLastIndex).ToString();
         }
 
-        private LeaderHeartBeatRequest logLineToEntryObj(string logLine)
+        private LeaderToViewerHeartBeatRequest logLineToEntryObj(string logLine)
         {
             string[] parts = logLine.Split('\t');
 
@@ -60,14 +60,14 @@ namespace cloud_server.Managers
                 {
                     string leaderIp = parts[1];
                     int term = int.Parse(parts[2]);
-                    int systemPrevIndex = int.Parse(parts[3]);
+                    int systemLastIndex = int.Parse(parts[3]);
 
                     // Create LeaderHeartBeatRequest object
-                    LeaderHeartBeatRequest entry = new LeaderHeartBeatRequest
+                    LeaderToViewerHeartBeatRequest entry = new LeaderToViewerHeartBeatRequest
                     {
                         LeaderIP = leaderIp,
                         Term = term,
-                        SystemPrevIndex = systemPrevIndex
+                        SystemLastIndex = systemLastIndex
                     };
 
                     return entry;
@@ -88,9 +88,9 @@ namespace cloud_server.Managers
         }
 
 
-        public LeaderHeartBeatRequest getLastEntry()
+        public LeaderToViewerHeartBeatRequest getLastEntry()
         {
-            LeaderHeartBeatRequest leaderHeartBeatRequest;
+            LeaderToViewerHeartBeatRequest leaderHeartBeatRequest;
             string logLine = "";
 
             var logLines = File.ReadLines(this._filePath);

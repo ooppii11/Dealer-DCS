@@ -47,16 +47,13 @@ namespace cloud_server.Services
                 {
                     try
                     {
-                        // Check if there is a leader available before processing requests.
                         while (this._raftLogger.getCurrLeaderIP() != "" && this._requestQueue.TryDequeue(out var requestPair))
                         {
                             try
                             {
-                                // Execute the function with the parameters.
                                 var result = requestPair.Action.DynamicInvoke(requestPair.Parameters);
                                 if (result is Task taskResult)
                                 {
-                                    // If the result is a task, wait for its completion.
                                     taskResult.ContinueWith(t =>
                                     {
                                         requestPair.Completion.TrySetResult(t.GetType().GetProperty("Result")?.GetValue(t));
@@ -64,7 +61,6 @@ namespace cloud_server.Services
                                 }
                                 else
                                 {
-                                    // If the result is not a task, set the completion directly.
                                     requestPair.Completion.TrySetResult(result);
                                 }
                             }
@@ -85,13 +81,32 @@ namespace cloud_server.Services
 
 
 
-        public override Task<LeaderHeartBeatResponse> GetOrUpdateSystemLeader(LeaderHeartBeatRequest request, ServerCallContext context)
+        public override Task<LeaderToViewerHeartBeatResponse> GetOrUpdateSystemLeader(LeaderToViewerHeartBeatRequest request, ServerCallContext context)
         {
-            this. _raftLogger.insertEntry(request);
-            //this._leaderIP = request.LeaderIp;
-            this._queueEvent.Set();
-            this._filesManager.LeaderIP = request.LeaderIP;
-            return base.GetOrUpdateSystemLeader(request, context);
+            try
+            {
+                bool isNewLeader = request.LeaderIP != this._raftLogger.getCurrLeaderIP();
+                bool isValidTerm = this._raftLogger.getLastEntry().Term <= request.Term;
+                bool isValidIndex = this._raftLogger.getLastEntry().SystemLastIndex <= request.SystemLastIndex;
+                if (isNewLeader
+                    && isValidTerm
+                    && isValidIndex)
+                {
+                    this._raftLogger.insertEntry(request);
+                    this._queueEvent.Set();
+                    this._filesManager.LeaderIP = request.LeaderIP;
+                    return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = true });
+                }
+            }
+            catch (NoLeaderException ex)
+            {
+                this._raftLogger.insertEntry(request);
+                this._queueEvent.Set();
+                this._filesManager.LeaderIP = request.LeaderIP;
+                return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = true });
+            }
+            
+            return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = false });
         }
         public override Task<SignupResponse> signup(SignupRequest request, ServerCallContext context)
         {
@@ -170,8 +185,8 @@ namespace cloud_server.Services
 
         public override Task DownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)
         {
-            EnqueueRequestAsync<Task>(ProcessDownloadFile, request, responseStream, context);
-            return base.DownloadFile(request, responseStream, context);
+            var task = EnqueueRequestAsync<Task>(ProcessDownloadFile, request, responseStream, context);
+            return task;
         }
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
@@ -291,7 +306,8 @@ namespace cloud_server.Services
                         int writingSize = Math.Min(remaining, chunkSize);
 
                         DownloadFileResponse response = new DownloadFileResponse { Status = GrpcCloud.Status.Success, FileData = ByteString.CopyFrom(file, offset, writingSize) };
-                        offset += chunkSize;
+                        //
+                        offset += writingSize;
                         await responseStream.WriteAsync(response);
                     }
                 }
@@ -320,8 +336,7 @@ namespace cloud_server.Services
 
                 string fileName = "";
                 string type = "";
-                string SecondReplicationPlace = "";
-                string ThirdReplicationPlace = "";
+                
                 MemoryStream fileData = new MemoryStream();
 
                 await foreach (var chunk in requestStream.ReadAllAsync())
@@ -332,6 +347,8 @@ namespace cloud_server.Services
                         fileName = chunk.FileName;
                         type = chunk.Type;
                     }
+                    //
+                    isFirstIteration = false;
 
                     fileData.Write(chunk.FileData.ToArray(), 0, chunk.FileData.Length);
                 }

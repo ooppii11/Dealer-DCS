@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 using GrpcServerToServer;
@@ -84,9 +85,10 @@ namespace NodeServer.Managers
             return response;
         }
 
-        public async Task<AppendEntriesResponse> sendAppendEntriesRequest(AppendEntriesRequest appendEntries)
+        public async Task<AppendEntriesResponse> sendAppendEntriesRequest(AppendEntriesRequest appendEntries, TimeSpan timeout)
         {
-            using (var call = this.client.AppendEntries())
+            var callOptions = new CallOptions(deadline: DateTime.UtcNow.Add(timeout));
+            using (var call = this.client.AppendEntries(callOptions))
             {
                 await call.RequestStream.WriteAsync(appendEntries);
                 await call.RequestStream.CompleteAsync();
