@@ -125,7 +125,6 @@ namespace NodeServer.Managers.RaftNameSpace
             while (true)
             {
                 CancellationToken cancellationToken = _cancellationTokenSource.Token;
-                Console.WriteLine($"is Cancelled requested: { _cancellationTokenSource.Token.IsCancellationRequested.ToString()}");
 
                 if (this._state == null)
                 {

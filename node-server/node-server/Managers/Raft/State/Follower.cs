@@ -1,5 +1,6 @@
 ﻿using Grpc.Core;
 using GrpcServerToServer;
+using System;
 using System.Timers;
 
 namespace NodeServer.Managers.RaftNameSpace.States
@@ -10,10 +11,11 @@ namespace NodeServer.Managers.RaftNameSpace.States
         private CancellationToken _cancellationToken;
         private TaskCompletionSource<bool> _completionSource;
         private readonly object _lockObject = new object();
+
         public Follower(RaftSettings settings, Log logger) :
             base(settings, logger)
         {
-            
+            this._settings.ElectionTimeout = (new Random().Next(300, 3001));
         }
 
         ~Follower()
@@ -27,7 +29,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
         private void StartTimer()
         {
             this._timer = new System.Timers.Timer();
-            this._timer.Interval = this._settings.ElectionTimeout;
+            this._timer.Interval = this._settings.ElectionTimeout + (new Random().Next(0, 300));
             this._timer.Elapsed += new ElapsedEventHandler(OnHeartBeatTimerElapsed);
             this._timer.Start();
         }

@@ -4,6 +4,7 @@ using cloud_server.Managers;
 using Google.Protobuf;
 using System.Collections.Concurrent;
 using cloud_server.Utilities;
+using cloud_server.DB;
 
 namespace cloud_server.Services
 {   
@@ -12,18 +13,26 @@ namespace cloud_server.Services
         private Authentication _authManager;
         private FilesManager _filesManager;
         private readonly ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)> _requestQueue = new ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>();
-        private readonly object _lockObject = new object();
+        private static readonly object _queueLockObject = new object();
         private readonly ManualResetEventSlim _queueEvent = new ManualResetEventSlim(false);
-        RaftViewerLogger _raftLogger = new RaftViewerLogger();
+        private static readonly RaftViewerLogger _raftLogger = new RaftViewerLogger("LeaderLog.log");
+        private static readonly object _fileLock = new object();
 
 
         private readonly ILogger<CloudGrpcService> _logger;
 
-        public CloudGrpcService(ILogger<CloudGrpcService> logger, Authentication auth, FilesManager filesManager)
+        public CloudGrpcService(ILogger<CloudGrpcService> logger, Authentication auth, FileMetadataDB filesManagerDB)
         {
+            try
+            {
+                this._filesManager = new FilesManager(filesManagerDB, CloudGrpcService._raftLogger.getCurrLeaderIP());
+            }
+            catch (NoLeaderException ex)
+            {
+                this._filesManager = new FilesManager(filesManagerDB);
+            }
             this._logger = logger;
-            this._authManager = auth; 
-            this._filesManager = filesManager;
+            this._authManager = auth;
             Task.Factory.StartNew(ProcessQueue, TaskCreationOptions.LongRunning);
         }
 
@@ -43,11 +52,11 @@ namespace cloud_server.Services
             {
                 this._queueEvent.Wait();
 
-                lock (this._lockObject)
+                lock (CloudGrpcService._queueLockObject)
                 {
                     try
                     {
-                        while (this._raftLogger.getCurrLeaderIP() != "" && this._requestQueue.TryDequeue(out var requestPair))
+                        while (CloudGrpcService._raftLogger.getCurrLeaderIP() != "" && this._requestQueue.TryDequeue(out var requestPair))
                         {
                             try
                             {
@@ -83,30 +92,33 @@ namespace cloud_server.Services
 
         public override Task<LeaderToViewerHeartBeatResponse> GetOrUpdateSystemLeader(LeaderToViewerHeartBeatRequest request, ServerCallContext context)
         {
-            try
+            lock (CloudGrpcService._fileLock)
             {
-                bool isNewLeader = request.LeaderIP != this._raftLogger.getCurrLeaderIP();
-                bool isValidTerm = this._raftLogger.getLastEntry().Term <= request.Term;
-                bool isValidIndex = this._raftLogger.getLastEntry().SystemLastIndex <= request.SystemLastIndex;
-                if (isNewLeader
-                    && isValidTerm
-                    && isValidIndex)
+                try
                 {
-                    this._raftLogger.insertEntry(request);
+                    bool isNewLeader = request.LeaderIP != CloudGrpcService._raftLogger.getCurrLeaderIP();
+                    bool isValidTerm = CloudGrpcService._raftLogger.getLastEntry().Term <= request.Term;
+                    bool isValidIndex = CloudGrpcService._raftLogger.getLastEntry().SystemLastIndex <= request.SystemLastIndex;
+                    if (isNewLeader
+                        && isValidTerm
+                        && isValidIndex)
+                    {
+                        CloudGrpcService._raftLogger.insertEntry(request);
+                        this._queueEvent.Set();
+                        this._filesManager.LeaderIP = request.LeaderIP;
+                        return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = true });
+                    }
+                }
+                catch (NoLeaderException ex)
+                {
+                    CloudGrpcService._raftLogger.insertEntry(request);
                     this._queueEvent.Set();
                     this._filesManager.LeaderIP = request.LeaderIP;
                     return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = true });
                 }
+
+                return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = false });
             }
-            catch (NoLeaderException ex)
-            {
-                this._raftLogger.insertEntry(request);
-                this._queueEvent.Set();
-                this._filesManager.LeaderIP = request.LeaderIP;
-                return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = true });
-            }
-            
-            return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = false });
         }
         public override Task<SignupResponse> signup(SignupRequest request, ServerCallContext context)
         {
@@ -210,14 +222,7 @@ namespace cloud_server.Services
 
                 return Task.FromResult(response);
             }
-            catch (RpcException ex)
-            {
-                this._raftLogger.insertInvalidLeader();
-                context.Status = new Grpc.Core.Status(StatusCode.Unavailable, ex.Message);
-                response.Message = ex.Message;
-                response.Status = GrpcCloud.Status.Failure;
-                return Task.FromResult(response);
-            }
+            
             catch (Exception ex)
             {
                 context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
@@ -236,14 +241,6 @@ namespace cloud_server.Services
                 response.Message = "";
                 response.Status = GrpcCloud.Status.Success;
                 response.File = this._filesManager.getFileMetadata(user.Id, request.FileName);
-                return Task.FromResult(response);
-            }
-            catch (RpcException ex)
-            {
-                this._raftLogger.insertInvalidLeader();
-                context.Status = new Grpc.Core.Status(StatusCode.Unavailable, ex.Message);
-                response.Message = ex.Message;
-                response.Status = GrpcCloud.Status.Failure;
                 return Task.FromResult(response);
             }
             catch (Exception ex)
@@ -269,7 +266,10 @@ namespace cloud_server.Services
             }
             catch (RpcException ex)
             {
-                this._raftLogger.insertInvalidLeader();
+                lock (CloudGrpcService._fileLock)
+                {
+                    CloudGrpcService._raftLogger.insertInvalidLeader();
+                }   
                 context.Status = new Grpc.Core.Status(StatusCode.Unavailable, ex.Message);
                 return Task.FromResult(new DeleteFileResponse
                 {
@@ -314,7 +314,10 @@ namespace cloud_server.Services
             }
             catch (RpcException ex)
             {
-                this._raftLogger.insertInvalidLeader();
+                lock (CloudGrpcService._fileLock)
+                {
+                    CloudGrpcService._raftLogger.insertInvalidLeader();
+                }
                 context.Status = new Grpc.Core.Status(StatusCode.Unavailable, ex.Message);
                 await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Error downloading the file: {ex.Message}", FileData = ByteString.Empty });
             }
@@ -363,7 +366,10 @@ namespace cloud_server.Services
             }
             catch (RpcException ex)
             {
-                this._raftLogger.insertInvalidLeader();
+                lock (CloudGrpcService._fileLock)
+                {
+                    CloudGrpcService._raftLogger.insertInvalidLeader();
+                }
                 context.Status = new Grpc.Core.Status(StatusCode.Unavailable, ex.Message);
                 return new UploadFileResponse
                 {

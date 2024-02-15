@@ -46,10 +46,9 @@ namespace NodeServer.Managers
             this.channel.ShutdownAsync().Wait();
         }
 
-        public async Task<LeaderToViewerHeartBeatResponse> ViewerUpdate(LeaderToViewerHeartBeatRequest request, TimeSpan timeout)
+        public async Task<LeaderToViewerHeartBeatResponse> ViewerUpdate(LeaderToViewerHeartBeatRequest request)
         {
-            var callOptions = new CallOptions(deadline: DateTime.UtcNow.Add(timeout));
-            var response = await this.client.GetOrUpdateSystemLeaderAsync(request, callOptions);
+            var response = await this.client.GetOrUpdateSystemLeaderAsync(request);
             return response;
         }
     }

@@ -15,7 +15,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
         private bool _changeState;
         private CancellationToken _cancellationToken;
         private TaskCompletionSource<bool> _completionSource;
-        private readonly string _cloudAddress = "";
+        private readonly string _cloudAddress = "127.0.0.1:50053";
         public Leader(RaftSettings raftSettings, Log logger) :
             base(raftSettings, logger)
         {
@@ -94,7 +94,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     {
                         // Console.WriteLine($"send hert beat to {address}");
                         ServerToServerClient s2s = new ServerToServerClient(address);
-                        AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address], TimeSpan.FromMilliseconds(250));
+                        AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
                     }
                     catch (RpcException e)
                     {
@@ -115,14 +115,22 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         private async void sendLeaderToViewerHeartBeat()
         {
-            RaftViewerClient client = new RaftViewerClient(this._cloudAddress);
-            await client.ViewerUpdate(
-                new GrpcCloud.LeaderToViewerHeartBeatRequest
-                {
-                    LeaderIP = this._settings.ServerAddress,
-                    Term = this._settings.CurrentTerm,
-                    SystemLastIndex = this._lastLogEntry.Index
-                }, TimeSpan.FromMilliseconds(250));
+            try 
+            {
+                RaftViewerClient client = new RaftViewerClient(this._cloudAddress);
+                await client.ViewerUpdate(
+                    new GrpcCloud.LeaderToViewerHeartBeatRequest
+                    {
+                        LeaderIP = this._settings.ServerAddress,
+                        Term = this._settings.CurrentTerm,
+                        SystemLastIndex = this._lastLogEntry.Index
+                    });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"error send to cloud at: {this._cloudAddress}");
+                Console.WriteLine(ex.ToString());
+            }
         }
 
         public async void AppendEntries(LogEntry entry)
@@ -153,7 +161,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 };
                 //ServerToServerClient s2s = new ServerToServerClient(address, 50052);
                 ServerToServerClient s2s = new ServerToServerClient(address);
-                AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address], TimeSpan.FromMilliseconds(250));
+                AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
                 this.OnReceiveAppendEntriesResponse(response, address);
             }
         }
@@ -170,7 +178,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 //ServerToServerClient s2s = new ServerToServerClient($"{address}:{this._settings.ServersPort}");
                 //ServerToServerClient s2s = new ServerToServerClient(address, 50052);
                 ServerToServerClient s2s = new ServerToServerClient(address);
-                await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address], TimeSpan.FromMilliseconds(250));
+                await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
             }
             else if (response.MatchIndex != _lastLogEntry.Index)
             {
@@ -181,7 +189,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 // send the previus message
                 //ServerToServerClient s2s = new ServerToServerClient(address, 50052);
                 ServerToServerClient s2s = new ServerToServerClient(address);
-                await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address], TimeSpan.FromMilliseconds(250));
+                await s2s.sendAppendEntriesRequest(this._heartbeatMessages[address]);
             }
 
         }

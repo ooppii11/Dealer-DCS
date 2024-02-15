@@ -85,10 +85,9 @@ namespace NodeServer.Managers
             return response;
         }
 
-        public async Task<AppendEntriesResponse> sendAppendEntriesRequest(AppendEntriesRequest appendEntries, TimeSpan timeout)
+        public async Task<AppendEntriesResponse> sendAppendEntriesRequest(AppendEntriesRequest appendEntries)
         {
-            var callOptions = new CallOptions(deadline: DateTime.UtcNow.Add(timeout));
-            using (var call = this.client.AppendEntries(callOptions))
+            using (var call = this.client.AppendEntries())
             {
                 await call.RequestStream.WriteAsync(appendEntries);
                 await call.RequestStream.CompleteAsync();
