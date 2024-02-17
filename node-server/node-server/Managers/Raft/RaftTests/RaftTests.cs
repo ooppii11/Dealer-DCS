@@ -21,9 +21,7 @@ namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
 
             services.AddSingleton<Raft>(new Raft(settings));
             services.AddSingleton<FileSaving>(new FileSaving("127.0.0.1", 50051));
-            services.AddSingleton<NodeSystemParse>(new NodeSystemParse());
             services.AddGrpc();
-            //services.AddScoped<ServerToServerService>();
 
         }
 

@@ -149,12 +149,13 @@ namespace cloud_server.Services
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
                 // Send Error response:
                 return Task.FromResult(new SignupResponse
                 {
                     Status = GrpcCloud.Status.Failure,
-                    Message = ex.Message
+                    Message = "Internal Error"
                 });
 
             }
@@ -173,12 +174,13 @@ namespace cloud_server.Services
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
                 // Send Error response:
                 return Task.FromResult(new LoginResponse
                 {
                     Status = GrpcCloud.Status.Failure,
-                    SessionId = ex.Message
+                    SessionId = "Internal Error"
                 });
 
             }
@@ -235,9 +237,9 @@ namespace cloud_server.Services
 
                 return Task.FromResult(response);
             }
-            
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
                 response.Message = ex.Message;
                 response.Status = GrpcCloud.Status.Failure;
@@ -258,6 +260,7 @@ namespace cloud_server.Services
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
                 response.Message = ex.Message;
                 response.Status = GrpcCloud.Status.Failure;
@@ -279,6 +282,7 @@ namespace cloud_server.Services
             }
             catch (RpcException ex)
             {
+                Console.WriteLine(ex.Message);
                 lock (CloudGrpcService._fileLock)
                 {
                     CloudGrpcService._raftLogger.insertInvalidLeader();
@@ -292,6 +296,7 @@ namespace cloud_server.Services
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
                 return Task.FromResult(new DeleteFileResponse
                 { 
@@ -301,7 +306,6 @@ namespace cloud_server.Services
             }
 
         }
-
         private async Task ProcessDownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)
         {
             try
@@ -327,6 +331,7 @@ namespace cloud_server.Services
             }
             catch (RpcException ex)
             {
+                Console.WriteLine(ex.Message);
                 lock (CloudGrpcService._fileLock)
                 {
                     CloudGrpcService._raftLogger.insertInvalidLeader();
@@ -336,6 +341,7 @@ namespace cloud_server.Services
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
                 await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Internal Error downloading the file.", FileData = ByteString.Empty });
                 return;
@@ -379,6 +385,7 @@ namespace cloud_server.Services
             }
             catch (RpcException ex)
             {
+                Console.WriteLine(ex.Message);
                 lock (CloudGrpcService._fileLock)
                 {
                     CloudGrpcService._raftLogger.insertInvalidLeader();
@@ -392,6 +399,7 @@ namespace cloud_server.Services
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
                 return new UploadFileResponse()
                 {

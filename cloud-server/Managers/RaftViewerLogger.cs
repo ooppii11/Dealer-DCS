@@ -10,34 +10,43 @@ namespace cloud_server.Managers
     public class RaftViewerLogger
     {
         private readonly string _filePath;
-        
+        private static readonly object _fileLock = new object();
 
         public RaftViewerLogger(string filePath)
         {
-            _filePath = filePath;
-            // Create the log file if it doesn't exist
-            if (!File.Exists(_filePath))
+            lock (RaftViewerLogger._fileLock)
             {
-                using (File.Create(_filePath)) { }
-            }
+                _filePath = filePath;
+                // Create the log file if it doesn't exist
+                if (!File.Exists(_filePath))
+                {
+                    using (File.Create(_filePath)) { }
+                }
+            }  
         }
 
         public void insertEntry(LeaderToViewerHeartBeatRequest entry)
         {
-            List<string> fileContent = File.ReadAllLines(_filePath).ToList();
-            if (fileContent.Any() && string.IsNullOrWhiteSpace(fileContent.Last()))
+            lock (RaftViewerLogger._fileLock)
             {
-                fileContent.RemoveAt(fileContent.Count - 1);
+                List<string> fileContent = File.ReadAllLines(_filePath).ToList();
+                if (fileContent.Any() && string.IsNullOrWhiteSpace(fileContent.Last()))
+                {
+                    fileContent.RemoveAt(fileContent.Count - 1);
+                }
+                fileContent.Add(EntryObjToLogLine(entry));
+                File.WriteAllLines(_filePath, fileContent);
             }
-            fileContent.Add(EntryObjToLogLine(entry));
-            File.WriteAllLines(_filePath, fileContent);
         }
 
         public void insertInvalidLeader()
         {
-            List<string> fileContent = File.Exists(_filePath) ? File.ReadAllLines(_filePath).ToList() : new List<string>();
-            fileContent.Add("");
-            File.WriteAllLines(_filePath, fileContent);
+            lock (RaftViewerLogger._fileLock)
+            {
+                List<string> fileContent = File.Exists(_filePath) ? File.ReadAllLines(_filePath).ToList() : new List<string>();
+                fileContent.Add("");
+                File.WriteAllLines(_filePath, fileContent);
+            }
         }
 
         private string EntryObjToLogLine(LeaderToViewerHeartBeatRequest entry)
@@ -67,8 +76,12 @@ namespace cloud_server.Managers
 
         public LeaderToViewerHeartBeatRequest getLastEntry()
         {
-            string logLine = File.ReadLines(_filePath).LastOrDefault();
-            
+            string logLine = null;
+            lock (RaftViewerLogger._fileLock)
+            {
+                logLine = File.ReadLines(_filePath).LastOrDefault();
+            }
+
             if (logLine == null)
                 throw new NoEntryException("No entry found. The system doesn't have any leader.");
 
