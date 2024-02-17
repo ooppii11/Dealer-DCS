@@ -12,7 +12,7 @@ message LeaderToViewerHeartBeatRequest
 {
 	int32 term = 1;
 	int32 systemLastIndex = 2;
-	string LeaderIP = 3; //or leader id
+	string LeaderAddress = 3; //or leader id
 }
 
 message LeaderToViewerHeartBeatResponse
@@ -22,7 +22,6 @@ message LeaderToViewerHeartBeatResponse
 }
 
 service Cloud {
-
 	//Raft:
 	rpc GetOrUpdateSystemLeader(LeaderToViewerHeartBeatRequest) returns (LeaderToViewerHeartBeatResponse);
 }

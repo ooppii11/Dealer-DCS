@@ -4,7 +4,7 @@ import cloud_pb2_grpc
 
 
 def fils_test(stub):
-    FILENAME = "test24"
+    FILENAME = "test266"
     try:
         response = stub.login(cloud_pb2.LoginRequest(username="test1", password="test1password"))
         print(response)
@@ -94,3 +94,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+#python -m grpc_tools.protoc -I. --python_out=. --pyi_out=. --grpc_python_out=. cloud.proto

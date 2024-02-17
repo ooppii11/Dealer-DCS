@@ -20,8 +20,10 @@ namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
             settings.ServersAddresses= new List<string> { "127.0.0.1:1111", "127.0.0.1:2222", "127.0.0.1:3333" };
 
             services.AddSingleton<Raft>(new Raft(settings));
+            services.AddSingleton<FileSaving>(new FileSaving("127.0.0.1", 50051));
+            services.AddSingleton<NodeSystemParse>(new NodeSystemParse());
             services.AddGrpc();
-            services.AddScoped<ServerToServerService>();
+            //services.AddScoped<ServerToServerService>();
 
         }
 
@@ -31,6 +33,7 @@ namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapGrpcService<ServerToServerService>();
+                endpoints.MapGrpcService<NodeServerService>();
                 endpoints.MapGet("/", context => context.Response.WriteAsync("Communication with gRPC endpoints must be made through a gRPC client."));
             });
         }

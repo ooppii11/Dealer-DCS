@@ -5,6 +5,7 @@ using Google.Protobuf;
 using System.Collections.Concurrent;
 using cloud_server.Utilities;
 using cloud_server.DB;
+using System.Threading.Tasks;
 
 namespace cloud_server.Services
 {   
@@ -25,7 +26,7 @@ namespace cloud_server.Services
         {
             try
             {
-                this._filesManager = new FilesManager(filesManagerDB, CloudGrpcService._raftLogger.getCurrLeaderIP());
+                this._filesManager = new FilesManager(filesManagerDB, CloudGrpcService._raftLogger.getCurrLeaderAddress());
             }
             catch (NoLeaderException ex)
             {
@@ -36,11 +37,10 @@ namespace cloud_server.Services
             Task.Factory.StartNew(ProcessQueue, TaskCreationOptions.LongRunning);
         }
 
-        private Task<T> EnqueueRequestAsync<T>(Delegate action, params object[] parameters)
+        private Task<object> EnqueueRequestAsync(Delegate action, params object[] parameters)
         {
-            var completionSource = new TaskCompletionSource<T>();
-            var completionSourceObject = completionSource as TaskCompletionSource<object>;
-            this._requestQueue.Enqueue((action, completionSourceObject, parameters));
+            var completionSource = new TaskCompletionSource<object>();
+            this._requestQueue.Enqueue((action, completionSource, parameters));
             this._queueEvent.Set();
             return completionSource.Task;
         }
@@ -56,17 +56,30 @@ namespace cloud_server.Services
                 {
                     try
                     {
-                        while (CloudGrpcService._raftLogger.getCurrLeaderIP() != "" && this._requestQueue.TryDequeue(out var requestPair))
+                        while (this._requestQueue.TryDequeue(out var requestPair))
                         {
+                            lock (CloudGrpcService._fileLock)
+                            {
+                                CloudGrpcService._raftLogger.getCurrLeaderAddress();
+                            }
                             try
                             {
                                 var result = requestPair.Action.DynamicInvoke(requestPair.Parameters);
                                 if (result is Task taskResult)
                                 {
-                                    taskResult.ContinueWith(t =>
+                                    if (taskResult.IsCompleted)
                                     {
-                                        requestPair.Completion.TrySetResult(t.GetType().GetProperty("Result")?.GetValue(t));
-                                    }, TaskScheduler.Default);
+                                        // If the task is already completed, set the result directly
+                                        requestPair.Completion.TrySetResult(taskResult.GetType().GetProperty("Result")?.GetValue(taskResult));
+                                    }
+                                    else
+                                    {
+                                        // If the task is not completed, continue with setting the result
+                                        taskResult.ContinueWith(t =>
+                                        {
+                                            requestPair.Completion.TrySetResult(t.GetType().GetProperty("Result")?.GetValue(t));
+                                        }, TaskScheduler.Default);
+                                    }
                                 }
                                 else
                                 {
@@ -96,16 +109,16 @@ namespace cloud_server.Services
             {
                 try
                 {
-                    bool isNewLeader = request.LeaderIP != CloudGrpcService._raftLogger.getCurrLeaderIP();
-                    bool isValidTerm = CloudGrpcService._raftLogger.getLastEntry().Term <= request.Term;
+                    bool isNewLeader = request.LeaderAddress != CloudGrpcService._raftLogger.getCurrLeaderAddress();
+                    //bool isValidTerm = CloudGrpcService._raftLogger.getLastEntry().Term <= request.Term;
                     bool isValidIndex = CloudGrpcService._raftLogger.getLastEntry().SystemLastIndex <= request.SystemLastIndex;
                     if (isNewLeader
-                        && isValidTerm
+                        //&& isValidTerm
                         && isValidIndex)
                     {
                         CloudGrpcService._raftLogger.insertEntry(request);
                         this._queueEvent.Set();
-                        this._filesManager.LeaderIP = request.LeaderIP;
+                        this._filesManager.LeaderAddress = request.LeaderAddress;
                         return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = true });
                     }
                 }
@@ -113,7 +126,7 @@ namespace cloud_server.Services
                 {
                     CloudGrpcService._raftLogger.insertEntry(request);
                     this._queueEvent.Set();
-                    this._filesManager.LeaderIP = request.LeaderIP;
+                    this._filesManager.LeaderAddress = request.LeaderAddress;
                     return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = true });
                 }
 
@@ -179,32 +192,32 @@ namespace cloud_server.Services
 
         public override async Task<GetListOfFilesResponse> getListOfFiles(GetListOfFilesRequest request, ServerCallContext context)
         {
-            var task = EnqueueRequestAsync<GetListOfFilesResponse>(ProcessGetListOfFiles, request, context);
-            return await task;
+            var task = await EnqueueRequestAsync(ProcessGetListOfFiles, request, context);
+            return (GetListOfFilesResponse)task;
         }
 
         public override async Task<GetFileMetadataResponse> getFileMetadata(GetFileMetadataRequest request, ServerCallContext context)
         {
-            var task = EnqueueRequestAsync<GetFileMetadataResponse>(ProcessGetFileMetadata, request, context);
-            return await task;
+            var task = await EnqueueRequestAsync(ProcessGetFileMetadata, request, context);
+            return (GetFileMetadataResponse) task;
         }
 
         public override async Task<DeleteFileResponse> DeleteFile(DeleteFileRequest request, ServerCallContext context)
         {
-            var task = EnqueueRequestAsync<DeleteFileResponse>(ProcessDeleteFile, request, context);
-            return await task;
+            var task = await EnqueueRequestAsync(ProcessDeleteFile, request, context);
+            return (DeleteFileResponse)task;
         }
 
         public override Task DownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)
         {
-            var task = EnqueueRequestAsync<Task>(ProcessDownloadFile, request, responseStream, context);
+            var task = EnqueueRequestAsync(ProcessDownloadFile, request, responseStream, context);
             return task;
         }
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
         {
-            var task = EnqueueRequestAsync<UploadFileResponse>(ProcessUploadFile, requestStream, context);
-            return await task;
+            var task = await EnqueueRequestAsync(ProcessUploadFile, requestStream, context);
+            return  (UploadFileResponse)task;
         }
 
         private Task<GetListOfFilesResponse> ProcessGetListOfFiles(GetListOfFilesRequest request, ServerCallContext context)
@@ -283,7 +296,7 @@ namespace cloud_server.Services
                 return Task.FromResult(new DeleteFileResponse
                 { 
                     Status = GrpcCloud.Status.Failure,
-                    Message = $"Error deleting the file: {ex.Message}" 
+                    Message = $"Internal Error deleting the file." 
                 });
             }
 
@@ -324,7 +337,7 @@ namespace cloud_server.Services
             catch (Exception ex)
             {
                 context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
-                await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Error downloading the file: {ex.Message}", FileData = ByteString.Empty });
+                await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Internal Error downloading the file.", FileData = ByteString.Empty });
                 return;
             }
 
@@ -374,7 +387,7 @@ namespace cloud_server.Services
                 return new UploadFileResponse
                 {
                     Status = GrpcCloud.Status.Failure,
-                    Message = $"Error deleting the file: {ex.Message}"
+                    Message = $"Error uploading the file: {ex.Message}"
                 };
             }
             catch (Exception ex)
@@ -383,7 +396,7 @@ namespace cloud_server.Services
                 return new UploadFileResponse()
                 {
                     Status = GrpcCloud.Status.Failure,
-                    Message = $"Error uploading file: {ex.Message}" 
+                    Message = $"Internal Error uploading file." 
                 };
             }
         }

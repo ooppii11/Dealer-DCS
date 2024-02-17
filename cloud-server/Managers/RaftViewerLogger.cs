@@ -42,19 +42,19 @@ namespace cloud_server.Managers
 
         private string EntryObjToLogLine(LeaderToViewerHeartBeatRequest entry)
         {
-            return $"{DateTimeOffset.Now.ToUnixTimeSeconds()}\t{entry.LeaderIP}\t{entry.Term}\t{entry.SystemLastIndex}";
+            return $"{DateTimeOffset.Now.ToUnixTimeSeconds()}\t{entry.LeaderAddress}" /*+ $"\t{entry.Term}"*/ + $"\t{entry.SystemLastIndex}";
         }
 
         private LeaderToViewerHeartBeatRequest LogLineToEntryObj(string logLine)
         {
             string[] parts = logLine.Split('\t');
 
-            if (parts.Length == 4 && int.TryParse(parts[2], out int term) && int.TryParse(parts[3], out int systemLastIndex))
+            if (parts.Length == 3/*4*/ && int.TryParse(parts[2], out int systemLastIndex) /*int.TryParse(parts[2], out int term) && int.TryParse(parts[3], out int systemLastIndex)*/)
             {
                 return new LeaderToViewerHeartBeatRequest
                 {
-                    LeaderIP = parts[1],
-                    Term = term,
+                    LeaderAddress = parts[1],
+                    //Term = term,
                     SystemLastIndex = systemLastIndex
                 };
             }
@@ -78,9 +78,9 @@ namespace cloud_server.Managers
             return LogLineToEntryObj(logLine);
         }
 
-        public string getCurrLeaderIP()
+        public string getCurrLeaderAddress()
         {
-            return getLastEntry().LeaderIP;
+            return getLastEntry().LeaderAddress;
         }
     }
 }

@@ -6,13 +6,13 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading.Tasks;
-
+using Grpc;
 namespace cloud_server.Services
 {
     public class NodeServerCommunication
     {
-        private GrpcChannel _channel; //Grpc.Core.Channel _channel;
+        //private GrpcChannel _channel;
+        private Grpc.Core.Channel _channel; //Grpc.Core.Channel _channel;
         private GrpcNodeServer.NodeServices.NodeServicesClient _client;
         private const int MaxFileChunckLength = 3145728;
         public NodeServerCommunication(string host)
@@ -20,12 +20,14 @@ namespace cloud_server.Services
             try
             {
                 // Create Grpc connction:
-                this._channel = GrpcChannel.ForAddress(host);
+                this._channel = new Channel(host, ChannelCredentials.Insecure);
+                //this._channel = new GrpcChannel.ForAddress(host);
                 this._client = new NodeServices.NodeServicesClient(this._channel);
             }
-            catch (Exception ex)
+            catch (RpcException ex)
             {
-                throw new Exception("Cannot connect to the servise");
+                Console.WriteLine(ex.Message);
+                throw ex;
             }
         }
 
@@ -57,9 +59,9 @@ namespace cloud_server.Services
             this._client.DeleteFile(request);
         }
 
-        public async Task<UploadFileResponse> uploadFile(string fileId, byte[] fileData, string type, Location location)
+        public async Task<UploadFileResponse> uploadFile(string fileId, byte[] fileData, string type, Location locations)
         {
-            List<UploadFileRequest> requests = createUploadRequests(fileId, fileData, type, location);
+            List<UploadFileRequest> requests = createUploadRequests(fileId, fileData, type, locations);
             
             var call = this._client.UploadFile();
 

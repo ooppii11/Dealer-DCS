@@ -24,6 +24,7 @@ namespace NodeServer.Services
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
         {
+            Console.WriteLine($"uploading file at {this._serverIP}");
             List<string> unreachableServers = new List<string>();
             try
             {
@@ -50,6 +51,7 @@ namespace NodeServer.Services
 
                
                 await this._microservice.uploadFile(fileID, fileData.ToArray(), type);
+                /*
                 List<string> serverList = otherNodeServersAddresses;
                 serverList.Remove(this._serverIP);
                 this._system.addFile(fileID, otherNodeServersAddresses);
@@ -72,8 +74,8 @@ namespace NodeServer.Services
                     }
                 }
 
-
-                Task.Run(() => tryPassingFile(fileID, type, unreachableServers, otherNodeServersAddresses, fileData));
+                */
+                //Task.Run(() => tryPassingFile(fileID, type, unreachableServers, otherNodeServersAddresses, fileData));
 
                 return new UploadFileResponse { Status = true, Message = "File uploaded successfully.", UnreachableServers = { unreachableServers } };
             }
@@ -83,7 +85,7 @@ namespace NodeServer.Services
                 return new UploadFileResponse { Status = false, Message = $"Error updating the file: {ex.Message}", UnreachableServers = { unreachableServers } }; ;
             }
         }
-
+        /*
         private async Task tryPassingFile(string fileID, string type, List<string> unreachableServers, List<string> otherNodeServersAddresses, MemoryStream fileData)
         {
 
@@ -111,7 +113,7 @@ namespace NodeServer.Services
                 }
             }
         }   
-        
+        */
         public override async Task<UpdateFileResponse> UpdateFile(IAsyncStreamReader<UpdateFileRequest> requestStream, ServerCallContext context)
         {
             try

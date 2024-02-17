@@ -121,14 +121,21 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 await client.ViewerUpdate(
                     new GrpcCloud.LeaderToViewerHeartBeatRequest
                     {
-                        LeaderIP = this._settings.ServerAddress,
+                        LeaderAddress = this._settings.ServerAddress,
                         Term = this._settings.CurrentTerm,
                         SystemLastIndex = this._lastLogEntry.Index
                     });
             }
+            catch (RpcException e)
+            {
+                if (e.StatusCode == StatusCode.Unavailable)
+                {
+                    Console.WriteLine($"Cloud Server at {this._cloudAddress} is Unavailable (down)");
+                }
+            }
             catch (Exception ex)
             {
-                Console.WriteLine($"error send to cloud at: {this._cloudAddress}");
+                Console.WriteLine($"error when sending msg to cloud at: {this._cloudAddress}");
                 Console.WriteLine(ex.ToString());
             }
         }
