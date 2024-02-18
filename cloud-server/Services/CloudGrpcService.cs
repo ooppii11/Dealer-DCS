@@ -54,47 +54,48 @@ namespace cloud_server.Services
 
                 lock (CloudGrpcService._queueLockObject)
                 {
-                    try
+                    
+                    while (this._requestQueue.TryPeek(out var requestPair))
                     {
-                        while (this._requestQueue.TryDequeue(out var requestPair))
+                        try
                         {
                             lock (CloudGrpcService._fileLock)
                             {
                                 CloudGrpcService._raftLogger.getCurrLeaderAddress();
                             }
-                            try
+                            var result = requestPair.Action.DynamicInvoke(requestPair.Parameters);
+                            if (result is Task taskResult)
                             {
-                                var result = requestPair.Action.DynamicInvoke(requestPair.Parameters);
-                                if (result is Task taskResult)
+                                if (taskResult.IsCompleted)
                                 {
-                                    if (taskResult.IsCompleted)
-                                    {
-                                        // If the task is already completed, set the result directly
-                                        requestPair.Completion.TrySetResult(taskResult.GetType().GetProperty("Result")?.GetValue(taskResult));
-                                    }
-                                    else
-                                    {
-                                        // If the task is not completed, continue with setting the result
-                                        taskResult.ContinueWith(t =>
-                                        {
-                                            requestPair.Completion.TrySetResult(t.GetType().GetProperty("Result")?.GetValue(t));
-                                        }, TaskScheduler.Default);
-                                    }
+                                    // If the task is already completed, set the result directly
+                                    requestPair.Completion.TrySetResult(taskResult.GetType().GetProperty("Result")?.GetValue(taskResult));
                                 }
                                 else
                                 {
-                                    requestPair.Completion.TrySetResult(result);
+                                    // If the task is not completed, continue with setting the result
+                                    taskResult.ContinueWith(t =>
+                                    {
+                                        requestPair.Completion.TrySetResult(t.GetType().GetProperty("Result")?.GetValue(t));
+                                    }, TaskScheduler.Default);
                                 }
                             }
-                            catch (Exception ex)
+                            else
                             {
-                                requestPair.Completion.TrySetException(ex);
+                                requestPair.Completion.TrySetResult(result);
                             }
+                            this._requestQueue.TryDequeue(out requestPair);
                         }
-                    }
-                    catch (NoLeaderException ex)
-                    {
-                        Console.WriteLine(ex.Message);
+                        catch (NoLeaderException ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            requestPair.Completion.TrySetException(ex);
+                        }
+                            
                     }
                     this._queueEvent.Reset();
                 }
