@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using cloud_server.Utilities;
 using cloud_server.DB;
 using System.Threading.Tasks;
+using System.Net;
 
 namespace cloud_server.Services
 {   
@@ -13,9 +14,13 @@ namespace cloud_server.Services
     {
         private Authentication _authManager;
         private FilesManager _filesManager;
-        private readonly ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)> _requestQueue = new ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>();
-        private static readonly object _queueLockObject = new object();
-        private readonly ManualResetEventSlim _queueEvent = new ManualResetEventSlim(false);
+        //private readonly ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)> _requestQueue = new ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>();
+        private readonly Dictionary<string, ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>> _userRequestQueues = new Dictionary<string, ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>>();
+        private readonly Dictionary<string, object> _userQueueLockObjects = new Dictionary<string, object>();
+        private readonly Dictionary<string, CancellationTokenSource> _userCancellationTokens = new Dictionary<string, CancellationTokenSource>();
+        //private readonly object _queueLockObject = new object();
+        //private readonly ManualResetEventSlim _queueEvent = new ManualResetEventSlim(false);
+        private readonly Dictionary<string, ManualResetEventSlim> _usersQueueEvent = new Dictionary<string, ManualResetEventSlim>();
         private static readonly RaftViewerLogger _raftLogger = new RaftViewerLogger("LeaderLog.log");
         private static readonly object _fileLock = new object();
 
@@ -34,28 +39,69 @@ namespace cloud_server.Services
             }
             this._logger = logger;
             this._authManager = auth;
-            Task.Factory.StartNew(ProcessQueue, TaskCreationOptions.LongRunning);
         }
 
-        private Task<object> EnqueueRequestAsync(Delegate action, params object[] parameters)
+        private void StartProcessQueueForUser(string userId)
+        {
+            if (!this._userCancellationTokens.ContainsKey(userId))
+            {
+                var cancellationTokenSource = new CancellationTokenSource();
+                this._userCancellationTokens[userId] = cancellationTokenSource;
+
+                var userQueueLockObject = new object();
+                this._userQueueLockObjects[userId] = userQueueLockObject;
+
+                var userQueueEvent = new ManualResetEventSlim(false);
+                this._usersQueueEvent[userId] = userQueueEvent;
+
+                if (!this._userRequestQueues.TryGetValue(userId, out var userQueue))
+                {
+                    userQueue = new ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>();
+                    this._userRequestQueues[userId] = userQueue;
+                }
+
+                Task.Factory.StartNew(() => ProcessQueue(userId), TaskCreationOptions.LongRunning);
+            }
+        }
+
+        private void StopProcessQueueForUser(string userId)
+        {
+            if (this._userCancellationTokens.TryGetValue(userId, out var cancellationTokenSource))
+            {
+                cancellationTokenSource.Cancel();
+                this._userCancellationTokens.Remove(userId);
+
+                if (this._userQueueLockObjects.TryGetValue(userId, out var userQueueLockObject))
+                {
+                    lock (userQueueLockObject)
+                    {
+                        this._userQueueLockObjects.Remove(userId);
+                    }
+                }
+            }
+        }
+
+
+        private Task<object> EnqueueRequestAsync(string userId, Delegate action, params object[] parameters)
         {
             var completionSource = new TaskCompletionSource<object>();
-            this._requestQueue.Enqueue((action, completionSource, parameters));
-            this._queueEvent.Set();
+            this._userRequestQueues[userId].Enqueue((action, completionSource, parameters));
+            this._usersQueueEvent[userId].Set();
             return completionSource.Task;
         }
 
 
-        private async Task ProcessQueue()
-        {
-            while (true)
-            {
-                this._queueEvent.Wait();
 
-                lock (CloudGrpcService._queueLockObject)
+        private async Task ProcessQueue(string userId)
+        {
+            while (!this._userCancellationTokens[userId].IsCancellationRequested)
+            {
+                this._usersQueueEvent[userId].Wait();
+
+                lock (this._userQueueLockObjects[userId])
                 {
                     
-                    while (this._requestQueue.TryPeek(out var requestPair))
+                    while (this._userRequestQueues[userId].TryPeek(out var requestPair))
                     {
                         try
                         {
@@ -84,7 +130,7 @@ namespace cloud_server.Services
                             {
                                 requestPair.Completion.TrySetResult(result);
                             }
-                            this._requestQueue.TryDequeue(out requestPair);
+                            this._userRequestQueues[userId].TryDequeue(out requestPair);
                         }
                         catch (NoLeaderException ex)
                         {
@@ -97,12 +143,18 @@ namespace cloud_server.Services
                         }
                             
                     }
-                    this._queueEvent.Reset();
+                    this._usersQueueEvent[userId].Reset();
                 }
             }
         }
 
-
+        private void setAllUsersEvents()
+        {
+            foreach (var pair in this._usersQueueEvent)
+            {
+                pair.Value.Set();
+            }
+        }
 
         public override Task<LeaderToViewerHeartBeatResponse> GetOrUpdateSystemLeader(LeaderToViewerHeartBeatRequest request, ServerCallContext context)
         {
@@ -118,7 +170,7 @@ namespace cloud_server.Services
                         && isValidIndex)
                     {
                         CloudGrpcService._raftLogger.insertEntry(request);
-                        this._queueEvent.Set();
+                        this.setAllUsersEvents();
                         this._filesManager.LeaderAddress = request.LeaderAddress;
                         return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = true });
                     }
@@ -126,7 +178,7 @@ namespace cloud_server.Services
                 catch (NoLeaderException ex)
                 {
                     CloudGrpcService._raftLogger.insertEntry(request);
-                    this._queueEvent.Set();
+                    this.setAllUsersEvents();
                     this._filesManager.LeaderAddress = request.LeaderAddress;
                     return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = true });
                 }
@@ -139,7 +191,6 @@ namespace cloud_server.Services
             try
             {
                 this._authManager.Signup(request.Username, request.Password, request.Email ,(request.PhoneNumber != "")? request.PhoneNumber : "NULL");
-                
                 // Send Response:
                 return Task.FromResult(new SignupResponse
                 {
@@ -169,6 +220,7 @@ namespace cloud_server.Services
             try
             {
                 sessionId = this._authManager.Login(request.Username, request.Password);
+                StartProcessQueueForUser(sessionId);
                 return Task.FromResult(new LoginResponse { SessionId = sessionId, Status = GrpcCloud.Status.Success });
 
 
@@ -190,36 +242,39 @@ namespace cloud_server.Services
         public override Task<LogoutResponse> logout(LogoutRequest request, ServerCallContext context)
         {
             this._authManager.Logout(request.SessionId);
+            StopProcessQueueForUser(request.SessionId);
             return Task.FromResult(new LogoutResponse());
         }
 
         public override async Task<GetListOfFilesResponse> getListOfFiles(GetListOfFilesRequest request, ServerCallContext context)
         {
-            var task = await EnqueueRequestAsync(ProcessGetListOfFiles, request, context);
+            
+            var task = await EnqueueRequestAsync(request.SessionId, ProcessGetListOfFiles, request, context);
             return (GetListOfFilesResponse)task;
         }
 
         public override async Task<GetFileMetadataResponse> getFileMetadata(GetFileMetadataRequest request, ServerCallContext context)
         {
-            var task = await EnqueueRequestAsync(ProcessGetFileMetadata, request, context);
+            
+            var task = await EnqueueRequestAsync(request.SessionId, ProcessGetFileMetadata, request, context);
             return (GetFileMetadataResponse) task;
         }
 
         public override async Task<DeleteFileResponse> DeleteFile(DeleteFileRequest request, ServerCallContext context)
         {
-            var task = await EnqueueRequestAsync(ProcessDeleteFile, request, context);
+            var task = await EnqueueRequestAsync(request.SessionId,ProcessDeleteFile, request, context);
             return (DeleteFileResponse)task;
         }
 
         public override Task DownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)
         {
-            var task = EnqueueRequestAsync(ProcessDownloadFile, request, responseStream, context);
+            var task = EnqueueRequestAsync(request.SessionId, ProcessDownloadFile, request, responseStream, context);
             return task;
         }
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
         {
-            var task = await EnqueueRequestAsync(ProcessUploadFile, requestStream, context);
+            var task = await EnqueueRequestAsync(requestStream.Current.SessionId, ProcessUploadFile, requestStream, context);
             return  (UploadFileResponse)task;
         }
 
