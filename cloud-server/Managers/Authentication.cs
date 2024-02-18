@@ -1,4 +1,5 @@
-﻿using GrpcCloud;
+﻿using cloud_server.Utilities;
+using GrpcCloud;
 
 namespace cloud_server.Managers
 {
@@ -38,9 +39,9 @@ namespace cloud_server.Managers
                     this._users.Add(sessionId, user);
                     return sessionId;
                 }
-                throw new Exception("User already logged in");
+                throw new UserAlreadyLoggedInException("User already logged in");
             }
-            throw new Exception("User not found");
+            throw new UserDoesNotExistException("User not found");
         }
 
         public void Logout(string sessionId)
@@ -56,7 +57,7 @@ namespace cloud_server.Managers
             }
             catch
             {
-                throw new Exception("Incorrect session id");
+                throw new IncorrectSessionIdException("Incorrect session id");
             }
         }
     }

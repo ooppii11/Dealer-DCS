@@ -7,6 +7,7 @@ using cloud_server.Utilities;
 using cloud_server.DB;
 using System.Threading.Tasks;
 using System.Net;
+using System.Linq.Expressions;
 
 namespace cloud_server.Services
 {   
@@ -248,34 +249,77 @@ namespace cloud_server.Services
 
         public override async Task<GetListOfFilesResponse> getListOfFiles(GetListOfFilesRequest request, ServerCallContext context)
         {
+            try
+            {
+                this._authManager.GetUser(request.SessionId);
+                var task = await EnqueueRequestAsync(request.SessionId, ProcessGetListOfFiles, request, context);
+                return (GetListOfFilesResponse)task;
+            }
+            catch (IncorrectSessionIdException ex)
+            {
+                return new GetListOfFilesResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
+            }
             
-            var task = await EnqueueRequestAsync(request.SessionId, ProcessGetListOfFiles, request, context);
-            return (GetListOfFilesResponse)task;
         }
 
         public override async Task<GetFileMetadataResponse> getFileMetadata(GetFileMetadataRequest request, ServerCallContext context)
         {
-            
-            var task = await EnqueueRequestAsync(request.SessionId, ProcessGetFileMetadata, request, context);
-            return (GetFileMetadataResponse) task;
+            try 
+            {
+                this._authManager.GetUser(request.SessionId);
+                var task = await EnqueueRequestAsync(request.SessionId, ProcessGetFileMetadata, request, context);
+                return (GetFileMetadataResponse)task;
+            }
+            catch (IncorrectSessionIdException ex)
+            {
+                return new GetFileMetadataResponse { Message = $"Error: {ex.Message}" , Status = GrpcCloud.Status.Failure};
+            }
         }
 
         public override async Task<DeleteFileResponse> DeleteFile(DeleteFileRequest request, ServerCallContext context)
         {
-            var task = await EnqueueRequestAsync(request.SessionId,ProcessDeleteFile, request, context);
-            return (DeleteFileResponse)task;
+            try
+            {
+                this._authManager.GetUser(request.SessionId);
+                var task = await EnqueueRequestAsync(request.SessionId, ProcessDeleteFile, request, context);
+                return (DeleteFileResponse)task;
+            }
+            catch (IncorrectSessionIdException ex)
+            {
+                return new DeleteFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
+            }
+            
         }
 
-        public override Task DownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)
+        public override async Task DownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)
         {
-            var task = EnqueueRequestAsync(request.SessionId, ProcessDownloadFile, request, responseStream, context);
-            return task;
+            try
+            {
+                this._authManager.GetUser(request.SessionId);
+                var task = EnqueueRequestAsync(request.SessionId, ProcessDownloadFile, request, responseStream, context);
+                return;
+            }
+            catch (IncorrectSessionIdException ex)
+            {
+                await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Error {ex.Message}", FileData = ByteString.Empty });
+                return;
+            }
+            
         }
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
         {
-            var task = await EnqueueRequestAsync(requestStream.Current.SessionId, ProcessUploadFile, requestStream, context);
-            return  (UploadFileResponse)task;
+            try
+            {
+                this._authManager.GetUser(requestStream.Current.SessionId);
+                var task = await EnqueueRequestAsync(requestStream.Current.SessionId, ProcessUploadFile, requestStream, context);
+                return (UploadFileResponse)task;
+            }
+            catch (IncorrectSessionIdException ex)
+            {
+                return new UploadFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
+            }
+            
         }
 
         private Task<GetListOfFilesResponse> ProcessGetListOfFiles(GetListOfFilesRequest request, ServerCallContext context)
