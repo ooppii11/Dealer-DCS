@@ -17,8 +17,8 @@ namespace NodeServer.Managers.RaftNameSpace.States
         public Node(string addres)
         {
             this.addres = addres;
-            this._matchIndex = 0;
-            this._commitIndex = 0;
+            this._matchIndex = -1;
+            this._commitIndex = -1;
         }
 
         public int CommitIndex
@@ -71,7 +71,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         Term = this._settings.CurrentTerm,
                         PrevTerm = this._settings.PreviousTerm,
                         PrevIndex = _lastLogEntry.Index,
-                        CommitIndex = (_lastLogEntry.IsCommited()) ? _lastLogEntry.Index : (_lastLogEntry.Index - 1 > 0) ? _lastLogEntry.Index : 0
+                        CommitIndex = this._settings.CommitIndex
                     };
                    
                 }
@@ -131,13 +131,12 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     {
                         if (e.StatusCode == StatusCode.Unavailable)
                         {
-                            Console.WriteLine($"Server at {address} is Unavailable (down)");
+                            //Console.WriteLine($"Server at {address} is Unavailable (down)");
                         }
                     }
                     catch (Exception ex)
                     {
                         Console.WriteLine($"error send to {address}");
-                       // Console.WriteLine(ex.ToString());
                     }
                 }
             }
@@ -158,17 +157,17 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 {
                     Term = this._settings.CurrentTerm,
                     PrevTerm = this._settings.PreviousTerm,
-                    PrevIndex = _lastLogEntry.Index,
-                    CommitIndex = (_lastLogEntry.IsCommited()) ? _lastLogEntry.Index : (_lastLogEntry.Index - 1 > 0) ? _lastLogEntry.Index : 0,
+                    PrevIndex = this._settings.LastLogIndex - 1,
+                    CommitIndex = this._settings.CommitIndex,
                     LogEntry = new GrpcServerToServer.LogEntry()
                     {
                         PrevTerm = this._settings.PreviousTerm,
                         Term = this._settings.CurrentTerm,
-                        PrevLogIndex = (_lastLogEntry.Index - 1 >= 0) ? _lastLogEntry.Index - 1 : 0,
+                        PrevLogIndex = this._settings.LastLogIndex,//(_lastLogEntry.Index - 1 >= -1) ? _lastLogEntry.Index - 1 : -1,
                         LogIndex = _lastLogEntry.Index,
                         Timestamp = Timestamp.FromDateTime(this._lastLogEntry.Timestamp),
                         Operation = _lastLogEntry.Operation,
-                        OperationData = _lastLogEntry.OperationArgs,
+                        OperationData = _lastLogEntry.OperationArgs
 
                     },
                     Args = new operationArgs() { Args = this._lastLogEntry.OperationArgs }
@@ -177,9 +176,9 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 Console.WriteLine(this._followers[address].Request.ToString());
                 try
                 {
-                    Console.WriteLine($"send new append entries to {address}");
                     ServerToServerClient s2s = new ServerToServerClient(address);
                     AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
+                    Console.WriteLine($"sent new append entries to {address}");
                     this.OnReceiveAppendEntriesResponse(response, address);
                 }
                 catch (Exception e) 
@@ -204,7 +203,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 }
             }
 
-            return agreeCount > nodesCount / 2;
+            return agreeCount + 1 > nodesCount / 2;
         }
 
         public async void OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
@@ -215,21 +214,46 @@ namespace NodeServer.Managers.RaftNameSpace.States
             {
                 this._followers[address].Request.LogEntry = null;
                 this._followers[address].MatchIndex = Math.Max(this._followers[address].MatchIndex, response.MatchIndex);
-               
-                                
+
                 if (this._followers[address].MatchIndex != this._followers[address].CommitIndex)
                 {
                     if (MajorityAgreeOnMatchIndex(response.MatchIndex))
                     {
                         if(this._settings.CommitIndex < response.MatchIndex)
                         {
+                            Console.WriteLine(response.MatchIndex);
                             this._settings.CommitIndex = response.MatchIndex;
                             Console.WriteLine($"leader commit index {this._settings.CommitIndex}");
-                            this._logger.CommitEntry(this._settings.CommitIndex - 1);
+                            this._logger.CommitEntry(this._settings.CommitIndex);
                         }
                         this._followers[address].CommitIndex = response.MatchIndex;
                         this._followers[address].Request.CommitIndex = response.MatchIndex;
                     }
+                }
+                else if (response.MatchIndex < this._settings.LastLogIndex)
+                {
+                    LogEntry entry = this._logger.GetLogAtPlaceN((uint)response.MatchIndex + 1);
+                    Console.WriteLine(entry.Timestamp);
+                    this._followers[address].Request = new AppendEntriesRequest()
+                    {
+                        Term = this._settings.CurrentTerm,
+                        PrevTerm = this._settings.PreviousTerm,
+                        PrevIndex = response.MatchIndex,
+                        CommitIndex = Math.Min(this._settings.CommitIndex, response.MatchIndex),
+                        LogEntry = new GrpcServerToServer.LogEntry()
+                        {
+                            PrevTerm = this._settings.PreviousTerm,
+                            Term = this._settings.CurrentTerm,
+                            PrevLogIndex = response.MatchIndex,
+                            LogIndex = response.MatchIndex + 1,
+
+                            Timestamp = Timestamp.FromDateTime(entry.Timestamp.ToUniversalTime()),
+                            Operation = entry.Operation,
+                            OperationData = entry.OperationArgs
+
+                        },
+                        Args = new operationArgs() { Args = entry.OperationArgs }
+                    };
                 }
                 try
                 {
@@ -242,13 +266,37 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 }
 
             }
-            else// if (response.MatchIndex + 1 == _lastLogEntry.Index)
+            else
             {
-              //  Console.WriteLine(response.ToString()); 
+                if (response.MatchIndex < this._followers[address].Request.LogEntry.LogIndex)
+                {
+                    LogEntry entry = this._logger.GetLogAtPlaceN((uint)response.MatchIndex + 1);
+                    Console.WriteLine(entry.Timestamp);
+                    this._followers[address].Request = new AppendEntriesRequest()
+                    {
+                        Term = this._settings.CurrentTerm,
+                        PrevTerm = this._settings.PreviousTerm,
+                        PrevIndex = response.MatchIndex,
+                        CommitIndex = Math.Min(this._settings.CommitIndex, response.MatchIndex),
+                        LogEntry = new GrpcServerToServer.LogEntry()
+                        {
+                            PrevTerm = this._settings.PreviousTerm,
+                            Term = this._settings.CurrentTerm,
+                            PrevLogIndex = response.MatchIndex,
+                            LogIndex = response.MatchIndex + 1,
+                            
+                            Timestamp = Timestamp.FromDateTime(entry.Timestamp.ToUniversalTime()),
+                            Operation = entry.Operation,
+                            OperationData = entry.OperationArgs
+
+                        },
+                        Args = new operationArgs() { Args = entry.OperationArgs }
+                    };
+                }
+                    Console.WriteLine("not sucss"); 
                 // send the previus message:
                // await s2s.sendAppendEntriesRequest(this._followers[address].Request);
             }
-            // else install snapshot
 
         }
     }

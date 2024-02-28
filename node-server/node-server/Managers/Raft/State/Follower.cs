@@ -13,7 +13,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
         public Follower(RaftSettings settings, Log logger) :
             base(settings, logger)
         {
-            
+            //settings.ElectionTimeout = new Random().Next(150, 3011);
         }
 
         ~Follower()

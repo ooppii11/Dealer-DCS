@@ -65,7 +65,7 @@ namespace NodeServer.Services
 
         public override Task<RequestVoteResponse> RequestVote(RequestVoteRequest request, ServerCallContext context)
         {
-            Console.WriteLine("Voting");
+         //   Console.WriteLine("Voting");
             bool vote = this._raft.OnReceiveVoteRequest(request);
            
             RequestVoteResponse response = new RequestVoteResponse()
@@ -83,7 +83,7 @@ namespace NodeServer.Services
 
             try
             {
-                response = await this._raft.OnReceiveAppendEntriesRequest(requestStream);
+                response = await this._raft.OnReceiveAppendEntriesRequest(requestStream, context.Peer);
             }
             catch
             {
