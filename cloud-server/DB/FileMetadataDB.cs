@@ -6,6 +6,7 @@ using System.Drawing;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.AspNetCore.Components.Routing;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using cloud_server.Utilities;
 
 namespace cloud_server.DB
 {
@@ -71,7 +72,7 @@ namespace cloud_server.DB
                 }
                 else
                 {
-                    throw new Exception("File already exists");
+                    throw new FileAlreadyExistException("File already exists");
                 }
             }
         
@@ -96,7 +97,7 @@ namespace cloud_server.DB
             }
             catch (Exception ex)
             {
-                throw new Exception("File not exists");
+                throw new FileDoesNotExistException("File not exists");
             }
         }
         private void addFileLocation(int fileId, Location location)
@@ -126,7 +127,7 @@ namespace cloud_server.DB
                 }
                 catch
                 {
-                    throw new Exception("Unable to delete this file");
+                    throw new DBErrorException("Unable to delete this file");
                 }
             }
         }
@@ -153,13 +154,13 @@ namespace cloud_server.DB
                                 reader.GetDateTime(reader.GetOrdinal("creation_time")),
                                 reader.GetDateTime(reader.GetOrdinal("last_modify")));
                         }
-                        throw new Exception("File not found");
+                        throw new FileDoesNotExistException("File not found");
                     }
                 }
             }
             catch 
             { 
-                throw new Exception("DB Error");
+                throw new DBErrorException("DB Error");
             }
         }
         public List<FileMetadata> getUserFilesMetadata(int userId)
@@ -190,7 +191,7 @@ namespace cloud_server.DB
             }
             catch
             {
-                throw new Exception("DB Error");
+                throw new DBErrorException("DB Error");
             }
             return userFiles;
         }

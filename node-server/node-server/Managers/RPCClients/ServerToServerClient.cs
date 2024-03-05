@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 using GrpcServerToServer;
@@ -50,7 +51,7 @@ namespace NodeServer.Managers
         {
             this.channel.ShutdownAsync().Wait();
         }
-
+        /*
         public async Task<PassFileResponse> passFile(string filename, string type, List<string> places, MemoryStream fileData)
         {
             using (var call = client.PassFile())
@@ -77,7 +78,7 @@ namespace NodeServer.Managers
 
             }
         }
-
+        */
         public async Task<RequestVoteResponse> sendNomination(RequestVoteRequest request)
         {
             var response = await client.RequestVoteAsync(request);

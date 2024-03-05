@@ -45,6 +45,7 @@ message DeleteFileResponse {
 	string message = 2;
 }
 
+
 /*
 message StartNodeGroupProposal
 {

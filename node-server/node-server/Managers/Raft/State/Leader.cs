@@ -47,6 +47,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
         private bool _changeState;
         private CancellationToken _cancellationToken;
         private TaskCompletionSource<bool> _completionSource;
+        private readonly string _cloudAddress = "127.0.0.1:50053";
         public Leader(RaftSettings raftSettings, Log logger) :
             base(raftSettings, logger)
         {
@@ -139,6 +140,34 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         Console.WriteLine($"error send to {address}");
                     }
                 }
+            }
+            sendLeaderToViewerHeartBeat();
+        }
+
+        private async void sendLeaderToViewerHeartBeat()
+        {
+            try 
+            {
+                RaftViewerClient client = new RaftViewerClient(this._cloudAddress);
+                await client.ViewerUpdate(
+                    new GrpcCloud.LeaderToViewerHeartBeatRequest
+                    {
+                        LeaderAddress = this._settings.ServerAddress,
+                        Term = this._settings.CurrentTerm,
+                        SystemLastIndex = this._lastLogEntry.Index
+                    });
+            }
+            catch (RpcException e)
+            {
+                if (e.StatusCode == StatusCode.Unavailable)
+                {
+                    Console.WriteLine($"Cloud Server at {this._cloudAddress} is Unavailable (down)");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"error when sending msg to cloud at: {this._cloudAddress}");
+                Console.WriteLine(ex.ToString());
             }
         }
 

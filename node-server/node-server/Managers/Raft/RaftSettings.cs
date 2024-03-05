@@ -5,9 +5,9 @@
         public int CurrentTerm { get; set; } = 1;
         public int PreviousTerm { get; set; } = 0;
         public int VotedFor { get; set; } = -1;
-        public int CommitIndex { get; set; } = -1;
-        public int LastLogIndex { get; set; } = -1;
-        public int ElectionTimeout { get; set; } = (new Random().Next(250, 3011));
+        public int CommitIndex { get; set; } = 0;
+        public int LastApplied { get; set; } = 0;
+        public int ElectionTimeout { get; set; } = (new Random().Next(300, 3001));
         public int HeartbeatTimeout { get;} = 100;
         public int MaxLogEntriesPerRequest { get;} = 5;
         public string LogFilePath { get; set; } = "raftLog.log";

@@ -12,18 +12,18 @@ namespace NodeServer.Services
     public class NodeServerService : NodeServices.NodeServicesBase
     {
         private FileSaving _microservice;
-        private NodeSystemParse _system;
-        private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
+        //private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
         private Raft _raft;
-        public NodeServerService(FileSaving micro, NodeSystemParse sys, Raft raft)
+        //logFileInfo 
+        public NodeServerService(FileSaving micro, Raft raft)
         {
             this._microservice = micro;
-            this._system = sys;
             this._raft = raft;
         }
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
         {
+            //Console.WriteLine($"uploading file at {this._serverIP}");
             List<string> unreachableServers = new List<string>();
             try
             {
@@ -54,9 +54,11 @@ namespace NodeServer.Services
 
 
                 await this._microservice.uploadFile(fileID, fileData.ToArray(), type);
+                /*
                 List<string> serverList = otherNodeServersAddresses;
                 serverList.Remove(this._serverIP);
                 this._system.addFile(fileID, otherNodeServersAddresses);
+
                 foreach (string serverAddress in serverList)
                 {
                     try
@@ -75,8 +77,8 @@ namespace NodeServer.Services
                     }
                 }
 
-
-                Task.Run(() => tryPassingFile(fileID, type, unreachableServers, otherNodeServersAddresses, fileData));
+                */
+                //Task.Run(() => tryPassingFile(fileID, type, unreachableServers, otherNodeServersAddresses, fileData));
 
                 return new UploadFileResponse { Status = true, Message = "File uploaded successfully.", UnreachableServers = { unreachableServers } };
             }
@@ -86,7 +88,7 @@ namespace NodeServer.Services
                 return new UploadFileResponse { Status = false, Message = $"Error updating the file: {ex.Message}", UnreachableServers = { unreachableServers } }; ;
             }
         }
-
+        /*
         private async Task tryPassingFile(string fileID, string type, List<string> unreachableServers, List<string> otherNodeServersAddresses, MemoryStream fileData)
         {
 
@@ -114,7 +116,7 @@ namespace NodeServer.Services
                 }
             }
         }   
-        
+        */
         public override async Task<UpdateFileResponse> UpdateFile(IAsyncStreamReader<UpdateFileRequest> requestStream, ServerCallContext context)
         {
             try
@@ -132,18 +134,8 @@ namespace NodeServer.Services
                     }
                     fileData.Write(chunk.NewContent.ToArray(), 0, chunk.NewContent.Length);
                 }
-                if (this._system.filExists(fileName))
-                {
-                    //get type from microservice
-                    this._microservice.deleteFile(fileName);
-                    await this._microservice.uploadFile(fileName, fileData.ToArray(), "");
-                    //consensus + S2S
-                }
-                else
-                {
-                    context.Status = new Status(StatusCode.NotFound, "File not found");
-                    return new UpdateFileResponse { Status = false, Message = "Unable to update file: The file isn't saved on the machine" };
-                }
+                this._microservice.deleteFile(fileName);
+                await this._microservice.uploadFile(fileName, fileData.ToArray(), "");
 
 
                 return new UpdateFileResponse { Status = true, Message = "File updated successfully." };
@@ -192,7 +184,6 @@ namespace NodeServer.Services
             {
                 //consensus + S2S
                 this._microservice.deleteFile(request.FileId);
-                this._system.removeFile(request.FileId);
 
                 return Task.FromResult(new DeleteFileResponse { Status = true, Message = "File deleted successfully." });
             }
