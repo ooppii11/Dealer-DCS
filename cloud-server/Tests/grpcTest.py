@@ -4,8 +4,21 @@ import cloud_pb2_grpc
 
 
 def fils_test(stub):
-    FILENAME = "test24"
+    FILENAME = "test266"
     try:
+        
+        response = stub.login(cloud_pb2.LoginRequest(username="test1", password="test1password"))
+        print(response)
+        sessionId = response.sessionId
+
+        request = cloud_pb2.DeleteFileRequest(sessionId=sessionId, fileName=FILENAME)
+        response = stub.DeleteFile(request)
+        print("Delete:")
+        print("Success" if response.status == 0 else "Failure")
+        
+        stub.logout(cloud_pb2.LogoutRequest(sessionId=sessionId))
+        print("logout successfully")
+
         response = stub.login(cloud_pb2.LoginRequest(username="test1", password="test1password"))
         print(response)
         sessionId = response.sessionId
@@ -94,3 +107,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+#python -m grpc_tools.protoc -I. --python_out=. --pyi_out=. --grpc_python_out=. cloud.proto

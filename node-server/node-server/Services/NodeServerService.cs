@@ -3,23 +3,27 @@ using Grpc.Core;
 using GrpcNodeServer;
 using NodeServer.Managers;
 using GrpcServerToServer;
+using NodeServer.Managers.RaftNameSpace;
+using static NodeServer.Managers.RaftNameSpace.Raft;
+using LogEntry = NodeServer.Managers.RaftNameSpace.LogEntry;
 
 namespace NodeServer.Services
 {
     public class NodeServerService : NodeServices.NodeServicesBase
     {
         private FileSaving _microservice;
-        private NodeSystemParse _system;
-        private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
+        //private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
+        private Raft _raft;
         //logFileInfo 
-        public NodeServerService(FileSaving micro, NodeSystemParse sys)
+        public NodeServerService(FileSaving micro, Raft raft)
         {
             this._microservice = micro;
-            this._system = sys;
+            this._raft = raft;
         }
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
         {
+            //Console.WriteLine($"uploading file at {this._serverIP}");
             List<string> unreachableServers = new List<string>();
             try
             {
@@ -42,43 +46,40 @@ namespace NodeServer.Services
                         otherNodeServersAddresses.Add(serverAddress);
                     }
                 }
+                LogEntry entry = new LogEntry(0, DateTime.MinValue, "null", "null", "null", false);
+
+                this._raft.appendEntry(entry);
                 
 
-                if (!this._system.filExists(fileID))
+
+
+                await this._microservice.uploadFile(fileID, fileData.ToArray(), type);
+                /*
+                List<string> serverList = otherNodeServersAddresses;
+                serverList.Remove(this._serverIP);
+                this._system.addFile(fileID, otherNodeServersAddresses);
+
+                foreach (string serverAddress in serverList)
                 {
-                    await this._microservice.uploadFile(fileID, fileData.ToArray(), type);
-                    List<string> serverList = otherNodeServersAddresses;
-                    serverList.Remove(this._serverIP);
-                    this._system.addFile(fileID, serverList);
-                    foreach (string serverAddress in otherNodeServersAddresses)
-                    {                
-                        try
+                    try
+                    {
+                        fileData.Seek(0, SeekOrigin.Begin);
+                        ServerToServerClient s2s = new ServerToServerClient(serverAddress, 50052);
+                        PassFileResponse response = await s2s.passFile(fileID, type, otherNodeServersAddresses, fileData);
+                        Console.WriteLine($"status: {response.Status}, massenge: {response.Message}");
+                    }
+                    catch (RpcException ex)
+                    {
+                        if (!(ex.StatusCode == StatusCode.AlreadyExists))
                         {
-                            fileData.Seek(0, SeekOrigin.Begin);
-                            ServerToServerClient s2s = new ServerToServerClient(serverAddress, 50052);
-                            PassFileResponse response = await s2s.passFile(fileID, type, otherNodeServersAddresses, fileData);
-                            Console.WriteLine($"status: {response.Status}, massenge: {response.Message}");
-                        }
-                        catch (RpcException ex)
-                        {
-                            if (!(ex.StatusCode == StatusCode.AlreadyExists))
-                            {
-                                unreachableServers.Add(serverAddress);
-                            }
+                            unreachableServers.Add(serverAddress);
                         }
                     }
-
-
-                    Task.Run(() => tryPassingFile(fileID, type, unreachableServers, otherNodeServersAddresses, fileData));
-
-
-                    //consensus (if needed)
                 }
-                else
-                {
-                    context.Status = new Status(StatusCode.AlreadyExists, $"File already exists on the machine - {this._serverIP}");
-                    return new UploadFileResponse { Status = false, Message = $"Unable to update file: File already exists on the machine - {this._serverIP}", UnreachableServers = {  } };
-                }
+
+                */
+                //Task.Run(() => tryPassingFile(fileID, type, unreachableServers, otherNodeServersAddresses, fileData));
+
                 return new UploadFileResponse { Status = true, Message = "File uploaded successfully.", UnreachableServers = { unreachableServers } };
             }
             catch (Exception ex)
@@ -87,7 +88,7 @@ namespace NodeServer.Services
                 return new UploadFileResponse { Status = false, Message = $"Error updating the file: {ex.Message}", UnreachableServers = { unreachableServers } }; ;
             }
         }
-
+        /*
         private async Task tryPassingFile(string fileID, string type, List<string> unreachableServers, List<string> otherNodeServersAddresses, MemoryStream fileData)
         {
 
@@ -115,7 +116,7 @@ namespace NodeServer.Services
                 }
             }
         }   
-        
+        */
         public override async Task<UpdateFileResponse> UpdateFile(IAsyncStreamReader<UpdateFileRequest> requestStream, ServerCallContext context)
         {
             try
@@ -133,18 +134,8 @@ namespace NodeServer.Services
                     }
                     fileData.Write(chunk.NewContent.ToArray(), 0, chunk.NewContent.Length);
                 }
-                if (this._system.filExists(fileName))
-                {
-                    //get type from microservice
-                    this._microservice.deleteFile(fileName);
-                    await this._microservice.uploadFile(fileName, fileData.ToArray(), "");
-                    //consensus + S2S
-                }
-                else
-                {
-                    context.Status = new Status(StatusCode.NotFound, "File not found");
-                    return new UpdateFileResponse { Status = false, Message = "Unable to update file: The file isn't saved on the machine" };
-                }
+                this._microservice.deleteFile(fileName);
+                await this._microservice.uploadFile(fileName, fileData.ToArray(), "");
 
 
                 return new UpdateFileResponse { Status = true, Message = "File updated successfully." };
@@ -193,7 +184,7 @@ namespace NodeServer.Services
             {
                 //consensus + S2S
                 this._microservice.deleteFile(request.FileId);
-                this._system.removeFile(request.FileId);
+
                 return Task.FromResult(new DeleteFileResponse { Status = true, Message = "File deleted successfully." });
             }
             catch (Exception ex)

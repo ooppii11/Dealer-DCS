@@ -11,10 +11,10 @@
 
   <ItemGroup>
     <Protobuf Include="Protos\node.proto" GrpcServices="Server" />
-	<Protobuf Include="Protos\Raft.proto" GrpcServices="Server" />
-
 	<Protobuf Include="Protos\microservice_file_saving.proto" GrpcServices="Client" />
 	<Protobuf Include="Protos\ServerToServer.proto" GrpcServices="Both" />
+	<Protobuf Include="Protos\Raft.proto" GrpcServices="None" />
+	<Protobuf Include="Protos\cloud.proto" GrpcServices="Client" />
   </ItemGroup>
 
   <ItemGroup>

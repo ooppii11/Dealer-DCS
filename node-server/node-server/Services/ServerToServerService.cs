@@ -2,20 +2,24 @@
 using Grpc.Core;
 using GrpcServerToServer;
 using NodeServer.Managers;
+using NodeServer.Managers.RaftNameSpace;
+using System.Text;
 
 namespace NodeServer.Services
 {
     public class ServerToServerService : ServerToServer.ServerToServerBase
     {
-        private FileSaving _microservice;
-        private NodeSystemParse _system;
+        private Raft _raft;
+        //private FileSaving _microservice;
+        //private NodeSystemParse _system;
         private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
-        public ServerToServerService(NodeSystemParse sys, FileSaving micro) 
+    
+        public ServerToServerService(Raft raft)
         {
-            this._system = sys;
-            this._microservice = micro;
+            this._raft = raft;
         }
 
+        /*
         public override async Task<PassFileResponse> PassFile(IAsyncStreamReader<PassFileRequest> requestStream, ServerCallContext context)
         {
             try
@@ -26,7 +30,7 @@ namespace NodeServer.Services
                 List<string> otherNodeServersAddresses = new List<string>();
                 MemoryStream fileData = new MemoryStream();
 
-
+                
                 await foreach (var chunk in requestStream.ReadAllAsync())
                 {
                     fileName = chunk.FileId;
@@ -56,6 +60,56 @@ namespace NodeServer.Services
                 context.Status = new Status(StatusCode.Internal, $"Error uploading file: {ex.Message}");
                 return new PassFileResponse { Status = false, Message = $"Error uploading file: {ex.Message}" };
             }
+        }
+        */
+
+        public override Task<RequestVoteResponse> RequestVote(RequestVoteRequest request, ServerCallContext context)
+        {
+         //   Console.WriteLine("Voting");
+            bool vote = this._raft.OnReceiveVoteRequest(request);
+           
+            RequestVoteResponse response = new RequestVoteResponse()
+            {
+                Term = this._raft.Settings.CurrentTerm,
+                Vote = vote
+            };
+
+            return Task.FromResult(response);
+        }
+
+        public async override Task<AppendEntriesResponse> AppendEntries(IAsyncStreamReader<AppendEntriesRequest> requestStream, ServerCallContext context)
+        {
+            AppendEntriesResponse response;
+
+            try
+            {
+                response = await this._raft.OnReceiveAppendEntriesRequest(requestStream, context.Peer);
+            }
+            catch
+            {
+                var status = new Status(StatusCode.Unknown, "An error occurred while processing the request");
+
+                throw new RpcException(status);
+            }
+            return response;
+
+        }
+
+        public async override Task<InstallSnapshotResponse> InstallSnapshot(IAsyncStreamReader<InstallSnapshotRequest> requestStream, ServerCallContext context)
+        {
+            InstallSnapshotResponse response;
+
+            try
+            {
+                response = await this._raft.OnReceiveInstallSnapshotRequest(requestStream);
+            }
+            catch
+            {
+                var status = new Status(StatusCode.Unknown, "An error occurred while processing the request");
+
+                throw new RpcException(status);
+            }
+            return response;
         }
     }
 }

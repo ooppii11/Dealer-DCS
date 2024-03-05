@@ -1,72 +1,236 @@
-﻿namespace node_server.Managers.Raft
+﻿using Grpc.Core;
+using GrpcServerToServer;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using NodeServer.Managers.RaftNameSpace.States;
+using System;
+using System.Threading;
+using Google.Protobuf.WellKnownTypes;
+
+using static Grpc.Core.Metadata;
+
+namespace NodeServer.Managers.RaftNameSpace
 {
     public class Raft
     {
+        private CancellationTokenSource _cancellationTokenSource;
+
         public enum StatesCode
         {
             Follower,
             Candidate,
             Leader
         }
-        private StatesCode _currentState;
+        private StatesCode _currentStateCode;
+        private State _state;
+        private RaftSettings _settings;
+        private Log _logger;
 
-        //private RaftSettings _settings;
-        //  private Log _logger;
-
-        public StatesCode RaftStateCode 
+        public StatesCode RaftStateCode
         {
-            get { return _currentState; }
+            get { return _currentStateCode; }
         }
-       
-        public Raft(/*RaftSettings settings*/)
-        {
-            this._currentState = StatesCode.Follower;
-           // this._settings = settings;
-           // this._logger(settings.loggerPath);
-        }
+        public State State { get { return _state; } }
+        public RaftSettings Settings { get { return this._settings; } }
 
-        public void start()
+        public Raft(RaftSettings settings)
         {
-            this.run();
-        }
-
-        private void run()
-        {
-            while (true)
+            this._currentStateCode = StatesCode.Follower;
+            this._settings = settings;
+            this._logger = new Log(this._settings.LogFilePath);
+            this._cancellationTokenSource = new CancellationTokenSource();
+            LogEntry entry = this._logger.GetLastLogEntry();
+            this._settings.CurrentTerm = entry.Term;
+            this._settings.LastLogIndex = entry.Index;
+            if (entry.IsCommited()) { this._settings.CommitIndex = entry.Index; }
+            else 
             {
-                if (this._currentState == StatesCode.Follower)
+                for (int i = entry.Index - 1; i > -1; i--)
                 {
-                    this.followerSatate();
-                    this._currentState = StatesCode.Candidate;
-                }
-                if (this._currentState == StatesCode.Candidate)
-                {
-                    if (this.caniddate())
+                    if (this._logger.GetLogAtPlaceN((uint)i).IsCommited())
                     {
-                        this._currentState = StatesCode.Leader;
-                        this.leaderState();
+                        this._settings.CommitIndex = i;
+                        break;
                     }
                 }
-            }    
-        }
+            }
 
-        private bool caniddate()
+            this.Start();
+        }
+        public bool appendEntry(LogEntry entry)
         {
-            //Caniddate caniddate();
-            //return caniddate.StartElction();
+            if (this._currentStateCode == StatesCode.Leader)
+            {
+                Leader leaderObject = this._state as Leader;
+                leaderObject.AppendEntries(entry);
+
+            }
             return false;
         }
 
-        private void leaderState()
+        ~Raft()
         {
-            //Leader leader();
-            //ledaer.Start();
+            this._cancellationTokenSource?.Cancel();
+            this._cancellationTokenSource?.Dispose();
         }
 
-        private void followerSatate()
+        public void Start()
         {
-            //Follower follower();
-            //follower.Start();
+            Run();
+
+        }
+        public async Task<AppendEntriesResponse> OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> requests, string addres)
+        {
+            _cancellationTokenSource.Cancel();
+            int totalTerm = 0;
+            int totalPrevIndex = 0;
+            int totalPrevTerm = 0;
+            int totalCommitIndex = 0;
+            var totalLogEntries = new List<GrpcServerToServer.LogEntry>();
+            var totalArgs = new List<GrpcServerToServer.operationArgs>();
+
+            try
+            {               
+                await foreach (var request in requests.ReadAllAsync())
+                {
+                    totalTerm = request.Term;
+                    totalPrevIndex = request.PrevIndex;
+                    totalPrevTerm = request.PrevTerm;
+                    totalCommitIndex = request.CommitIndex;
+                    if (request.LogEntry != null)
+                        totalLogEntries.Add(request.LogEntry);
+                    totalArgs.Add(request.Args);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Write(ex.Message);
+                throw new Exception("Stream error");
+            }
+
+            if (totalLogEntries.Count > 0)
+            {
+                Console.WriteLine("addres: " + addres);
+                Console.WriteLine("Total Term: " + totalTerm);
+                Console.WriteLine("Total Previous Index: " + totalPrevIndex);
+                Console.WriteLine("Total Previous Term: " + totalPrevTerm);
+                Console.WriteLine("Total Commit Index: " + totalCommitIndex);
+
+                // Print accumulated log entries
+                Console.WriteLine("Total Log Entries" + totalLogEntries.Count());
+                foreach (var logEntry in totalLogEntries)
+                {
+                    Console.WriteLine($"- Term: {logEntry.Term}, LogIndex: {logEntry.LogIndex}, Operation: {logEntry.Operation}, OperationData: {logEntry.OperationData}, Timestamp: {logEntry.Timestamp}");
+                }
+            }
+            try
+            {
+                if (totalCommitIndex > this._settings.CommitIndex + 1 || totalPrevIndex > this._settings.LastLogIndex)
+                {
+                    Console.WriteLine("totalCommitIndex: " + totalCommitIndex);
+                    Console.WriteLine("_settings.totalCommitIndex: " + this._settings.CommitIndex);
+                    Console.WriteLine("totalPrevIndex: " + totalPrevIndex);
+                    Console.WriteLine("this._settings.LastLogIndex: " + this._settings.LastLogIndex);
+
+                    Console.WriteLine("ERROR to append Entries");
+                    return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
+
+                }
+
+                if (totalLogEntries.Count() > 0 && (totalLogEntries[0].LogIndex == 1 + this._settings.LastLogIndex))//|| this._settings.LastLogIndex == 0))
+            {
+                    Console.WriteLine("Append entries");
+                    this._logger.AppendEntry(
+                        new LogEntry(
+                                totalLogEntries[0].LogIndex,
+                                totalLogEntries[0].Timestamp.ToDateTime(),
+                                addres,
+                                totalLogEntries[0].Operation,
+                                totalLogEntries[0].OperationData,
+                           false
+                        ));
+                    this._settings.LastLogIndex += 1;
+                }
+
+
+                if (totalCommitIndex > this._settings.CommitIndex)
+                {
+                    Console.WriteLine("commit");
+                    Console.WriteLine(totalCommitIndex);
+                    this._logger.CommitEntry(totalCommitIndex);
+                    this._settings.CommitIndex = totalCommitIndex;
+
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            return new AppendEntriesResponse()
+                {
+                    MatchIndex = this._settings.LastLogIndex,
+                    Success = true,
+                    Term = this._settings.CurrentTerm
+                };
+            
+        }
+
+        public bool OnReceiveVoteRequest(RequestVoteRequest request)
+        { 
+            Console.WriteLine($"Voting");
+            Console.WriteLine($"My Term: {this._settings.CurrentTerm}, Request Term: {request.Term}");
+            _cancellationTokenSource.Cancel();
+            if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+            {
+                this._settings.PreviousTerm = this._settings.CurrentTerm;
+                this._settings.CurrentTerm = request.Term;
+                this._settings.VotedFor = request.CandidateId;
+                return true;
+            }
+            Console.WriteLine("REJECT");
+            return false;
+        }
+
+        public Task<InstallSnapshotResponse> OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
+        {
+            return Task.FromResult(new InstallSnapshotResponse());
+        }
+
+        private async void Run()
+        {
+            while (true)
+            {
+                CancellationToken cancellationToken = _cancellationTokenSource.Token;
+
+                if (this._state == null)
+                {
+                    if (this._currentStateCode == StatesCode.Follower)
+                    {
+                        this._state = new Follower(this._settings, this._logger);
+                        this._currentStateCode = await this._state.Start(cancellationToken);
+                        this._state = null;
+                    }
+                    else if (this._currentStateCode == StatesCode.Candidate)
+                    {
+                        this._state = new Candidate(this._settings, this._logger);
+                        this._currentStateCode = await this._state.Start(cancellationToken);
+                        this._state = null;
+                        if (this._currentStateCode == StatesCode.Leader)
+                        {
+                            this._settings.ElectionTimeout = new Random().Next(150, 3011);
+                        }
+                    }
+                    else if (this._currentStateCode == StatesCode.Leader)
+                    {
+                        this._state = new Leader(this._settings, this._logger);
+                        this._currentStateCode = await this._state.Start(cancellationToken);
+                        this._state = null;
+                    }
+                    _cancellationTokenSource.Dispose();
+                    _cancellationTokenSource = new CancellationTokenSource();
+                }
+                
+            }    
         }
     }
 }

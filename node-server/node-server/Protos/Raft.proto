@@ -1,7 +1,5 @@
-syntax = "proto3";
+/*syntax = "proto3";
 import "google/protobuf/timestamp.proto";
-
-option csharp_namespace = "GrpcRaft";
 
 
 message LogEntry{
@@ -45,11 +43,10 @@ message AppendEntriesRequest{
 	int32 prevIndex = 2;
 	int32 prevTerm = 3;
 
-	int32 log_index = 4;
-	LogEntry logEntry = 5;	
-	int32  commitIndex = 6;
+	LogEntry logEntry = 4;	
+	int32  commitIndex = 5;
 
-	operationArgs args = 7;
+	operationArgs args = 6;
 }
 
 
@@ -66,7 +63,7 @@ message InstallSnapshotRequest{
 	int32 start_log_index = 2;
 	int32 last_log_index = 3;
 
-	repeated logEntry entries = 4;
+	repeated LogEntry entries = 4;
 	repeated operationArgs args = 5;
 }
 
@@ -78,10 +75,4 @@ message InstallSnapshotResponse{
 	bool success = 3;
 
 }
-
-
-service RaftService {
-	rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse);
-	rpc AppendEntries(stream AppendEntriesRequest) returns (AppendEntriesResponse);
-	rpc InstallSnapshot(stream InstallSnapshotRequest) returns (InstallSnapshotResponse);
-}
+*/

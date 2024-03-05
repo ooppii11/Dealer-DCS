@@ -1,20 +1,25 @@
-﻿namespace node_server.Managers.Raft
+﻿namespace NodeServer.Managers.RaftNameSpace
 {
     public class LogEntry
     {
         private bool _commit;
-        public readonly int _index;
+        private int _index;
 
-        public readonly int _term;
+        private readonly int _term;
 
-        public readonly DateTime _timestamp;
+        private readonly DateTime _timestamp;
 
-        public readonly string _leaderIp;
+        private readonly string _leaderIp;
 
-        public readonly string _operation;
+        private readonly string _operation;
 
-        public readonly string _operationArgs;
-        public int Index => _index;
+        private readonly string _operationArgs;
+       public int Index
+        {
+            get { return _index; }
+
+            set { _index = value; }
+        }
         
         public int Term => _term;
         
@@ -26,6 +31,15 @@
 
         public string OperationArgs => _operationArgs;
 
+        public LogEntry(int index, DateTime Timestamp, string leaderIp, string operation, string operationArgs, bool commit)
+        {
+            this._index = index;
+            this._timestamp = Timestamp;
+            this._leaderIp = leaderIp;
+            this._operation = operation;
+            this._operationArgs = operationArgs;
+            this._commit = commit;
+        }
 
         public LogEntry(string logLine)
         {
