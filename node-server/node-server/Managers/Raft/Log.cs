@@ -25,6 +25,7 @@ namespace NodeServer.Managers.RaftNameSpace
             {
                 fileContent = File.ReadAllLines(this._logFilePath).ToList();
             }
+            entry.Index = fileContent.Count();
             fileContent.Add(entry.ToString());
             File.WriteAllLines(this._logFilePath, fileContent);
         }
@@ -36,7 +37,6 @@ namespace NodeServer.Managers.RaftNameSpace
             LogEntry entry;
 
             fileContent = File.ReadAllLines(this._logFilePath);
-
             logLine = fileContent[index];
             entry = new LogEntry(logLine);
             entry.SetCommit(true);
@@ -45,6 +45,25 @@ namespace NodeServer.Managers.RaftNameSpace
             File.WriteAllLines(this._logFilePath, fileContent);
         }
 
+        public LogEntry GetLogAtPlaceN(uint n)
+        {
+            string logLine = "";
+            LogEntry entry;
+
+            var logLines = File.ReadLines(this._logFilePath);
+            if (logLines.Count() < n)
+            {
+                logLine = "";
+                entry = new LogEntry(-1, DateTime.MinValue, "null", "null", "null", false);
+            }
+            else
+            {
+                logLine = logLines.ToArray()[n];
+                entry = new LogEntry(logLine);
+            }
+
+            return entry;
+        }
         public LogEntry GetLastLogEntry()
         {
             string logLine = "";
@@ -54,7 +73,7 @@ namespace NodeServer.Managers.RaftNameSpace
             if (logLines.Count() == 0)
             {
                 logLine = "";
-                entry = new LogEntry(0, DateTime.MinValue, "null", "null", "null", false);
+                entry = new LogEntry(-1, DateTime.MinValue, "null", "null", "null", false);
             }
             else
             {
