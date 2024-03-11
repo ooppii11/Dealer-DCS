@@ -10,6 +10,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
         public Candidate(RaftSettings settings, Log logger) :
             base(settings, logger)
         {
+            Console.WriteLine("Candidate");
         }
 
         public async override Task<Raft.StatesCode> Start(CancellationToken cancellationToken)

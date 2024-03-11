@@ -46,7 +46,6 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     this._completionSource.SetResult(true);
                 }
             });
-            Console.WriteLine("Starting follower timer");
             StartTimer();
 
             await this._completionSource.Task;

@@ -4,13 +4,14 @@ using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NodeServer.Managers.RaftNameSpace.States;
 using System;
 using System.Threading;
+using Google.Protobuf.WellKnownTypes;
+
 using static Grpc.Core.Metadata;
 
 namespace NodeServer.Managers.RaftNameSpace
 {
     public class Raft
     {
-        //private readonly object _lockObject = new object();
         private CancellationTokenSource _cancellationTokenSource;
 
         public enum StatesCode
@@ -37,7 +38,33 @@ namespace NodeServer.Managers.RaftNameSpace
             this._settings = settings;
             this._logger = new Log(this._settings.LogFilePath);
             this._cancellationTokenSource = new CancellationTokenSource();
+            LogEntry entry = this._logger.GetLastLogEntry();
+            this._settings.CurrentTerm = entry.Term;
+            this._settings.LastLogIndex = entry.Index;
+            if (entry.IsCommited()) { this._settings.CommitIndex = entry.Index; }
+            else 
+            {
+                for (int i = entry.Index - 1; i > -1; i--)
+                {
+                    if (this._logger.GetLogAtPlaceN((uint)i).IsCommited())
+                    {
+                        this._settings.CommitIndex = i;
+                        break;
+                    }
+                }
+            }
+
             this.Start();
+        }
+        public bool appendEntry(LogEntry entry)
+        {
+            if (this._currentStateCode == StatesCode.Leader)
+            {
+                Leader leaderObject = this._state as Leader;
+                leaderObject.AppendEntries(entry);
+
+            }
+            return false;
         }
 
         ~Raft()
@@ -48,55 +75,103 @@ namespace NodeServer.Managers.RaftNameSpace
 
         public void Start()
         {
-            //Thread thread = new Thread(() => Run());
-            //thread.Start();
             Run();
 
         }
-        public async Task<AppendEntriesResponse> OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> requests)
+        public async Task<AppendEntriesResponse> OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> requests, string addres)
         {
-            int lastLogIndex = this._logger.GetLastLogEntry().Index;
-            bool success = false;
             _cancellationTokenSource.Cancel();
+            int totalTerm = 0;
+            int totalPrevIndex = 0;
+            int totalPrevTerm = 0;
+            int totalCommitIndex = 0;
+            var totalLogEntries = new List<GrpcServerToServer.LogEntry>();
+            var totalArgs = new List<GrpcServerToServer.operationArgs>();
+
             try
-            {
+            {               
                 await foreach (var request in requests.ReadAllAsync())
                 {
-                    if (requests.Current.CommitIndex == lastLogIndex)
-                    {
-                        if (lastLogIndex != 0)
-                        {
-                            this._logger.CommitEntry(lastLogIndex);
-                            this._settings.CommitIndex = lastLogIndex;
-                        }
-                        success = true;
-                    }
-
-                    if (requests.Current.LogEntry != null && requests.Current.LogEntry.LogIndex > lastLogIndex)
-                    {
-                        this._logger.AppendEntry(
-                            new LogEntry(
-                                requests.Current.LogEntry.LogIndex,
-                                DateTime.Parse(requests.Current.LogEntry.Timestamp.ToString()),
-                                "ip",
-                                requests.Current.LogEntry.Operation,
-                                requests.Current.LogEntry.OperationData,
-                                requests.Current.CommitIndex == requests.Current.LogEntry.LogIndex
-                            ));
-                        lastLogIndex = requests.Current.LogEntry.LogIndex;
-                        success = true;
-                    }
-                    return new AppendEntriesResponse() { MatchIndex = lastLogIndex, Success = success, Term = this._settings.CurrentTerm };
+                    totalTerm = request.Term;
+                    totalPrevIndex = request.PrevIndex;
+                    totalPrevTerm = request.PrevTerm;
+                    totalCommitIndex = request.CommitIndex;
+                    if (request.LogEntry != null)
+                        totalLogEntries.Add(request.LogEntry);
+                    totalArgs.Add(request.Args);
                 }
-                throw new Exception("EMPTY STREAM");
+            }
+            catch (Exception ex)
+            {
+                Console.Write(ex.Message);
+                throw new Exception("Stream error");
+            }
 
+            if (totalLogEntries.Count > 0)
+            {
+                Console.WriteLine("addres: " + addres);
+                Console.WriteLine("Total Term: " + totalTerm);
+                Console.WriteLine("Total Previous Index: " + totalPrevIndex);
+                Console.WriteLine("Total Previous Term: " + totalPrevTerm);
+                Console.WriteLine("Total Commit Index: " + totalCommitIndex);
+
+                // Print accumulated log entries
+                Console.WriteLine("Total Log Entries" + totalLogEntries.Count());
+                foreach (var logEntry in totalLogEntries)
+                {
+                    Console.WriteLine($"- Term: {logEntry.Term}, LogIndex: {logEntry.LogIndex}, Operation: {logEntry.Operation}, OperationData: {logEntry.OperationData}, Timestamp: {logEntry.Timestamp}");
+                }
+            }
+            try
+            {
+                if (totalCommitIndex > this._settings.CommitIndex + 1 || totalPrevIndex > this._settings.LastLogIndex)
+                {
+                    Console.WriteLine("totalCommitIndex: " + totalCommitIndex);
+                    Console.WriteLine("_settings.totalCommitIndex: " + this._settings.CommitIndex);
+                    Console.WriteLine("totalPrevIndex: " + totalPrevIndex);
+                    Console.WriteLine("this._settings.LastLogIndex: " + this._settings.LastLogIndex);
+
+                    Console.WriteLine("ERROR to append Entries");
+                    return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
+
+                }
+
+                if (totalLogEntries.Count() > 0 && (totalLogEntries[0].LogIndex == 1 + this._settings.LastLogIndex))//|| this._settings.LastLogIndex == 0))
+            {
+                    Console.WriteLine("Append entries");
+                    this._logger.AppendEntry(
+                        new LogEntry(
+                                totalLogEntries[0].LogIndex,
+                                totalLogEntries[0].Timestamp.ToDateTime(),
+                                addres,
+                                totalLogEntries[0].Operation,
+                                totalLogEntries[0].OperationData,
+                           false
+                        ));
+                    this._settings.LastLogIndex += 1;
+                }
+
+
+                if (totalCommitIndex > this._settings.CommitIndex)
+                {
+                    Console.WriteLine("commit");
+                    Console.WriteLine(totalCommitIndex);
+                    this._logger.CommitEntry(totalCommitIndex);
+                    this._settings.CommitIndex = totalCommitIndex;
+
+                }
 
             }
             catch (Exception ex)
             {
-
-                throw new Exception("A");
+                Console.WriteLine(ex.Message);
             }
+            return new AppendEntriesResponse()
+                {
+                    MatchIndex = this._settings.LastLogIndex,
+                    Success = true,
+                    Term = this._settings.CurrentTerm
+                };
             
         }
 
@@ -112,6 +187,7 @@ namespace NodeServer.Managers.RaftNameSpace
                 this._settings.VotedFor = request.CandidateId;
                 return true;
             }
+            Console.WriteLine("REJECT");
             return false;
         }
 
@@ -130,22 +206,22 @@ namespace NodeServer.Managers.RaftNameSpace
                 {
                     if (this._currentStateCode == StatesCode.Follower)
                     {
-                        Console.WriteLine("Follower");
                         this._state = new Follower(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
                     }
                     else if (this._currentStateCode == StatesCode.Candidate)
                     {
-                        Console.WriteLine("Candidate");
-
                         this._state = new Candidate(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
+                        if (this._currentStateCode == StatesCode.Leader)
+                        {
+                            this._settings.ElectionTimeout = new Random().Next(150, 3011);
+                        }
                     }
                     else if (this._currentStateCode == StatesCode.Leader)
                     {
-                        Console.WriteLine("leader");
                         this._state = new Leader(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
