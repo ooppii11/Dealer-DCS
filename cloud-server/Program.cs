@@ -25,6 +25,7 @@ public class Startup
         
         services.AddSingleton<Authentication>(new Authentication(new AuthDB("DB/tables.sql", "127.0.0.1", "DBserver", "5432", "123AvIt456", "mydatabase")));
         services.AddSingleton<FileMetadataDB>(new FileMetadataDB("DB/tables.sql", "127.0.0.1", "DBserver", "5432", "123AvIt456", "mydatabase"));
+        services.AddSingleton<RaftViewerLogger>(new RaftViewerLogger("LeaderLog.log"));
         services.AddGrpc();
     }
 

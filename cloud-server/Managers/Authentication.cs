@@ -60,5 +60,14 @@ namespace cloud_server.Managers
                 throw new IncorrectSessionIdException("Incorrect session id");
             }
         }
+
+        public bool CheckSessionId(string sessionId)
+        {
+            if (this._users.ContainsKey(sessionId))
+            {
+                return true;
+            }
+            throw new IncorrectSessionIdException("Incorrect session id");
+        }
     }
 }

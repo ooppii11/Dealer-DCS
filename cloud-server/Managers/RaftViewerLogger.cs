@@ -44,6 +44,10 @@ namespace cloud_server.Managers
             lock (RaftViewerLogger._fileLock)
             {
                 List<string> fileContent = File.Exists(_filePath) ? File.ReadAllLines(_filePath).ToList() : new List<string>();
+                if (!fileContent.Any() || string.IsNullOrWhiteSpace(fileContent.Last()))
+                {
+                    return;
+                }
                 fileContent.Add("");
                 File.WriteAllLines(_filePath, fileContent);
             }

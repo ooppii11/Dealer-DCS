@@ -15,24 +15,28 @@ namespace cloud_server.Services
     {
         private Authentication _authManager;
         private FilesManager _filesManager;
+
+        private readonly RaftViewerLogger _raftLogger;
+        private static readonly object _fileLock = new object();
+
         //private readonly ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)> _requestQueue = new ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>();
-        private readonly Dictionary<string, ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>> _userRequestQueues = new Dictionary<string, ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>>();
-        private readonly Dictionary<string, object> _userQueueLockObjects = new Dictionary<string, object>();
-        private readonly Dictionary<string, CancellationTokenSource> _userCancellationTokens = new Dictionary<string, CancellationTokenSource>();
+        private static readonly Dictionary<string, ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>> _usersRequestQueues = new Dictionary<string, ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>>();
+        private static readonly Dictionary<string, object> _usersQueueLockObjects = new Dictionary<string, object>();
+        private static readonly Dictionary<string, CancellationTokenSource> _usersCancellationTokens = new Dictionary<string, CancellationTokenSource>();
         //private readonly object _queueLockObject = new object();
         //private readonly ManualResetEventSlim _queueEvent = new ManualResetEventSlim(false);
-        private readonly Dictionary<string, ManualResetEventSlim> _usersQueueEvent = new Dictionary<string, ManualResetEventSlim>();
-        private static readonly RaftViewerLogger _raftLogger = new RaftViewerLogger("LeaderLog.log");
-        private static readonly object _fileLock = new object();
+        private static readonly Dictionary<string, ManualResetEventSlim> _usersQueueEvent = new Dictionary<string, ManualResetEventSlim>();
+        
 
 
         private readonly ILogger<CloudGrpcService> _logger;
 
-        public CloudGrpcService(ILogger<CloudGrpcService> logger, Authentication auth, FileMetadataDB filesManagerDB)
+        public CloudGrpcService(ILogger<CloudGrpcService> logger, Authentication auth, FileMetadataDB filesManagerDB, RaftViewerLogger raftLogger)
         {
+            _raftLogger = raftLogger;
             try
             {
-                this._filesManager = new FilesManager(filesManagerDB, CloudGrpcService._raftLogger.getCurrLeaderAddress());
+                this._filesManager = new FilesManager(filesManagerDB, this._raftLogger.getCurrLeaderAddress());
             }
             catch (NoLeaderException ex)
             {
@@ -41,25 +45,21 @@ namespace cloud_server.Services
             this._logger = logger;
             this._authManager = auth;
         }
-
         private void StartProcessQueueForUser(string userId)
         {
-            if (!this._userCancellationTokens.ContainsKey(userId))
+            if (!CloudGrpcService._usersCancellationTokens.ContainsKey(userId))
             {
                 var cancellationTokenSource = new CancellationTokenSource();
-                this._userCancellationTokens[userId] = cancellationTokenSource;
+                CloudGrpcService._usersCancellationTokens[userId] = cancellationTokenSource;
 
                 var userQueueLockObject = new object();
-                this._userQueueLockObjects[userId] = userQueueLockObject;
+                CloudGrpcService._usersQueueLockObjects[userId] = userQueueLockObject;
 
                 var userQueueEvent = new ManualResetEventSlim(false);
-                this._usersQueueEvent[userId] = userQueueEvent;
+                CloudGrpcService._usersQueueEvent[userId] = userQueueEvent;
 
-                if (!this._userRequestQueues.TryGetValue(userId, out var userQueue))
-                {
-                    userQueue = new ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>();
-                    this._userRequestQueues[userId] = userQueue;
-                }
+                CloudGrpcService._usersRequestQueues[userId] = new ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>();
+
 
                 Task.Factory.StartNew(() => ProcessQueue(userId), TaskCreationOptions.LongRunning);
             }
@@ -67,18 +67,21 @@ namespace cloud_server.Services
 
         private void StopProcessQueueForUser(string userId)
         {
-            if (this._userCancellationTokens.TryGetValue(userId, out var cancellationTokenSource))
+            if (CloudGrpcService._usersCancellationTokens.TryGetValue(userId, out var cancellationTokenSource))
             {
                 cancellationTokenSource.Cancel();
-                this._userCancellationTokens.Remove(userId);
-
-                if (this._userQueueLockObjects.TryGetValue(userId, out var userQueueLockObject))
+                CloudGrpcService._usersCancellationTokens.Remove(userId);
+            }
+            if (CloudGrpcService._usersQueueLockObjects.TryGetValue(userId, out var userQueueLockObject))
+            {
+                lock (userQueueLockObject)
                 {
-                    lock (userQueueLockObject)
-                    {
-                        this._userQueueLockObjects.Remove(userId);
-                    }
+                    CloudGrpcService._usersQueueLockObjects.Remove(userId);
                 }
+            }
+            if (CloudGrpcService._usersRequestQueues.TryGetValue(userId, out var userQueue))
+            {
+                _usersRequestQueues.Remove(userId);
             }
         }
 
@@ -86,8 +89,8 @@ namespace cloud_server.Services
         private Task<object> EnqueueRequestAsync(string userId, Delegate action, params object[] parameters)
         {
             var completionSource = new TaskCompletionSource<object>();
-            this._userRequestQueues[userId].Enqueue((action, completionSource, parameters));
-            this._usersQueueEvent[userId].Set();
+            CloudGrpcService._usersRequestQueues[userId].Enqueue((action, completionSource, parameters));
+            CloudGrpcService._usersQueueEvent[userId].Set();
             return completionSource.Task;
         }
 
@@ -95,35 +98,45 @@ namespace cloud_server.Services
 
         private async Task ProcessQueue(string userId)
         {
-            while (!this._userCancellationTokens[userId].IsCancellationRequested)
+            while (!CloudGrpcService._usersCancellationTokens[userId].IsCancellationRequested)
             {
-                this._usersQueueEvent[userId].Wait();
+                CloudGrpcService._usersQueueEvent[userId].Wait();
 
-                lock (this._userQueueLockObjects[userId])
+                lock (CloudGrpcService._usersQueueLockObjects[userId])
                 {
-                    
-                    while (this._userRequestQueues[userId].TryPeek(out var requestPair))
+                    bool stopProcessingQueueNow = false;
+                    while (CloudGrpcService._usersRequestQueues[userId].TryPeek(out var requestPair) && !stopProcessingQueueNow)
                     {
                         try
                         {
                             lock (CloudGrpcService._fileLock)
                             {
-                                CloudGrpcService._raftLogger.getCurrLeaderAddress();
+                                this._raftLogger.getCurrLeaderAddress();
                             }
                             var result = requestPair.Action.DynamicInvoke(requestPair.Parameters);
                             if (result is Task taskResult)
                             {
                                 if (taskResult.IsCompleted)
                                 {
-                                    // If the task is already completed, set the result directly
                                     requestPair.Completion.TrySetResult(taskResult.GetType().GetProperty("Result")?.GetValue(taskResult));
                                 }
+                                
                                 else
                                 {
-                                    // If the task is not completed, continue with setting the result
                                     taskResult.ContinueWith(t =>
                                     {
-                                        requestPair.Completion.TrySetResult(t.GetType().GetProperty("Result")?.GetValue(t));
+                                        if (t.IsFaulted && t.Exception.InnerException is RpcException)
+                                        {
+                                            stopProcessingQueueNow = true;
+                                            lock (CloudGrpcService._fileLock)
+                                            {
+                                                this._raftLogger.insertInvalidLeader();
+                                            }
+                                        }
+                                        else
+                                        {
+                                            requestPair.Completion.TrySetResult(t.GetType().GetProperty("Result")?.GetValue(t));
+                                        }   
                                     }, TaskScheduler.Default);
                                 }
                             }
@@ -131,12 +144,15 @@ namespace cloud_server.Services
                             {
                                 requestPair.Completion.TrySetResult(result);
                             }
-                            this._userRequestQueues[userId].TryDequeue(out requestPair);
+                            if (!stopProcessingQueueNow)
+                            {
+                                CloudGrpcService._usersRequestQueues[userId].TryDequeue(out requestPair);
+                            }
                         }
                         catch (NoLeaderException ex)
                         {
                             Console.WriteLine(ex.Message);
-                            break;
+                            stopProcessingQueueNow = true;
                         }
                         catch (Exception ex)
                         {
@@ -144,16 +160,19 @@ namespace cloud_server.Services
                         }
                             
                     }
-                    this._usersQueueEvent[userId].Reset();
+                    CloudGrpcService._usersQueueEvent[userId].Reset();
                 }
             }
         }
 
         private void setAllUsersEvents()
         {
-            foreach (var pair in this._usersQueueEvent)
+            foreach (var pair in CloudGrpcService._usersQueueEvent)
             {
-                pair.Value.Set();
+                if (!pair.Value.IsSet)
+                {
+                    pair.Value.Set();
+                }
             }
         }
 
@@ -163,14 +182,14 @@ namespace cloud_server.Services
             {
                 try
                 {
-                    bool isNewLeader = request.LeaderAddress != CloudGrpcService._raftLogger.getCurrLeaderAddress();
+                    bool isNewLeader = request.LeaderAddress != this._raftLogger.getCurrLeaderAddress();
                     //bool isValidTerm = CloudGrpcService._raftLogger.getLastEntry().Term <= request.Term;
-                    bool isValidIndex = CloudGrpcService._raftLogger.getLastEntry().SystemLastIndex <= request.SystemLastIndex;
+                    bool isValidIndex = this._raftLogger.getLastEntry().SystemLastIndex <= request.SystemLastIndex;
                     if (isNewLeader
                         //&& isValidTerm
                         && isValidIndex)
                     {
-                        CloudGrpcService._raftLogger.insertEntry(request);
+                        this._raftLogger.insertEntry(request);
                         this.setAllUsersEvents();
                         this._filesManager.LeaderAddress = request.LeaderAddress;
                         return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = true });
@@ -178,7 +197,7 @@ namespace cloud_server.Services
                 }
                 catch (NoLeaderException ex)
                 {
-                    CloudGrpcService._raftLogger.insertEntry(request);
+                    this._raftLogger.insertEntry(request);
                     this.setAllUsersEvents();
                     this._filesManager.LeaderAddress = request.LeaderAddress;
                     return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = true });
@@ -203,7 +222,7 @@ namespace cloud_server.Services
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error.");
                 // Send Error response:
                 return Task.FromResult(new SignupResponse
                 {
@@ -229,7 +248,7 @@ namespace cloud_server.Services
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error");
                 // Send Error response:
                 return Task.FromResult(new LoginResponse
                 {
@@ -251,22 +270,32 @@ namespace cloud_server.Services
         {
             try
             {
-                this._authManager.GetUser(request.SessionId);
+                this._authManager.CheckSessionId(request.SessionId);
                 var task = await EnqueueRequestAsync(request.SessionId, ProcessGetListOfFiles, request, context);
                 return (GetListOfFilesResponse)task;
             }
             catch (IncorrectSessionIdException ex)
             {
+                context.Status = new Grpc.Core.Status(StatusCode.InvalidArgument, ex.Message);
                 return new GetListOfFilesResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
             }
-            
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error while getting file metadata.");
+                GetListOfFilesResponse response = new GetListOfFilesResponse();
+                response.Message = "Internal Error while getting List Of files metadata.";
+                response.Status = GrpcCloud.Status.Failure;
+                return response;
+            }
+
         }
 
         public override async Task<GetFileMetadataResponse> getFileMetadata(GetFileMetadataRequest request, ServerCallContext context)
         {
             try 
             {
-                this._authManager.GetUser(request.SessionId);
+                this._authManager.CheckSessionId(request.SessionId);
                 var task = await EnqueueRequestAsync(request.SessionId, ProcessGetFileMetadata, request, context);
                 return (GetFileMetadataResponse)task;
             }
@@ -274,239 +303,187 @@ namespace cloud_server.Services
             {
                 return new GetFileMetadataResponse { Message = $"Error: {ex.Message}" , Status = GrpcCloud.Status.Failure};
             }
+            catch (Exception ex)
+            {
+                GetFileMetadataResponse response = new GetFileMetadataResponse();
+                Console.WriteLine(ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error while getting file metadata.");
+                response.Message = "Internal Error while getting file metadata.";
+                response.Status = GrpcCloud.Status.Failure;
+                return response;
+            }
         }
 
         public override async Task<DeleteFileResponse> DeleteFile(DeleteFileRequest request, ServerCallContext context)
         {
             try
             {
-                this._authManager.GetUser(request.SessionId);
+                this._authManager.CheckSessionId(request.SessionId);
                 var task = await EnqueueRequestAsync(request.SessionId, ProcessDeleteFile, request, context);
                 return (DeleteFileResponse)task;
             }
             catch (IncorrectSessionIdException ex)
             {
+                context.Status = new Grpc.Core.Status(StatusCode.InvalidArgument, ex.Message);
                 return new DeleteFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
             }
-            
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error deleting the file.");
+                return new DeleteFileResponse
+                {
+                    Status = GrpcCloud.Status.Failure,
+                    Message = $"Internal Error deleting the file."
+                };
+            }
+
         }
 
         public override async Task DownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)
         {
             try
             {
-                this._authManager.GetUser(request.SessionId);
+                this._authManager.CheckSessionId(request.SessionId);
                 var task = EnqueueRequestAsync(request.SessionId, ProcessDownloadFile, request, responseStream, context);
                 return;
             }
             catch (IncorrectSessionIdException ex)
             {
-                await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Error {ex.Message}", FileData = ByteString.Empty });
+                context.Status = new Grpc.Core.Status(StatusCode.InvalidArgument, ex.Message);
+                await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Error: {ex.Message}", FileData = ByteString.Empty });
                 return;
             }
-            
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error downloading the file.");
+                await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Internal Error downloading the file.", FileData = ByteString.Empty });
+                return;
+            }
         }
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
         {
             try
             {
-                this._authManager.GetUser(requestStream.Current.SessionId);
-                var task = await EnqueueRequestAsync(requestStream.Current.SessionId, ProcessUploadFile, requestStream, context);
+                List<UploadFileRequest> requestStreamList = await GetStreamInfoAsList<UploadFileRequest>(requestStream);
+                this._authManager.GetUser(requestStreamList[0].SessionId);
+                var task = await EnqueueRequestAsync(requestStreamList[0].SessionId, ProcessUploadFile, requestStreamList, context);
                 return (UploadFileResponse)task;
             }
             catch (IncorrectSessionIdException ex)
             {
+                context.Status = new Grpc.Core.Status(StatusCode.InvalidArgument, ex.Message);
                 return new UploadFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
             }
-            
+            catch (RpcException ex)
+            {
+                Console.WriteLine(ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Aborted, "Error: connection failed");
+                return new UploadFileResponse { Message = $"Error: connection failed", Status = GrpcCloud.Status.Failure };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error uploading file.");
+                return new UploadFileResponse()
+                {
+                    Status = GrpcCloud.Status.Failure,
+                    Message = $"Internal Error uploading file."
+                };
+            }
+        }
+
+        private async Task<List<T>> GetStreamInfoAsList<T>(IAsyncStreamReader<T> requestStream)
+        {
+            List<T> result = new List<T>();
+            await foreach (var request in requestStream.ReadAllAsync())
+            {
+                result.Add(request);
+            }
+            return result;
         }
 
         private Task<GetListOfFilesResponse> ProcessGetListOfFiles(GetListOfFilesRequest request, ServerCallContext context)
         {
             GetListOfFilesResponse response = new GetListOfFilesResponse();
-            try
-            {
-                User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
-                List<GrpcCloud.FileMetadata> fileMetadata = this._filesManager.getFilesMetadata(user.Id); // Get the metadata
+            User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
+            List<GrpcCloud.FileMetadata> fileMetadata = this._filesManager.getFilesMetadata(user.Id); // Get the metadata
 
-                // Init response:
-                response.Message = "";
-                response.Status = GrpcCloud.Status.Success;
-                response.Files.Add(fileMetadata);
+            // Init response:
+            response.Message = "";
+            response.Status = GrpcCloud.Status.Success;
+            response.Files.Add(fileMetadata);
 
-                return Task.FromResult(response);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
-                response.Message = ex.Message;
-                response.Status = GrpcCloud.Status.Failure;
-                return Task.FromResult(response);
-            }
+            return Task.FromResult(response);
         }
+
         private Task<GetFileMetadataResponse> ProcessGetFileMetadata(GetFileMetadataRequest request, ServerCallContext context)
         {
             GetFileMetadataResponse response = new GetFileMetadataResponse();
-            try 
-            {
-                User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
-                
-                response.Message = "";
-                response.Status = GrpcCloud.Status.Success;
-                response.File = this._filesManager.getFileMetadata(user.Id, request.FileName);
-                return Task.FromResult(response);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
-                response.Message = ex.Message;
-                response.Status = GrpcCloud.Status.Failure;
-                return Task.FromResult(response);
-            }
+            User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
+
+            response.Message = "";
+            response.Status = GrpcCloud.Status.Success;
+            response.File = this._filesManager.getFileMetadata(user.Id, request.FileName);
+            return Task.FromResult(response);
         }
         private Task<DeleteFileResponse> ProcessDeleteFile(DeleteFileRequest request, ServerCallContext context)
         {
-            try
-            {
-                User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
+            User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
 
-                this._filesManager.deleteFile(user.Id, request.FileName);
-                return Task.FromResult(new DeleteFileResponse 
-                {
-                    Status = GrpcCloud.Status.Success,
-                    Message = "" }
-                );
-            }
-            catch (RpcException ex)
+            this._filesManager.deleteFile(user.Id, request.FileName);
+            return Task.FromResult(new DeleteFileResponse
             {
-                Console.WriteLine(ex.Message);
-                lock (CloudGrpcService._fileLock)
-                {
-                    CloudGrpcService._raftLogger.insertInvalidLeader();
-                }   
-                context.Status = new Grpc.Core.Status(StatusCode.Unavailable, ex.Message);
-                return Task.FromResult(new DeleteFileResponse
-                {
-                    Status = GrpcCloud.Status.Failure,
-                    Message = $"Error deleting the file: {ex.Message}"
-                });
+                Status = GrpcCloud.Status.Success,
+                Message = ""
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
-                return Task.FromResult(new DeleteFileResponse
-                { 
-                    Status = GrpcCloud.Status.Failure,
-                    Message = $"Internal Error deleting the file." 
-                });
-            }
-
+            );
         }
         private async Task ProcessDownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)
         {
-            try
-            {
-                User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
-                
-                byte[] file = await this._filesManager.downloadFile(user.Id, request.FileName);
-                int offset = 0;
-                int chunkSize = 64000;
-                if (file != null)
-                {
-                    while (offset < file.Length)
-                    {
-                        int remaining = file.Length - offset;
-                        int writingSize = Math.Min(remaining, chunkSize);
+            User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
 
-                        DownloadFileResponse response = new DownloadFileResponse { Status = GrpcCloud.Status.Success, FileData = ByteString.CopyFrom(file, offset, writingSize) };
-                        //
-                        offset += writingSize;
-                        await responseStream.WriteAsync(response);
-                    }
+            byte[] file = await this._filesManager.downloadFile(user.Id, request.FileName);
+            int offset = 0;
+            int chunkSize = 64000;
+            if (file != null)
+            {
+                while (offset < file.Length)
+                {
+                    int remaining = file.Length - offset;
+                    int writingSize = Math.Min(remaining, chunkSize);
+
+                    DownloadFileResponse response = new DownloadFileResponse { Status = GrpcCloud.Status.Success, FileData = ByteString.CopyFrom(file, offset, writingSize) };
+                    //
+                    offset += writingSize;
+                    await responseStream.WriteAsync(response);
                 }
             }
-            catch (RpcException ex)
-            {
-                Console.WriteLine(ex.Message);
-                lock (CloudGrpcService._fileLock)
-                {
-                    CloudGrpcService._raftLogger.insertInvalidLeader();
-                }
-                context.Status = new Grpc.Core.Status(StatusCode.Unavailable, ex.Message);
-                await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Error downloading the file: {ex.Message}", FileData = ByteString.Empty });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
-                await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Internal Error downloading the file.", FileData = ByteString.Empty });
-                return;
-            }
-
         }
 
-        private async Task<UploadFileResponse> ProcessUploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
+        private async Task<UploadFileResponse> ProcessUploadFile(List<UploadFileRequest> requestStreamList, ServerCallContext context)
         {
-            try
+            User user = this._authManager.GetUser(requestStreamList[0].SessionId);
+
+            string fileName = requestStreamList[0].FileName;
+            string type = requestStreamList[0].Type;
+
+            MemoryStream fileData = new MemoryStream();
+
+            foreach (var chunk in requestStreamList)
             {
-                User user = null;
-                bool isFirstIteration = true;
-
-                string fileName = "";
-                string type = "";
-                
-                MemoryStream fileData = new MemoryStream();
-
-                await foreach (var chunk in requestStream.ReadAllAsync())
-                {
-                    if (isFirstIteration)
-                    {
-                        user = this._authManager.GetUser(chunk.SessionId);
-                        fileName = chunk.FileName;
-                        type = chunk.Type;
-                    }
-                    //
-                    isFirstIteration = false;
-
-                    fileData.Write(chunk.FileData.ToArray(), 0, chunk.FileData.Length);
-                }
-
-                await this._filesManager.uploadFile(user.Id, fileName, type, fileData.Length, fileData.ToArray());
-
-                return new UploadFileResponse()
-                { 
-                    Status = GrpcCloud.Status.Success,
-                    Message = "File uploaded successfully." 
-                };
+                fileData.Write(chunk.FileData.ToArray(), 0, chunk.FileData.Length);
             }
-            catch (RpcException ex)
+
+            await this._filesManager.uploadFile(user.Id, fileName, type, fileData.Length, fileData.ToArray());
+
+            return new UploadFileResponse()
             {
-                Console.WriteLine(ex.Message);
-                lock (CloudGrpcService._fileLock)
-                {
-                    CloudGrpcService._raftLogger.insertInvalidLeader();
-                }
-                context.Status = new Grpc.Core.Status(StatusCode.Unavailable, ex.Message);
-                return new UploadFileResponse
-                {
-                    Status = GrpcCloud.Status.Failure,
-                    Message = $"Error uploading the file: {ex.Message}"
-                };
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                context.Status = new Grpc.Core.Status(StatusCode.Internal, ex.Message);
-                return new UploadFileResponse()
-                {
-                    Status = GrpcCloud.Status.Failure,
-                    Message = $"Internal Error uploading file." 
-                };
-            }
+                Status = GrpcCloud.Status.Success,
+                Message = "File uploaded successfully."
+            };
         }
 
     }
