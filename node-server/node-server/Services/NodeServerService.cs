@@ -12,9 +12,7 @@ namespace NodeServer.Services
     public class NodeServerService : NodeServices.NodeServicesBase
     {
         private FileSaving _microservice;
-        //private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
         private Raft _raft;
-        //logFileInfo 
         public NodeServerService(FileSaving micro, Raft raft)
         {
             this._microservice = micro;
@@ -23,11 +21,9 @@ namespace NodeServer.Services
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
         {
-            //Console.WriteLine($"uploading file at {this._serverIP}");
-            List<string> unreachableServers = new List<string>();
             try
             {
-                //consensus + S2S
+                /*get data - new function*/
                 string fileID = "";
                 string type = "";
                 List<string> otherNodeServersAddresses = new List<string>();
@@ -46,82 +42,31 @@ namespace NodeServer.Services
                         otherNodeServersAddresses.Add(serverAddress);
                     }
                 }
-                LogEntry entry = new LogEntry(0, DateTime.MinValue, "null", "null", "null", false);
 
-                this._raft.appendEntry(entry);
+                /*Raft: append entry*/
+               
+                
+                /*Raft: get consensus - commit*/
+
+
+                /*preform action*/
+                await this._microservice.uploadFile(fileID, fileData.ToArray(), type);
                 
 
-
-
-                await this._microservice.uploadFile(fileID, fileData.ToArray(), type);
-                /*
-                List<string> serverList = otherNodeServersAddresses;
-                serverList.Remove(this._serverIP);
-                this._system.addFile(fileID, otherNodeServersAddresses);
-
-                foreach (string serverAddress in serverList)
-                {
-                    try
-                    {
-                        fileData.Seek(0, SeekOrigin.Begin);
-                        ServerToServerClient s2s = new ServerToServerClient(serverAddress, 50052);
-                        PassFileResponse response = await s2s.passFile(fileID, type, otherNodeServersAddresses, fileData);
-                        Console.WriteLine($"status: {response.Status}, massenge: {response.Message}");
-                    }
-                    catch (RpcException ex)
-                    {
-                        if (!(ex.StatusCode == StatusCode.AlreadyExists))
-                        {
-                            unreachableServers.Add(serverAddress);
-                        }
-                    }
-                }
-
-                */
-                //Task.Run(() => tryPassingFile(fileID, type, unreachableServers, otherNodeServersAddresses, fileData));
-
-                return new UploadFileResponse { Status = true, Message = "File uploaded successfully.", UnreachableServers = { unreachableServers } };
+                return new UploadFileResponse { Status = true, Message = "File uploaded successfully." };
             }
             catch (Exception ex)
             {
                 context.Status = new Status(StatusCode.Internal, $"Error uploading file: {ex.Message}");
-                return new UploadFileResponse { Status = false, Message = $"Error updating the file: {ex.Message}", UnreachableServers = { unreachableServers } }; ;
+                return new UploadFileResponse { Status = false, Message = $"Error updating the file: {ex.Message}"}; ;
             }
         }
-        /*
-        private async Task tryPassingFile(string fileID, string type, List<string> unreachableServers, List<string> otherNodeServersAddresses, MemoryStream fileData)
-        {
-
-            const int delayInSeconds = 120;
-            while (unreachableServers.Count > 0)
-            {
-                string serverAddress = unreachableServers.First();
-                unreachableServers.Remove(serverAddress);
-                try
-                {
-                    fileData.Seek(0, SeekOrigin.Begin);
-                    ServerToServerClient s2s = new ServerToServerClient(serverAddress, 50052);
-                    PassFileResponse response = await s2s.passFile(fileID, type, otherNodeServersAddresses, fileData);
-                    Console.WriteLine($"status: {response.Status}, massenge: {response.Message}");
-                }
-                catch (RpcException ex)
-                {
-                    unreachableServers.Add(serverAddress);
-                }
-
-                if (unreachableServers.Count > 0)
-                {
-                    Console.WriteLine($"Not all servers received the message. Retrying in {delayInSeconds} seconds...");
-                    Thread.Sleep(TimeSpan.FromSeconds(delayInSeconds));
-                }
-            }
-        }   
-        */
+        
         public override async Task<UpdateFileResponse> UpdateFile(IAsyncStreamReader<UpdateFileRequest> requestStream, ServerCallContext context)
         {
             try
             {
-                //consensus + S2S
+                /*get data - new function*/
                 string fileName = null;
 
                 MemoryStream fileData = new MemoryStream();
@@ -134,6 +79,12 @@ namespace NodeServer.Services
                     }
                     fileData.Write(chunk.NewContent.ToArray(), 0, chunk.NewContent.Length);
                 }
+
+                /*Raft: append entry*/
+
+                /*Raft: get consensus - commit*/
+
+                /*preform action*/
                 this._microservice.deleteFile(fileName);
                 await this._microservice.uploadFile(fileName, fileData.ToArray(), "");
 
@@ -151,7 +102,11 @@ namespace NodeServer.Services
         {
             try
             {
-                //consensus + S2S
+                /*Raft: append entry*/
+
+                /*Raft: get consensus - commit*/
+
+                /*preform action + get data*/
                 byte[] file = await this._microservice.downloadFile(request.FileId);
                 int offset = 0;
                 int chunkSize = 64000;
@@ -182,7 +137,11 @@ namespace NodeServer.Services
         {
             try
             {
-                //consensus + S2S
+                /*Raft: append entry*/
+
+                /*Raft: get consensus - commit*/
+
+                /*preform action + get data*/
                 this._microservice.deleteFile(request.FileId);
 
                 return Task.FromResult(new DeleteFileResponse { Status = true, Message = "File deleted successfully." });

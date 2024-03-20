@@ -56,8 +56,6 @@ namespace NodeServer.Managers.RaftNameSpace.States
             this._lastLogEntry = this._logger.GetLastLogEntry();
             this._followers = new Dictionary<string, Node>();
             this.InitHeartbeatMessages();
-            LogEntry entry = new LogEntry(1, DateTime.UtcNow, this._settings.ServerAddress, "TEST APPEND ENTRIES", "null", false);
-            this.AppendEntries(entry);
         }
 
         private void InitHeartbeatMessages()
@@ -171,7 +169,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
             }
         }
 
-        public async void AppendEntries(LogEntry entry)
+        public async Task AppendEntries(LogEntry entry)
         {
             this._logger.AppendEntry(entry);
             this._lastLogEntry = entry;
@@ -192,7 +190,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     {
                         PrevTerm = this._settings.PreviousTerm,
                         Term = this._settings.CurrentTerm,
-                        PrevLogIndex = this._settings.LastLogIndex,//(_lastLogEntry.Index - 1 >= -1) ? _lastLogEntry.Index - 1 : -1,
+                        PrevLogIndex = this._settings.LastLogIndex, //(_lastLogEntry.Index - 1 >= -1) ? _lastLogEntry.Index - 1 : -1,
                         LogIndex = _lastLogEntry.Index,
                         Timestamp = Timestamp.FromDateTime(this._lastLogEntry.Timestamp),
                         Operation = _lastLogEntry.Operation,
@@ -208,7 +206,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     ServerToServerClient s2s = new ServerToServerClient(address);
                     AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
                     Console.WriteLine($"sent new append entries to {address}");
-                    this.OnReceiveAppendEntriesResponse(response, address);
+                    await this.OnReceiveAppendEntriesResponse(response, address);
                 }
                 catch (Exception e) 
                 {
@@ -235,7 +233,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
             return agreeCount + 1 > nodesCount / 2;
         }
 
-        public async void OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
+        public async Task OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
         {
             ServerToServerClient s2s = new ServerToServerClient(address);
 
