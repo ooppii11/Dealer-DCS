@@ -44,8 +44,9 @@ namespace NodeServer.Services
                 }
 
                 /*Raft: append entry*/
-               
-                
+
+              // await raft.appendEntries()
+
                 /*Raft: get consensus - commit*/
 
 

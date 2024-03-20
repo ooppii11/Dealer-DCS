@@ -88,6 +88,10 @@ namespace NodeServer.Managers.RaftNameSpace
             var totalLogEntries = new List<GrpcServerToServer.LogEntry>();
             var totalArgs = new List<GrpcServerToServer.operationArgs>();
 
+
+            /***
+             add args
+             ***/ 
             try
             {               
                 await foreach (var request in requests.ReadAllAsync())
@@ -124,6 +128,7 @@ namespace NodeServer.Managers.RaftNameSpace
             }
             try
             {
+                // sever was down, one or more logs are missing index
                 if (totalCommitIndex > this._settings.CommitIndex + 1 || totalPrevIndex > this._settings.LastLogIndex)
                 {
                     Console.WriteLine("totalCommitIndex: " + totalCommitIndex);
@@ -136,6 +141,7 @@ namespace NodeServer.Managers.RaftNameSpace
 
                 }
 
+                // check for apped new log line
                 if (totalLogEntries.Count() > 0 && (totalLogEntries[0].LogIndex == 1 + this._settings.LastLogIndex))//|| this._settings.LastLogIndex == 0))
             {
                     Console.WriteLine("Append entries");
@@ -151,7 +157,7 @@ namespace NodeServer.Managers.RaftNameSpace
                     this._settings.LastLogIndex += 1;
                 }
 
-
+                // commit
                 if (totalCommitIndex > this._settings.CommitIndex)
                 {
                     Console.WriteLine("commit");
@@ -159,6 +165,8 @@ namespace NodeServer.Managers.RaftNameSpace
                     this._logger.CommitEntry(totalCommitIndex);
                     this._settings.CommitIndex = totalCommitIndex;
 
+                    // call to action function:
+                    
                 }
 
             }

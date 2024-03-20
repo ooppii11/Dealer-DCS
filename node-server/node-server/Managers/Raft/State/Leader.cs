@@ -169,7 +169,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
             }
         }
 
-        public async Task AppendEntries(LogEntry entry)
+        public async Task AppendEntries(LogEntry entry) // Add args
         {
             this._logger.AppendEntry(entry);
             this._lastLogEntry = entry;
@@ -252,6 +252,9 @@ namespace NodeServer.Managers.RaftNameSpace.States
                             this._settings.CommitIndex = response.MatchIndex;
                             Console.WriteLine($"leader commit index {this._settings.CommitIndex}");
                             this._logger.CommitEntry(this._settings.CommitIndex);
+
+                            // call to action:
+
                         }
                         this._followers[address].CommitIndex = response.MatchIndex;
                         this._followers[address].Request.CommitIndex = response.MatchIndex;
