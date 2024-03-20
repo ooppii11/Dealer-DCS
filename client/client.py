@@ -1,4 +1,3 @@
-from multiprocessing import Pool
 from option_actions import *
 
 
@@ -7,35 +6,33 @@ def get_session_id(stub):
         try:
             session_id = AuthActions.get_user_credentials(stub)
             if session_id is not None:
-                break  
+                return session_id
         except Exception as e:
             print("Error:", e)    
 
-if __name__ == "__main__":
+def main():
     channel = grpc.insecure_channel('localhost:50053')
     stub = cloud_pb2_grpc.CloudStub(channel)
     session_id = get_session_id(stub)
-        
-    
-    #options_functions = {
-    #    'Upload': option1,
-    #    'Update': option2
-    #}
+
+
+    options = {
+        "upload": FilesActions.upload,
+        "delete": FilesActions.delete,
+        "download": FilesActions.download,
+        "ls": FilesActions.ls,
+        "file metadata": FilesActions.file_metadata
+    }
 
     while True:
-        print("Choose an option:")
-        print("1. Option 1")
-        print("2. Option 2")
-        print("Enter 'exit' to quit")
-        option_choice = input("Enter your choice: ")
-
-        if option_choice == "exit":
-            break
-
-     #   selected_function = options_functions.get(option_choice)
-     #   if selected_function:
-     #       args = (session_id, arg1_value, arg2_value)  # Additional arguments for the selected function
-     #       with Pool() as pool:
-     #           pool.apply(selected_function, args)
-     #   else:
-     #       print("Invalid option choice")
+        user_input  = input(">> ")
+        if "logout" in user_input.lower():
+            AuthActions.logout(stub, session_id)
+            exit()
+        user_option, *user_args = user_input.split()
+        print((stub, session_id,*user_args))
+        options[user_option](stub, session_id, *user_args)
+    
+   
+if __name__ == "__main__":
+    main()

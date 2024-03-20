@@ -29,22 +29,29 @@ class AuthActions():
             return AuthActions.signup(grpc_stub, username, password, email, phone_number)
         return AuthActions.login(grpc_stub, username, password)
     
+    @staticmethod
+    def logout(grpc_stub, session_id):
+        try:
+            request = cloud_pb2.LogoutRequest(sessionId=session_id)
+            grpc_stub.logout(request)
+        except grpc.RpcError as e:
+            if e.code() == StatusCode.INTERNAL:
+                    raise Exception(e.details())
+            elif e.code() == StatusCode.UNAVAILABLE:
+                    raise Exception("Connection refused error occurred.")
 
     @staticmethod
     def login(grpc_stub, username, password):
         try:
             response = grpc_stub.login(cloud_pb2.LoginRequest(username=username, password=password))
-            sessionId = response.sessionId
-            return sessionId
+            session_id = response.sessionId
+            return session_id
         
         except grpc.RpcError as e:
             if e.code() == StatusCode.INTERNAL:
                     raise Exception(e.details())
             elif e.code() == StatusCode.UNAVAILABLE:
                     raise Exception("Connection refused error occurred.")
-            else:
-                raise Exception("An unexpected RpcError occurred.")
-
 
 
     @staticmethod
@@ -54,13 +61,86 @@ class AuthActions():
             response = grpc_stub.signup(request)
         
             response = grpc_stub.login(cloud_pb2.LoginRequest(username=username, password=password))
-            sessionId = response.sessionId
-            return sessionId
+            session_id = response.sessionId
+            return session_id
         except grpc.RpcError as e:
             if e.code() == StatusCode.INTERNAL:
                     raise Exception(e.details())
             elif e.code() == StatusCode.UNAVAILABLE:
                     raise Exception("Connection refused error occurred.")
-            else:
-                raise Exception("An unexpected RpcError occurred.")
+
+
+    # add Logout
+
+class FilesActions():
+    @staticmethod
+    def upload(grpc_stub, session_id, filename,file_path): 
+        file_data = None
+        try:
+            with open(file_path, 'rb') as file:
+                file_data = file.read()
+        except:
+            raise Exception("File not exists")
+        
+        try:
+            request = cloud_pb2.UploadFileRequest(sessionId=session_id, fileName=filename, type="plain/text", fileData=file_data)
+            response = grpc_stub.UploadFile(iter([request]))
+            print("Upload:")
+            print(response)
+        except grpc.RpcError as e:
+            if e.code() == StatusCode.INTERNAL:
+                    raise Exception(e.details())
+            elif e.code() == StatusCode.UNAVAILABLE:
+                    raise Exception("Connection refused error occurred.")
+    
+    @staticmethod
+    def download(grpc_stub, session_id, filename, output_path):
+        try:
+            request = cloud_pb2.DownloadFileRequest(sessionId=session_id, fileName=filename)
+            download_file_reply = grpc_stub.DownloadFile(request)
+        except grpc.RpcError as e:
+            if e.code() == StatusCode.INTERNAL:
+                    raise Exception(e.details())
+            elif e.code() == StatusCode.UNAVAILABLE:
+                    raise Exception("Connection refused error occurred.")
+            
+        file_data = None
+        for response in download_file_reply:
+            file_data += response.fileData.decode()
+        with open(output_path, 'wb') as file:
+             file.write(file_data)
+
+    @staticmethod
+    def delete(grpc_stub, session_id, filename):
+        try:
+            request = cloud_pb2.DeleteFileRequest(sessionId=session_id, fileName=filename)
+            response = grpc_stub.DeleteFile(request) 
+        except grpc.RpcError as e:
+            if e.code() == StatusCode.INTERNAL:
+                    raise Exception(e.details())
+            elif e.code() == StatusCode.UNAVAILABLE:
+                    raise Exception("Connection refused error occurred.")  
+            
+    def ls(grpc_stub, session_id):
+        try:
+            request = cloud_pb2.GetListOfFilesRequest(sessionId=session_id)
+            response = grpc_stub.getListOfFiles(request)
+            print("Files:")
+            print(response)
+        except grpc.RpcError as e:
+            if e.code() == StatusCode.INTERNAL:
+                    raise Exception(e.details())
+            elif e.code() == StatusCode.UNAVAILABLE:
+                    raise Exception("Connection refused error occurred.")  
+
+    def file_metadata(grpc_stub, session_id, filename):
+        try:
+            request = cloud_pb2.GetFileMetadataRequest(sessionId=session_id, fileName=filename)
+            response = grpc_stub.getFileMetadata(request)
+            print(response)
+        except grpc.RpcError as e:
+            if e.code() == StatusCode.INTERNAL:
+                    raise Exception(e.details())
+            elif e.code() == StatusCode.UNAVAILABLE:
+                    raise Exception("Connection refused error occurred.")  
 
