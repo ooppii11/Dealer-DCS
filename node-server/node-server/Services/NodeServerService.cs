@@ -6,6 +6,8 @@ using GrpcServerToServer;
 using NodeServer.Managers.RaftNameSpace;
 using static NodeServer.Managers.RaftNameSpace.Raft;
 using LogEntry = NodeServer.Managers.RaftNameSpace.LogEntry;
+using System.Diagnostics;
+using System.IO;
 
 namespace NodeServer.Services
 {
@@ -15,11 +17,31 @@ namespace NodeServer.Services
         private Raft _raft;
         private FileVersionManager _fileVersionManager;
         private readonly string _folderName = "tempFiles";
+        private readonly int _fixedUserStorageSpace = 100000000;//bytes = 100mb
+        private readonly int _fixedUserTempStorageSpace = 10000000;//bytes = 10mb
+
         public NodeServerService(FileSaving micro, Raft raft, FileVersionManager fileVerM)
         {
             this._microservice = micro;
             this._raft = raft;
             this._fileVersionManager = fileVerM;
+
+            string currentDirectory = Directory.GetCurrentDirectory();
+            string folderPath = Path.Combine(currentDirectory, this._folderName);
+            if (!Directory.Exists(folderPath))
+            {
+                Directory.CreateDirectory(folderPath);
+            }
+        }
+
+        private static void SaveMemoryStreamToFile(MemoryStream memoryStream, string filePath)
+        {
+            // Create a FileStream to write the MemoryStream contents to the new file
+            using (FileStream fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                // Copy the MemoryStream contents to the FileStream
+                memoryStream.CopyTo(fileStream);
+            }
         }
 
         private int GetLastIndex()
@@ -34,11 +56,51 @@ namespace NodeServer.Services
             return tempRaftSettings.ServerAddress;
         }
 
+        private string SaveFile(string fileID, int userId, MemoryStream fileData)
+        {
+            string currentDirectory = Directory.GetCurrentDirectory();
+            string folderPath = Path.Combine(currentDirectory, this._folderName, fileID);
+            if (!Directory.Exists(folderPath))
+            {
+                Directory.CreateDirectory(folderPath);
+            }
+
+            string filePath = Path.Combine(folderPath, $"{fileID}{this._fileVersionManager.GetLatestFileVersion(fileID, userId)}");
+            SaveMemoryStreamToFile(fileData, filePath);
+            return filePath;
+        }
+        private static long GetDirectorySize(string directoryPath)
+        {
+            long directorySize = 0;
+
+            if (Directory.Exists(directoryPath))
+            {
+                string[] files = Directory.GetFiles(directoryPath);
+                foreach (string file in files)
+                {
+                    FileInfo fileInfo = new FileInfo(file);
+                    directorySize += fileInfo.Length;
+                }
+                string[] subdirectories = Directory.GetDirectories(directoryPath);
+                foreach (string subdirectory in subdirectories)
+                {
+                    directorySize += GetDirectorySize(subdirectory);
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Directory {directoryPath} does not exist.");
+            }
+
+            return directorySize;
+        }
+
+
         private async Task<string> UploadOperationArgsToString(IAsyncStreamReader<UploadFileRequest> requestStream)
         {
             string fileID = "";
+            int userId = 0;
             string type = "";
-            List<string> otherNodeServersAddresses = new List<string>();
             MemoryStream fileData = new MemoryStream();
             bool fileAlreadyExist = false;
 
@@ -48,38 +110,44 @@ namespace NodeServer.Services
             {
                 fileID = chunk.FileId;
                 type = chunk.Type;
+                userId = chunk.UserId;
                 fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
-                foreach (var serverAddress in chunk.ServersAddressesWhereSaved)
-                {
-                    otherNodeServersAddresses.Add(serverAddress);
-                }
             }
 
-            //check if file size is not over the limit, take in consideration other user files
-            //if ok: save file in file folder (int tempFiles, folder name = fileID), file name is fileID + version from manager
-            //if not: return null
+            if (fileData.Length + this._fileVersionManager.GetUserUsedSpace(userId) > this._fixedUserStorageSpace || //memory
+                GetDirectorySize(Path.Combine(Directory.GetCurrentDirectory(), this._folderName, fileID)) > this._fixedUserTempStorageSpace)//temp memory
+            {
+                return null;
+            }
 
-            //convert other args and return them
-
-            return "";
+            string filePath = SaveFile(fileID, userId, fileData);
+            this._fileVersionManager.SaveFileVersion(userId, fileID, type, fileData.Length, filePath);
+            return $"[{userId},{fileID},{type},{this._fileVersionManager.GetLatestFileVersion(fileID, userId)}]";
         }
+    
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
         {
             try
             {
-                /*get data - new function*/
                 
 
-                /*Raft: append entry*/
                 const string operationName = "uploadFile";
-                //LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, );
-                //if (await this._raft.appendEntry(entry))
+                string args = await UploadOperationArgsToString(requestStream);
+                if (args == null) 
+                {
+                    context.Status = new Status(StatusCode.ResourceExhausted, "Can't upload the file. Either the file is too big or the user has used up all their memory.");
+                    return new UploadFileResponse { Status = false, Message = "Can't upload the file. Either the file is too big or the user has used up all their memory." };
+                }
+
+                LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
+                if (await this._raft.appendEntry(entry))
                 {
                     return new UploadFileResponse { Status = true, Message = "File uploaded successfully." };
                 }
-                //context.Status = new Status(StatusCode.PermissionDenied, "Can't get requests from cloud, this server is not the leader at the moment.");
-                //return new UploadFileResponse { Status = false, Message = "Can't get requests from cloud, this server is not the leader at the moment." };
+
+                context.Status = new Status(StatusCode.PermissionDenied, "Can't get requests from cloud, this server is not the leader at the moment.");
+                return new UploadFileResponse { Status = false, Message = "Can't get requests from cloud, this server is not the leader at the moment." };
 
             }
             catch (Exception ex)

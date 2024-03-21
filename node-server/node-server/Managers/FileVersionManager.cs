@@ -40,7 +40,7 @@ namespace NodeServer.Managers
             }
         }
 
-        public void SaveFileVersion(int userId, string fileName, string type, int size, string filePath)
+        public void SaveFileVersion(int userId, string fileName, string type, long size, string filePath)
         {
             int latestVersion = GetLatestFileVersion(fileName, userId) + 1;
 
