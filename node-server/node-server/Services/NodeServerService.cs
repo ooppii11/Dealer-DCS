@@ -8,6 +8,7 @@ using static NodeServer.Managers.RaftNameSpace.Raft;
 using LogEntry = NodeServer.Managers.RaftNameSpace.LogEntry;
 using System.Diagnostics;
 using System.IO;
+using static System.Data.Entity.Infrastructure.Design.Executor;
 
 namespace NodeServer.Services
 {
@@ -36,14 +37,11 @@ namespace NodeServer.Services
 
         private static void SaveMemoryStreamToFile(MemoryStream memoryStream, string filePath)
         {
-            // Create a FileStream to write the MemoryStream contents to the new file
             using (FileStream fileStream = new FileStream(filePath, FileMode.Create))
             {
-                // Copy the MemoryStream contents to the FileStream
                 memoryStream.CopyTo(fileStream);
             }
         }
-
         private int GetLastIndex()
         {
             RaftSettings tempRaftSettings = new RaftSettings();
@@ -65,7 +63,8 @@ namespace NodeServer.Services
                 Directory.CreateDirectory(folderPath);
             }
 
-            string filePath = Path.Combine(folderPath, $"{fileID}{this._fileVersionManager.GetLatestFileVersion(fileID, userId)}");
+            string filePath = Path.Combine(folderPath, $"{fileID}_{this._fileVersionManager.GetLatestFileVersion(fileID, userId)}");
+
             SaveMemoryStreamToFile(fileData, filePath);
             return filePath;
         }
@@ -132,7 +131,7 @@ namespace NodeServer.Services
             {
                 
 
-                const string operationName = "uploadFile";
+                const string operationName = "UploadFile";
                 string args = await UploadOperationArgsToString(requestStream);
                 if (args == null) 
                 {
@@ -191,14 +190,43 @@ namespace NodeServer.Services
             }
         }
 
+        private static bool IsFolderEmpty(string path)
+        { 
+            if (!Directory.Exists(path))
+            {
+                throw new DirectoryNotFoundException($"Directory not found: {path}");
+            }
+
+            string[] files = Directory.GetFiles(path);
+
+            return (files.Length == 0);
+        }
+
+        private async Task<byte[]> GetFile(string fileID, int userID)
+        {
+            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._folderName, fileID);
+            if (IsFolderEmpty(folderPath)) 
+            {
+                return await this._microservice.downloadFile(fileID);
+            }
+
+            return File.ReadAllBytes(Path.Combine(folderPath, $"{fileID}_{this._fileVersionManager.GetLatestFileVersion(fileID, userID)}"));
+        }
+
         public override async Task DownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)
         {
             try
             {
-                /*Raft: append entry*/
+                const string operationName = "DownloadFile";
+                string args = $"[{request.FileId}]";
+                LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
+                if (!await this._raft.appendEntry(entry))
+                {
+                    context.Status = new Status(StatusCode.PermissionDenied, "Can't get requests from cloud, this server is not the leader at the moment.");
+                    return;
+                }
 
-                /*preform action + get data*/
-                byte[] file = await this._microservice.downloadFile(request.FileId);
+                byte[] file = await GetFile(request.FileId, request.UserId);
                 int offset = 0;
                 int chunkSize = 64000;
                 if (file != null)
@@ -214,6 +242,12 @@ namespace NodeServer.Services
                         offset += writingSize;
                     }
                 }
+            }
+            catch (DirectoryNotFoundException ex)
+            {
+                context.Status = new Status(StatusCode.DataLoss, "The Requested file doesn't exist");
+                await responseStream.WriteAsync(new DownloadFileResponse { Status = false, Message = "The Requested file doesn't exist", FileContent = ByteString.Empty });
+                return;
             }
             catch (Exception ex)
             {
