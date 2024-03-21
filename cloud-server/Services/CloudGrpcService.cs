@@ -222,8 +222,8 @@ namespace cloud_server.Services
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error.");
                 // Send Error response:
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error.");
                 return Task.FromResult(new SignupResponse
                 {
                     Status = GrpcCloud.Status.Failure,
@@ -239,17 +239,17 @@ namespace cloud_server.Services
 
             try
             {
-                sessionId = this._authManager.Login(request.Username, request.Password);
+                sessionId = this._authManager.Login(request.Username, request.Password).Item1;
                 StartProcessQueueForUser(sessionId);
                 return Task.FromResult(new LoginResponse { SessionId = sessionId, Status = GrpcCloud.Status.Success });
-
 
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error");
+
                 // Send Error response:
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error");
                 return Task.FromResult(new LoginResponse
                 {
                     Status = GrpcCloud.Status.Failure,

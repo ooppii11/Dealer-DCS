@@ -29,8 +29,8 @@ namespace cloud_server.Managers
 
         public async Task uploadFile(int userid, string filename, string type, long size, byte[] fileData)
         {
-            FileMetadata file = new FileMetadata(userid, filename, type, (int)size);
-            Location location = this.getLocation();
+            FileMetadata file = new FileMetadata(userid, filename, type, (int)size); // create metadata for the file
+            Location location = this.getLocation(); // Find loactions for save this file.
             int fileId = 0;
 
             this._db.uploadFileMetadata(file, location);

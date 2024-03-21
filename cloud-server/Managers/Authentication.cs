@@ -20,7 +20,7 @@ namespace cloud_server.Managers
             return true;
         }
 
-        public string Login(string username, string password)
+        public Tuple<string, string> Login(string username, string password)
         {
             string sessionId = "";
             if (this._db.login(username, password))
@@ -44,7 +44,7 @@ namespace cloud_server.Managers
 
                 // Add user 
                 this._users.Add(sessionId, user);
-                return sessionId;
+                return new Tuple<string, string>(sessionId, existingSessionId);
                 
             }
             throw new UserDoesNotExistException("User not found");
@@ -64,7 +64,7 @@ namespace cloud_server.Managers
             {
                 return this._users[sessionId];
             }
-            catch
+            catch(Exception ex)
             {
                 throw new IncorrectSessionIdException("Incorrect session id");
             }

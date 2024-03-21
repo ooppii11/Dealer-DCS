@@ -11,8 +11,7 @@ namespace cloud_server.Services
 {
     public class NodeServerCommunication
     {
-        //private GrpcChannel _channel;
-        private Grpc.Core.Channel _channel; //Grpc.Core.Channel _channel;
+        private Grpc.Core.Channel _channel; 
         private GrpcNodeServer.NodeServices.NodeServicesClient _client;
         private const int MaxFileChunckLength = 3145728;
         public NodeServerCommunication(string host)
@@ -21,7 +20,6 @@ namespace cloud_server.Services
             {
                 // Create Grpc connction:
                 this._channel = new Channel(host, ChannelCredentials.Insecure);
-                //this._channel = new GrpcChannel.ForAddress(host);
                 this._client = new NodeServices.NodeServicesClient(this._channel);
             }
             catch (RpcException ex)
@@ -39,10 +37,13 @@ namespace cloud_server.Services
         public async Task<byte[]> DownloadFile(string fileId)
         {
             DownloadFileRequest request = new DownloadFileRequest { FileId = fileId };
+            
+            // Download the file:
             using (var call = this._client.DownloadFile(request))
             {
                 using (var memoryStream = new MemoryStream())
                 {
+                    // append chuncks to memoryStream
                     while (await call.ResponseStream.MoveNext())
                     {
                         var chunk = call.ResponseStream.Current.FileContent;
@@ -65,14 +66,16 @@ namespace cloud_server.Services
             
             var call = this._client.UploadFile();
 
-            // For evry chunk of file call upload 
+            // For evry chunk of file call to upload 
             foreach (var request in requests)
             {
                 await call.RequestStream.WriteAsync(request);
             }
 
+            // Wait until all request are send
             await call.RequestStream.CompleteAsync();
 
+            // Wait for response
             var response = await call.ResponseAsync;
             return response;
         }
@@ -84,28 +87,24 @@ namespace cloud_server.Services
             UploadFileRequest request = null;
             int numberOfChunks = 0;
             int chunkSize = NodeServerCommunication.MaxFileChunckLength;
-            int i = 0;
+            int i, j = 0;
 
             uploadFileRequests = new List<UploadFileRequest> ();
             numberOfChunks = fileData.Length / chunkSize + ((fileData.Length % chunkSize == 0) ? 0 : 1);
 
             for (i = 0; i < numberOfChunks; i++)
             {
-                if ((i + 1) * chunkSize < fileData.Length)
-                {
-                    chunk = new byte[chunkSize];
-                }
+                // Check for the size of the new chunck of bytes:
+                if ((i + 1) * chunkSize < fileData.Length) { chunk = new byte[chunkSize]; }
+                else { chunk = new byte[fileData.Length % ((i + 1) * chunkSize)]; }
 
-                else
-                {
-                    chunk = new byte[fileData.Length % ((i + 1) * chunkSize)];
-                }
-
-                for (int j = 0; j < chunkSize && j + i* chunkSize < fileData.Length; j++)
+                // Set data inside the Chunck 
+                for (j = 0; j < chunkSize && j + i* chunkSize < fileData.Length; j++)
                 {
                     chunk[j] = fileData[i * chunkSize + j];
                 }
 
+                // Create new request:
                 request = new UploadFileRequest()
                 {
                     FileId = fileId,
@@ -115,8 +114,8 @@ namespace cloud_server.Services
                 request.ServersAddressesWhereSaved.Add(location.FirstBackupServer);
                 request.ServersAddressesWhereSaved.Add(location.SecondBackupServer);
 
-
-                 uploadFileRequests.Add(request);
+                // Append request to the stream
+                uploadFileRequests.Add(request);
             }
 
             return uploadFileRequests;
