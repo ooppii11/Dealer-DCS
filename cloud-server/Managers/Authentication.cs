@@ -25,28 +25,37 @@ namespace cloud_server.Managers
             string sessionId = "";
             if (this._db.login(username, password))
             {
+                // Get user
                 User user = this._db.GetUser(username, password);
 
-                // check if user already login:
-                if (!_users.Any(pair => pair.Value == user))
+                // Check if user alrady login:
+                string existingSessionId = _users.FirstOrDefault(pair => pair.Value == user).Key;
+                if (existingSessionId != null)
                 {
-                    do
-                    {
-                        sessionId = Guid.NewGuid().ToString();
-                    } while (this._users.ContainsKey(sessionId));
-
-                    // Add user 
-                    this._users.Add(sessionId, user);
-                    return sessionId;
+                    // Remove the existing user
+                    _users.Remove(existingSessionId);
                 }
-                throw new UserAlreadyLoggedInException("User already logged in");
+
+                // Generate new session id:
+                do
+                {
+                    sessionId = Guid.NewGuid().ToString();
+                } while (this._users.ContainsKey(sessionId));
+
+                // Add user 
+                this._users.Add(sessionId, user);
+                return sessionId;
+                
             }
             throw new UserDoesNotExistException("User not found");
         }
 
         public void Logout(string sessionId)
-        { 
-            this._users.Remove(sessionId);
+        {
+            if (CheckSessionId(sessionId))  // Check if session id connected 
+            {
+                this._users.Remove(sessionId);
+            }
         }
 
         public User GetUser(string sessionId)
@@ -63,7 +72,7 @@ namespace cloud_server.Managers
 
         public bool CheckSessionId(string sessionId)
         {
-            if (this._users.ContainsKey(sessionId))
+            if (this._users.ContainsKey(sessionId)) // Check if session id connected
             {
                 return true;
             }
