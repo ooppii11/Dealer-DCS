@@ -130,7 +130,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     {
                         if (e.StatusCode == StatusCode.Unavailable)
                         {
-                            //Console.WriteLine($"Server at {address} is Unavailable (down)");
+                            Console.WriteLine($"Server at {address} is Unavailable (down)");
                         }
                     }
                     catch (Exception ex)
@@ -206,7 +206,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     ServerToServerClient s2s = new ServerToServerClient(address);
                     AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
                     Console.WriteLine($"sent new append entries to {address}");
-                    await this.OnReceiveAppendEntriesResponse(response, address);
+                    this.OnReceiveAppendEntriesResponse(response, address);
                 }
                 catch (Exception e) 
                 {
@@ -233,7 +233,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
             return agreeCount + 1 > nodesCount / 2;
         }
 
-        public async Task OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
+        public async void OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
         {
             ServerToServerClient s2s = new ServerToServerClient(address);
 
@@ -323,8 +323,8 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         Args = new operationArgs() { Args = entry.OperationArgs }
                     };
                 }
-                    Console.WriteLine("not sucss"); 
-                // send the previus message:
+                    Console.WriteLine("not successful"); 
+                // send the previous message:
                // await s2s.sendAppendEntriesRequest(this._followers[address].Request);
             }
 

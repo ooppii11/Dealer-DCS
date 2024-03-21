@@ -56,12 +56,12 @@ namespace NodeServer.Managers.RaftNameSpace
 
             this.Start();
         }
-        public bool appendEntry(LogEntry entry)
+        public async Task<bool> appendEntry(LogEntry entry)
         {
             if (this._currentStateCode == StatesCode.Leader)
             {
                 Leader leaderObject = this._state as Leader;
-                leaderObject.AppendEntries(entry);
+                await leaderObject.AppendEntries(entry);
 
             }
             return false;

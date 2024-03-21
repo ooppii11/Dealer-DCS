@@ -13,10 +13,49 @@ namespace NodeServer.Services
     {
         private FileSaving _microservice;
         private Raft _raft;
-        public NodeServerService(FileSaving micro, Raft raft)
+        private FileVersionManager _fileVersionManager;
+        private readonly string _folderName = "tempFiles";
+        public NodeServerService(FileSaving micro, Raft raft, FileVersionManager fileVerM)
         {
             this._microservice = micro;
             this._raft = raft;
+            this._fileVersionManager = fileVerM;
+        }
+
+        private int GetLastIndex()
+        {
+            RaftSettings tempRaftSettings = new RaftSettings();
+            return (new Log(tempRaftSettings.LogFilePath)).GetLastLogEntry().Index;
+        }
+
+        private string GetServerIP()
+        {
+            RaftSettings tempRaftSettings = new RaftSettings();
+            return tempRaftSettings.ServerAddress;
+        }
+
+        private async Task<string> UploadOperationArgsToString(IAsyncStreamReader<UploadFileRequest> requestStream)
+        {
+            string fileID = "";
+            string type = "";
+            List<string> otherNodeServersAddresses = new List<string>();
+            MemoryStream fileData = new MemoryStream();
+            bool fileAlreadyExist = false;
+
+
+
+            await foreach (var chunk in requestStream.ReadAllAsync())
+            {
+                fileID = chunk.FileId;
+                type = chunk.Type;
+                fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
+                foreach (var serverAddress in chunk.ServersAddressesWhereSaved)
+                {
+                    otherNodeServersAddresses.Add(serverAddress);
+                }
+            }
+
+            return "";
         }
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
@@ -24,37 +63,18 @@ namespace NodeServer.Services
             try
             {
                 /*get data - new function*/
-                string fileID = "";
-                string type = "";
-                List<string> otherNodeServersAddresses = new List<string>();
-                MemoryStream fileData = new MemoryStream();
-                bool fileAlreadyExist = false;
-
-
-
-                await foreach (var chunk in requestStream.ReadAllAsync())
-                {
-                    fileID = chunk.FileId;
-                    type = chunk.Type;
-                    fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
-                    foreach (var serverAddress in chunk.ServersAddressesWhereSaved)
-                    {
-                        otherNodeServersAddresses.Add(serverAddress);
-                    }
-                }
-
-                /*Raft: append entry*/
-
-              // await raft.appendEntries()
-
-                /*Raft: get consensus - commit*/
-
-
-                /*preform action*/
-                await this._microservice.uploadFile(fileID, fileData.ToArray(), type);
                 
 
-                return new UploadFileResponse { Status = true, Message = "File uploaded successfully." };
+                /*Raft: append entry*/
+                const string operationName = "uploadFile";
+                //LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, );
+                //if (await this._raft.appendEntry(entry))
+                {
+                    return new UploadFileResponse { Status = true, Message = "File uploaded successfully." };
+                }
+                //context.Status = new Status(StatusCode.PermissionDenied, "Can't get requests from cloud, this server is not the leader at the moment.");
+                //return new UploadFileResponse { Status = false, Message = "Can't get requests from cloud, this server is not the leader at the moment." };
+
             }
             catch (Exception ex)
             {
@@ -83,8 +103,6 @@ namespace NodeServer.Services
 
                 /*Raft: append entry*/
 
-                /*Raft: get consensus - commit*/
-
                 /*preform action*/
                 this._microservice.deleteFile(fileName);
                 await this._microservice.uploadFile(fileName, fileData.ToArray(), "");
@@ -104,8 +122,6 @@ namespace NodeServer.Services
             try
             {
                 /*Raft: append entry*/
-
-                /*Raft: get consensus - commit*/
 
                 /*preform action + get data*/
                 byte[] file = await this._microservice.downloadFile(request.FileId);
@@ -139,8 +155,6 @@ namespace NodeServer.Services
             try
             {
                 /*Raft: append entry*/
-
-                /*Raft: get consensus - commit*/
 
                 /*preform action + get data*/
                 this._microservice.deleteFile(request.FileId);

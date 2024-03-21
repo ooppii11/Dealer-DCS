@@ -41,6 +41,16 @@
             this._commit = commit;
         }
 
+        public LogEntry(int index, string leaderIp, string operation, string operationArgs)
+        {
+            this._index = index;
+            this._timestamp = DateTime.UtcNow;
+            this._leaderIp = leaderIp;
+            this._operation = operation;
+            this._operationArgs = operationArgs;
+            this._commit = false;
+        }
+
         public LogEntry(string logLine)
         {
             List<string> logParameters = logLine.Split("\t").ToList();
