@@ -2,7 +2,6 @@
 using Grpc.Core;
 using GrpcNodeServer;
 using NodeServer.Managers;
-using GrpcServerToServer;
 using NodeServer.Managers.RaftNameSpace;
 using LogEntry = NodeServer.Managers.RaftNameSpace.LogEntry;
 
@@ -13,9 +12,9 @@ namespace NodeServer.Services
         private FileSaving _microservice;
         private Raft _raft;
         private FileVersionManager _fileVersionManager;
-        private readonly string _folderName = "TempFiles";
-        private readonly int _fixedUserStorageSpace = 100000000;//bytes = 100mb
-        private readonly int _fixedUserTempStorageSpace = 10000000;//bytes = 10mb
+        private readonly string _baseFolderName = "TempFiles";
+        private readonly int _fixedUserStorageSpace = 100000000;//in bytes = 100mb
+        private readonly int _fixedUserTempStorageSpace = 10000000;//in bytes = 10mb
 
         public NodeServerService(FileSaving micro, Raft raft, FileVersionManager fileVerM)
         {
@@ -24,7 +23,7 @@ namespace NodeServer.Services
             this._fileVersionManager = fileVerM;
 
             string currentDirectory = Directory.GetCurrentDirectory();
-            string folderPath = Path.Combine(currentDirectory, this._folderName);
+            string folderPath = Path.Combine(currentDirectory, this._baseFolderName);
             if (!Directory.Exists(folderPath))
             {
                 Directory.CreateDirectory(folderPath);
@@ -53,13 +52,13 @@ namespace NodeServer.Services
         private bool SaveFile(string fileId, int userId, string type, MemoryStream fileData)
         {
             if (fileData.Length + this._fileVersionManager.GetUserUsedSpace(userId) > this._fixedUserStorageSpace || //memory
-                GetDirectorySize(Path.Combine(Directory.GetCurrentDirectory(), this._folderName, fileId)) > this._fixedUserTempStorageSpace) //temp memory
+                GetDirectorySize(Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId)) > this._fixedUserTempStorageSpace) //temp memory
             {
                 return false;
             }
 
             string currentDirectory = Directory.GetCurrentDirectory();
-            string folderPath = Path.Combine(currentDirectory, this._folderName, fileId);
+            string folderPath = Path.Combine(currentDirectory, this._baseFolderName, fileId);
             if (!Directory.Exists(folderPath))
             {
                 Directory.CreateDirectory(folderPath);
@@ -222,7 +221,7 @@ namespace NodeServer.Services
 
         private async Task<byte[]> GetFile(string fileId, int userId)
         {
-            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._folderName, fileId);
+            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId);
             if (IsFolderEmpty(folderPath)) 
             {
                 return await this._microservice.downloadFile(fileId);
@@ -236,7 +235,7 @@ namespace NodeServer.Services
             try
             {
                 const string operationName = "DownloadFile";
-                string args = $"[{request.FileId}]";
+                string args = $"[{request.FileId},{request.UserId}]";
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
                 if (!await this._raft.appendEntry(entry))
                 {
@@ -289,7 +288,7 @@ namespace NodeServer.Services
                     return new DeleteFileResponse { Status = false, Message = "Can't get requests from cloud, this server is not the leader at the moment." }; ;
                 }
 
-                string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._folderName, request.FileId);
+                string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, request.FileId);
                 if (!Directory.Exists(folderPath))
                 {
                     context.Status = new Status(StatusCode.NotFound, "The Requested file doesn't exist");
