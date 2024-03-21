@@ -39,11 +39,19 @@ namespace NodeServer.Managers
 
         private bool UploadFile(int userId, string fileId, string type, int version)
         {
+            //check if file that the folder and file are not deleted, take the correct version of the file, remove all the previse versions from db, delete the file and the previse versions on the machine, save the file to google cloud using the microservice
+            //if folder is deleted it's ok
+            //if file is deleted it's ok
+            //if can't upload using microservice it's not ok
             return true;
         }
 
         private bool UpdateFile(int userId, string fileId, string type, int version)
         {
+            //check if file that the folder and file are not deleted, take the correct version of the file, remove all the previse versions from db, delete the file and the previse versions on the machine, delete the privies version using the microservice, save the new version of the file to google cloud using the microservice
+            //if folder is deleted it's ok
+            //if file is deleted it's ok
+            //if can't upload using microservice it's not ok
             return true;
         }
 
@@ -54,6 +62,7 @@ namespace NodeServer.Managers
 
         private bool DeleteFile(string fileId) 
         {
+            //delete using the microservice
             return true;
         }
     }

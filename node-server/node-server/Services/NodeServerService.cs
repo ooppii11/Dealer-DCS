@@ -280,7 +280,7 @@ namespace NodeServer.Services
             try
             {
                 const string operationName = "DeleteFile";
-                string args = $"[{request.FileId}]";
+                string args = $"[{request.FileId},{request.UserId}]";
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
                 if (!await this._raft.appendEntry(entry))
                 {
@@ -296,6 +296,7 @@ namespace NodeServer.Services
                 }
 
                 Directory.Delete(folderPath, true);
+                this._fileVersionManager.RemoveAllFileVersions(request.FileId, request.UserId);
 
                 //this._microservice.deleteFile(request.FileId);
 
