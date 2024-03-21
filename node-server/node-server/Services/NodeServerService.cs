@@ -51,8 +51,8 @@ namespace NodeServer.Services
 
         private bool SaveFile(string fileId, int userId, string type, MemoryStream fileData)
         {
-            if (fileData.Length + this._fileVersionManager.GetUserUsedSpace(userId) > this._fixedUserStorageSpace || //memory
-                GetDirectorySize(Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId)) > this._fixedUserTempStorageSpace) //temp memory
+            if (fileData.Length + this._fileVersionManager.GetUserUsedSpace(userId, fileId) > this._fixedUserStorageSpace || //memory
+                GetDirectorySize(Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId)) + fileData.Length > this._fixedUserTempStorageSpace) //temp memory
             {
                 return false;
             }
