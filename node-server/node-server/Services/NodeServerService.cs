@@ -245,11 +245,7 @@ namespace NodeServer.Services
             }
             catch (DirectoryNotFoundException ex)
             {
-<<<<<<< HEAD
                 context.Status = new Status(StatusCode.NotFound, "The Requested file doesn't exist");
-=======
-                context.Status = new Status(StatusCode.DataLoss, "The Requested file doesn't exist");
->>>>>>> 7e47dca26fa10c4c388dd1054e720a004bc85a0a
                 await responseStream.WriteAsync(new DownloadFileResponse { Status = false, Message = "The Requested file doesn't exist", FileContent = ByteString.Empty });
                 return;
             }
