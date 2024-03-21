@@ -1,15 +1,15 @@
 using NodeServer.Services;
 using NodeServer.Managers;
 using NodeServer.Managers.RaftNameSpace;
-/*
+
 public class Startup
 {
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<FileSaving>(new FileSaving("127.0.0.1", 50051));
-        services.AddSingleton<NodeSystemParse>(new NodeSystemParse());
-        services.AddSingleton<RaftSettings>(new RaftSettings());
-        services.AddSingleton<Log>(new Log(""));
+        services.AddSingleton<FileVersionManager>(new FileVersionManager("FileManager.db"));
+        RaftSettings raftSettings = new RaftSettings();
+        services.AddSingleton<Raft>(new Raft(raftSettings));
         services.AddGrpc(options =>
         {
             options.Interceptors.Add<ConnectionLoggerInterceptor>();
@@ -56,7 +56,7 @@ public class Program
 
                     options.Listen(IPAddress.Parse(ipAddress), port);
                 });
-                *//*
+                */
             })
             .ConfigureLogging(logging =>
             {
@@ -64,4 +64,3 @@ public class Program
                 logging.AddConsole();
             });
 }
-*/

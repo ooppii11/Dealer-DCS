@@ -2,6 +2,8 @@
 using NodeServer.Services;
 using System.Net;
 using static Google.Protobuf.Compiler.CodeGeneratorResponse.Types;
+
+/*
 namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
 {
     public class GlobalVariables
@@ -59,3 +61,4 @@ namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
                 });
     }
 }
+*/

@@ -4,11 +4,7 @@ using GrpcNodeServer;
 using NodeServer.Managers;
 using GrpcServerToServer;
 using NodeServer.Managers.RaftNameSpace;
-using static NodeServer.Managers.RaftNameSpace.Raft;
 using LogEntry = NodeServer.Managers.RaftNameSpace.LogEntry;
-using System.Diagnostics;
-using System.IO;
-using static System.Data.Entity.Infrastructure.Design.Executor;
 
 namespace NodeServer.Services
 {
@@ -17,7 +13,7 @@ namespace NodeServer.Services
         private FileSaving _microservice;
         private Raft _raft;
         private FileVersionManager _fileVersionManager;
-        private readonly string _folderName = "tempFiles";
+        private readonly string _folderName = "TempFiles";
         private readonly int _fixedUserStorageSpace = 100000000;//bytes = 100mb
         private readonly int _fixedUserTempStorageSpace = 10000000;//bytes = 10mb
 
@@ -133,8 +129,6 @@ namespace NodeServer.Services
         {
             try
             {
-                
-
                 const string operationName = "UploadFile";
                 string args = await UploadOperationArgsToString(requestStream);
                 if (args == null) 
@@ -189,32 +183,28 @@ namespace NodeServer.Services
         {
             try
             {
-                /*get data - new function*/
-                string fileName = null;
-
-                MemoryStream fileData = new MemoryStream();
-
-                await foreach (var chunk in requestStream.ReadAllAsync())
+                const string operationName = "UpdateFile";
+                string args = await UpdateOperationArgsToString(requestStream);
+                if (args == null)
                 {
-                    if (fileName == null)
-                    {
-                        fileName = chunk.FileId;
-                    }
-                    fileData.Write(chunk.NewContent.ToArray(), 0, chunk.NewContent.Length);
+                    context.Status = new Status(StatusCode.ResourceExhausted, "Can't upload the file. Either the file is too big or the user has used up all their memory.");
+                    return new UpdateFileResponse { Status = false, Message = "Can't upload the file. Either the file is too big or the user has used up all their memory." };
                 }
 
+                LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
+                if (await this._raft.appendEntry(entry))
+                {
+                    return new UpdateFileResponse { Status = true, Message = "File uploaded successfully." };
+                }
 
-                /*preform action*/
-                //await this._microservice.deleteFile(fileName);
-                //await this._microservice.uploadFile(fileName, fileData.ToArray(), "");
+                context.Status = new Status(StatusCode.PermissionDenied, "Can't get requests from cloud, this server is not the leader at the moment.");
+                return new UpdateFileResponse { Status = false, Message = "Can't get requests from cloud, this server is not the leader at the moment." };
 
-
-                return new UpdateFileResponse { Status = true, Message = "File updated successfully." };
             }
             catch (Exception ex)
             {
-                context.Status = new Status(StatusCode.Internal, $"Error updating the file: {ex.Message}");
-                return new UpdateFileResponse { Status = false, Message = $"Error updating the file: {ex.Message}" };
+                context.Status = new Status(StatusCode.Internal, $"Error uploading file: {ex.Message}");
+                return new UpdateFileResponse { Status = false, Message = $"Error updating the file: {ex.Message}" }; ;
             }
         }
 
