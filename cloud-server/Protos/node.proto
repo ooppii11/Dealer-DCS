@@ -13,6 +13,7 @@ message UploadFileRequest {
 message UploadFileResponse {
 	bool status = 1;
 	string message = 2;
+	repeated string unreachable_servers = 3;
 }
 
 message UpdateFileRequest {
@@ -43,6 +44,7 @@ message DeleteFileResponse {
 	bool status = 1;
 	string message = 2;
 }
+
 
 /*
 message StartNodeGroupProposal

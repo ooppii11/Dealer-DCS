@@ -1,0 +1,45 @@
+FROM mcr.microsoft.com/windows/servercore:ltsc2019
+
+WORKDIR C:\\App
+
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+RUN Invoke-WebRequest -Uri 'https://aka.ms/vs/16/release/VC_redist.x64.exe' -OutFile 'C:\\App\\vc_redist.x64.exe';
+RUN Start-Process -Wait -FilePath 'C:\\App\\vc_redist.x64.exe' -ArgumentList '/quiet', '/install', '/norestart';
+RUN Remove-Item 'C:\\App\\vc_redist.x64.exe'
+
+#ENV POSTGRES_USER=dBserver
+#ENV POSTGRES_PASSWORD=123AvIt456
+#ENV POSTGRES_DB=mydatabase
+
+#ENV PGDATA=C:\\App\\pgdata
+
+RUN Invoke-WebRequest -Uri 'https://get.enterprisedb.com/postgresql/postgresql-14.0-1-windows-x64-binaries.zip' -OutFile 'C:\\App\\postgresql.zip';
+RUN Expand-Archive -Path 'C:\\App\\postgresql.zip' -DestinationPath 'C:\\App\\' ;
+RUN Remove-Item 'C:\\App\\postgresql.zip'
+
+ENV PATH="C:\\App\\pgsql\\bin;$PATH"
+
+SHELL ["cmd", "/S", "/C"]
+
+RUN mkdir C:\\App\\pgdata
+
+#RUN echo 123AvIt456 > password.txt
+RUN initdb.exe -D C:\\App\\pgdata
+#-U dBserver -A md5 --pwfile=password.txt
+#RUN del password.txt
+
+#RUN pg_ctl -D ^"C^:^\pgdata^" -l logfile start -o -c listen_addresses=*
+
+EXPOSE 5432
+
+#RUN ["pg_ctl", "start", "-D", "%PGDATA%", "-w", "-o", "-c listen_addresses=*"]
+RUN ["postgres.exe", "-D", "C:\\App\\pgdata", "-c", "listen_addresses=*"]
+#RUN ["pg_ctl", "start", "-D", "%PGDATA%", "-o", "-c listen_addresses=*"]
+#CMD ["postgres.exe", "-D", "%PGDATA%", "-c", "listen_addresses=*"]
+
+#CMD ["cmd"]
+
+#docker network create --driver=nat --subnet=172.18.0.0/16 cloud_db-net
+#docker build -t docker-db_server:0.1 .
+#docker run --net cloud_db-net --ip 172.18.0.2 --name db_server-container docker-db_server:0.1

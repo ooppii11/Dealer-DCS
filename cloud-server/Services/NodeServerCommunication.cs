@@ -6,13 +6,13 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading.Tasks;
-
+using Grpc;
 namespace cloud_server.Services
 {
     public class NodeServerCommunication
     {
-        private GrpcChannel _channel; //Grpc.Core.Channel _channel;
+        //private GrpcChannel _channel;
+        private Grpc.Core.Channel _channel; //Grpc.Core.Channel _channel;
         private GrpcNodeServer.NodeServices.NodeServicesClient _client;
         private const int MaxFileChunckLength = 3145728;
         public NodeServerCommunication(string host)
@@ -20,12 +20,14 @@ namespace cloud_server.Services
             try
             {
                 // Create Grpc connction:
-                this._channel = GrpcChannel.ForAddress(host);
+                this._channel = new Channel(host, ChannelCredentials.Insecure);
+                //this._channel = new GrpcChannel.ForAddress(host);
                 this._client = new NodeServices.NodeServicesClient(this._channel);
             }
-            catch (Exception ex)
+            catch (RpcException ex)
             {
-                throw new Exception("Cannot connect to the servise");
+                Console.WriteLine(ex.Message);
+                throw ex;
             }
         }
 
@@ -37,67 +39,42 @@ namespace cloud_server.Services
         public async Task<byte[]> DownloadFile(string fileId)
         {
             DownloadFileRequest request = new DownloadFileRequest { FileId = fileId };
-            
-            try
+            using (var call = this._client.DownloadFile(request))
             {
-                // Download chunks of file
-                using (var call = this._client.DownloadFile(request))
+                using (var memoryStream = new MemoryStream())
                 {
-                    using (var memoryStream = new MemoryStream())
+                    while (await call.ResponseStream.MoveNext())
                     {
-                        while (await call.ResponseStream.MoveNext())
-                        {
-                            var chunk = call.ResponseStream.Current.FileContent;
-                            await memoryStream.WriteAsync(chunk.ToByteArray(), 0, chunk.Length);
-                        }
-                        return memoryStream.ToArray();
+                        var chunk = call.ResponseStream.Current.FileContent;
+                        await memoryStream.WriteAsync(chunk.ToByteArray(), 0, chunk.Length);
                     }
+                    return memoryStream.ToArray();
                 }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error download this file");
             }
         }
 
         public void deleteFile(string fileId)
         {
             DeleteFileRequest request = new DeleteFileRequest { FileId = fileId };
-            
-            try
-            {
-                this._client.DeleteFile(request);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error to delete this file");
-            }
+            this._client.DeleteFile(request);
         }
 
-        public async Task<UploadFileResponse> uploadFile(string fileId, byte[] fileData, string type, Location location)
+        public async Task<UploadFileResponse> uploadFile(string fileId, byte[] fileData, string type, Location locations)
         {
-            List<UploadFileRequest> requests = createUploadRequests(fileId, fileData, type, location);
-            try
+            List<UploadFileRequest> requests = createUploadRequests(fileId, fileData, type, locations);
+            
+            var call = this._client.UploadFile();
+
+            // For evry chunk of file call upload 
+            foreach (var request in requests)
             {
-                var call = this._client.UploadFile();
-
-                // For evry chunk of file call upload 
-                foreach (var request in requests)
-                {
-                    await call.RequestStream.WriteAsync(request);
-                }
-
-                await call.RequestStream.CompleteAsync();
-
-                var response = await call.ResponseAsync;
-                return response;
+                await call.RequestStream.WriteAsync(request);
             }
-            catch (Exception ex)
-            {
 
-                Console.WriteLine(ex.ToString());
-            }
-            return new UploadFileResponse();
+            await call.RequestStream.CompleteAsync();
+
+            var response = await call.ResponseAsync;
+            return response;
         }
 
         private List<UploadFileRequest> createUploadRequests(string fileId, byte[] fileData, string type, Location location)

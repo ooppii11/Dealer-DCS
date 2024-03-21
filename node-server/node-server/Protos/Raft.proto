@@ -1,0 +1,78 @@
+/*syntax = "proto3";
+import "google/protobuf/timestamp.proto";
+
+
+message LogEntry{
+
+	// Past log entry data:
+	int32 prevLogIndex = 1;
+	int32 prevTerm = 2;
+	
+	// Current log entry:
+	int32  term = 3;
+	int32 logIndex = 4;
+	google.protobuf.Timestamp timestamp = 5;
+	string operation = 6; 
+	string operationData = 7; 
+}
+
+
+message RequestVoteRequest{
+	int32 term = 1;
+	int32 candidate_id = 2;	
+	int32 lastLogIndex = 3;
+	int32 lastLogTerm = 4;
+}
+
+
+message RequestVoteResponse{
+	int32 term = 1;
+	bool vote = 2;
+}
+
+
+message operationArgs
+{
+	string args = 1;
+	bytes fileData = 2;
+}
+
+
+message AppendEntriesRequest{
+	int32 term = 1;
+	int32 prevIndex = 2;
+	int32 prevTerm = 3;
+
+	LogEntry logEntry = 4;	
+	int32  commitIndex = 5;
+
+	operationArgs args = 6;
+}
+
+
+message AppendEntriesResponse{
+	int32 term = 1;
+	int32 matchIndex = 2;
+
+	bool success = 3;
+}
+
+
+message InstallSnapshotRequest{
+	int32 term = 1;
+	int32 start_log_index = 2;
+	int32 last_log_index = 3;
+
+	repeated LogEntry entries = 4;
+	repeated operationArgs args = 5;
+}
+
+
+message InstallSnapshotResponse{
+	int32 term = 1;
+	int32 matchIndex = 2;
+
+	bool success = 3;
+
+}
+*/

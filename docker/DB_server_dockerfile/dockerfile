@@ -1,12 +1,8 @@
-# Use the official PostgreSQL image as the base image
-FROM postgres:15.5-alpine
+FROM postgres:latest
 
-# Environment variables for PostgreSQL configuration
-ENV POSTGRES_USER dBserver
+ENV POSTGRES_USER DBserver
 ENV POSTGRES_PASSWORD 123AvIt456
 ENV POSTGRES_DB mydatabase
-
-# Copy custom configuration files if needed
 
 # COPY ./path/to/custom/pg_hba.conf /etc/postgresql/pg_hba.conf - 
 #This file defines the client authentication rules, specifying which hosts are allowed to connect to the PostgreSQL server, what user can connect from where, and what authentication method should be used.
@@ -22,11 +18,12 @@ ENV POSTGRES_DB mydatabase
 #listen_addresses = '*'
 #This example allows PostgreSQL to listen on all available network interfaces.
 
-
-# Expose the PostgreSQL port
 EXPOSE 5432
 
-# Define the command to run when the container starts
-CMD ["postgres"]
-#CMD ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
-#CMD ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf", "-c", "hba_file=/etc/postgresql/pg_hba.conf"]
+CMD ["postgres", "-c", "listen_addresses=*"]
+
+
+#docker network create --subnet=172.18.0.0/16 system-net
+#docker build -t db_server:0.1 .
+#docker run --rm --net system-net --ip 172.18.0.2 --name db_server-container db_server:0.1
+#docker run --rm --net system-net --ip 172.18.0.2 -p 5432:5432 --name db_server-container db_server:0.1

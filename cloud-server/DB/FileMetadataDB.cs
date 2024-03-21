@@ -6,6 +6,7 @@ using System.Drawing;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.AspNetCore.Components.Routing;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using cloud_server.Utilities;
 
 namespace cloud_server.DB
 {
@@ -71,8 +72,32 @@ namespace cloud_server.DB
                 }
                 else
                 {
-                    throw new Exception("File already exists");
+                    throw new FileAlreadyExistException("File already exists");
                 }
+            }
+        
+        }
+
+        public int getFileId(string filename, int userId)
+        {
+            int fileId = 0;
+            string query = @"SELECT id FROM file_metadata WHERE creator_id = @creator_id AND name = @name;";
+
+            try
+            {
+                using (NpgsqlCommand command = new NpgsqlCommand(query, this._conn))
+                {
+                    command.Parameters.AddWithValue("@creator_id", userId);
+                    command.Parameters.AddWithValue("@name", filename);
+
+                    fileId = Convert.ToInt32(command.ExecuteScalar());
+                }
+                return fileId;
+
+            }
+            catch (Exception ex)
+            {
+                throw new FileDoesNotExistException("File not exists");
             }
         }
         private void addFileLocation(int fileId, Location location)
@@ -102,7 +127,7 @@ namespace cloud_server.DB
                 }
                 catch
                 {
-                    throw new Exception("Unable to delete this file");
+                    throw new DBErrorException("Unable to delete this file");
                 }
             }
         }
@@ -129,13 +154,13 @@ namespace cloud_server.DB
                                 reader.GetDateTime(reader.GetOrdinal("creation_time")),
                                 reader.GetDateTime(reader.GetOrdinal("last_modify")));
                         }
-                        throw new Exception("File not found");
+                        throw new FileDoesNotExistException("File not found");
                     }
                 }
             }
             catch 
             { 
-                throw new Exception("DB Error");
+                throw new DBErrorException("DB Error");
             }
         }
         public List<FileMetadata> getUserFilesMetadata(int userId)
@@ -166,7 +191,7 @@ namespace cloud_server.DB
             }
             catch
             {
-                throw new Exception("DB Error");
+                throw new DBErrorException("DB Error");
             }
             return userFiles;
         }
