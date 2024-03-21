@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Data.SQLite;
+using Google.Protobuf.Compiler;
 
 
 namespace NodeServer.Managers
@@ -8,26 +9,29 @@ namespace NodeServer.Managers
 
     public class FileVersionManager
     {
-        private string connectionString;
+        private string _connectionString;
 
         public FileVersionManager(string databasePath)
         {
-            connectionString = $"Data Source={databasePath};Version=3;";
+            _connectionString = $"Data Source={databasePath};Version=3;";
             InitializeDatabase();
         }
 
         private void InitializeDatabase()
         {
-            using (var connection = new SQLiteConnection(connectionString))
+            using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
 
                 string createTableQuery = @"CREATE TABLE IF NOT EXISTS Files (
                                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                        UserId INTEGER NOT NULL,
                                         FileName TEXT NOT NULL,
+                                        Type TEXT NOT NULL,
+                                        Size INTEGER NOT NULL,
                                         Version INTEGER NOT NULL,
                                         FilePath TEXT NOT NULL,
-                                        CONSTRAINT Unique_File UNIQUE (FileName, Version)
+                                        CONSTRAINT Unique_File UNIQUE (UserId, FileName, Version)
                                         );";
                 using (var command = new SQLiteCommand(createTableQuery, connection))
                 {
@@ -36,17 +40,20 @@ namespace NodeServer.Managers
             }
         }
 
-        public void SaveFileVersion(string fileName, string filePath)
+        public void SaveFileVersion(int userId, string fileName, string type, int size, string filePath)
         {
-            int latestVersion = GetLatestFileVersion(fileName) + 1;
+            int latestVersion = GetLatestFileVersion(fileName, userId) + 1;
 
-            using (var connection = new SQLiteConnection(connectionString))
+            using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                string insertQuery = "INSERT INTO Files (FileName, Version, FilePath) VALUES (@FileName, @Version, @FilePath);";
+                string insertQuery = "INSERT INTO Files (UserId, FileName, Type, Size, Version, FilePath) VALUES (@UserId, @FileName, @Type, @Size, @Version, @FilePath);";
                 using (var command = new SQLiteCommand(insertQuery, connection))
                 {
+                    command.Parameters.AddWithValue("@UserId", userId);
                     command.Parameters.AddWithValue("@FileName", fileName);
+                    command.Parameters.AddWithValue("@Type", type);
+                    command.Parameters.AddWithValue("@Size", size);
                     command.Parameters.AddWithValue("@Version", latestVersion);
                     command.Parameters.AddWithValue("@FilePath", filePath);
                     command.ExecuteNonQuery();
@@ -54,17 +61,18 @@ namespace NodeServer.Managers
             }
         }
 
-        public int GetLatestFileVersion(string fileName)
+        public int GetLatestFileVersion(string fileName, int userId)
         {
             int latestVersion = 0;
 
-            using (var connection = new SQLiteConnection(connectionString))
+            using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                string selectQuery = "SELECT MAX(Version) FROM Files WHERE FileName = @FileName;";
+                string selectQuery = "SELECT MAX(Version) FROM Files WHERE FileName = @FileName AND UserId = @UserId;";
                 using (var command = new SQLiteCommand(selectQuery, connection))
                 {
                     command.Parameters.AddWithValue("@FileName", fileName);
+                    command.Parameters.AddWithValue("@UserId", userId);
                     object result = command.ExecuteScalar();
                     if (result != DBNull.Value)
                     {
@@ -76,18 +84,20 @@ namespace NodeServer.Managers
             return latestVersion;
         }
 
-        public string GetFilePath(string fileName, int version)
+
+        public string GetFilePath(string fileName, int userId, int version)
         {
             string filePath = null;
 
-            using (var connection = new SQLiteConnection(connectionString))
+            using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                string selectQuery = "SELECT FilePath FROM Files WHERE FileName = @FileName AND Version = @Version;";
+                string selectQuery = "SELECT FilePath FROM Files WHERE FileName = @FileName AND UserId = @UserId AND Version = @Version;";
                 using (var command = new SQLiteCommand(selectQuery, connection))
                 {
                     command.Parameters.AddWithValue("@FileName", fileName);
                     command.Parameters.AddWithValue("@Version", version);
+                    command.Parameters.AddWithValue("@UserId", userId);
                     object result = command.ExecuteScalar();
                     if (result != DBNull.Value)
                     {
@@ -99,34 +109,105 @@ namespace NodeServer.Managers
             return filePath;
         }
 
-        public void RemovePreviousVersions(string fileName, int version)
+        public void RemovePreviousVersions(string fileName, int userId, int version)
         {
-            using (var connection = new SQLiteConnection(connectionString))
+            using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                string deleteQuery = "DELETE FROM Files WHERE FileName = @FileName AND Version < @Version;";
+                string deleteQuery = "DELETE FROM Files WHERE FileName = @FileName AND UserId = @UserId AND Version < @Version;";
                 using (var command = new SQLiteCommand(deleteQuery, connection))
                 {
                     command.Parameters.AddWithValue("@FileName", fileName);
                     command.Parameters.AddWithValue("@Version", version);
+                    command.Parameters.AddWithValue("@UserId", userId);
                     command.ExecuteNonQuery();
                 }
             }
         }
 
-        public void RemoveAllFileVersions(string fileName)
+        public void RemoveVersion(string fileName, int userId, int version)
         {
-            using (var connection = new SQLiteConnection(connectionString))
+            using (var connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                string deleteQuery = "DELETE FROM Files WHERE FileName = @FileName;";
+                string deleteQuery = "DELETE FROM Files WHERE FileName = @FileName AND UserId = @UserId AND Version = @Version;";
                 using (var command = new SQLiteCommand(deleteQuery, connection))
                 {
                     command.Parameters.AddWithValue("@FileName", fileName);
+                    command.Parameters.AddWithValue("@Version", version);
+                    command.Parameters.AddWithValue("@UserId", userId);
                     command.ExecuteNonQuery();
                 }
             }
         }
+
+        public void RemoveAllFileVersions(string fileName, int userId)
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                string deleteQuery = "DELETE FROM Files WHERE FileName = @FileName AND UserId = @UserId;";
+                using (var command = new SQLiteCommand(deleteQuery, connection))
+                {
+                    command.Parameters.AddWithValue("@FileName", fileName);
+                    command.Parameters.AddWithValue("@UserId", userId);
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public int GetUserNumOfFiles(int userId)
+        {
+            int numOfFiles = 0;
+
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                string selectQuery = "SELECT count(DISTINCT FileName) FROM Files WHERE UserId = @UserId";
+                using (var command = new SQLiteCommand(selectQuery, connection))
+                {
+                    command.Parameters.AddWithValue("@UserId", userId);
+                    object result = command.ExecuteScalar();
+                    if (result != DBNull.Value)
+                    {
+                        numOfFiles = Convert.ToInt32(result);
+                    }
+                }
+            }
+
+            return numOfFiles;
+        }
+
+        public int GetUserUsedSpace(int userId)
+        {
+            int usedSpace = 0;
+
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                string selectQuery = @"
+                                    SELECT SUM(Size) 
+                                    FROM Files 
+                                    WHERE (UserId, FileName, Version) IN (
+                                        SELECT UserId, FileName, MAX(Version) AS Version
+                                        FROM Files
+                                        WHERE UserId = @UserId
+                                        GROUP BY UserId, FileName
+                                    )";
+                using (var command = new SQLiteCommand(selectQuery, connection))
+                {
+                    command.Parameters.AddWithValue("@UserId", userId);
+                    object result = command.ExecuteScalar();
+                    if (result != DBNull.Value)
+                    {
+                        usedSpace = Convert.ToInt32(result);
+                    }
+                }
+            }
+
+            return usedSpace;
+        }
+
 
     }
 }

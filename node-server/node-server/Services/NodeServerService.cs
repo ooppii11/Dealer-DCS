@@ -55,6 +55,12 @@ namespace NodeServer.Services
                 }
             }
 
+            //check if file size is not over the limit, take in consideration other user files
+            //if ok: save file in file folder (int tempFiles, folder name = fileID), file name is fileID + version from manager
+            //if not: return null
+
+            //convert other args and return them
+
             return "";
         }
 
