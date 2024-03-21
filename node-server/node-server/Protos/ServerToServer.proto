@@ -80,21 +80,7 @@ message InstallSnapshotResponse{
 
 }
 
-
-message PassFileRequest {
-	string file_id = 1;
-	string type = 2;
-	bytes file_content = 3;
-	repeated string servers_addresses_where_saved = 4;
-}
-
-message PassFileResponse {
-	bool status = 1;
-	optional string message = 2;	
-}
-
 service ServerToServer {
-  rpc PassFile(stream PassFileRequest) returns (PassFileResponse);
   rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse);
   rpc AppendEntries(stream AppendEntriesRequest) returns (AppendEntriesResponse);
   rpc InstallSnapshot(stream InstallSnapshotRequest) returns (InstallSnapshotResponse);
