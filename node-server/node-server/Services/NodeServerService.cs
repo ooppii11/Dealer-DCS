@@ -54,20 +54,29 @@ namespace NodeServer.Services
             return tempRaftSettings.ServerAddress;
         }
 
-        private string SaveFile(string fileID, int userId, MemoryStream fileData)
+        private bool SaveFile(string fileId, int userId, string type, MemoryStream fileData)
         {
+            if (fileData.Length + this._fileVersionManager.GetUserUsedSpace(userId) > this._fixedUserStorageSpace || //memory
+                GetDirectorySize(Path.Combine(Directory.GetCurrentDirectory(), this._folderName, fileId)) > this._fixedUserTempStorageSpace) //temp memory
+            {
+                return false;
+            }
+
             string currentDirectory = Directory.GetCurrentDirectory();
-            string folderPath = Path.Combine(currentDirectory, this._folderName, fileID);
+            string folderPath = Path.Combine(currentDirectory, this._folderName, fileId);
             if (!Directory.Exists(folderPath))
             {
                 Directory.CreateDirectory(folderPath);
             }
 
-            string filePath = Path.Combine(folderPath, $"{fileID}_{this._fileVersionManager.GetLatestFileVersion(fileID, userId)}");
+            string filePath = Path.Combine(folderPath, $"{fileId}_{this._fileVersionManager.GetLatestFileVersion(fileId, userId) + 1}");
 
             SaveMemoryStreamToFile(fileData, filePath);
-            return filePath;
+            this._fileVersionManager.SaveFileVersion(userId, fileId, type, fileData.Length, filePath);
+            return true;
         }
+
+
         private static long GetDirectorySize(string directoryPath)
         {
             long directorySize = 0;
@@ -95,33 +104,28 @@ namespace NodeServer.Services
         }
 
 
+
         private async Task<string> UploadOperationArgsToString(IAsyncStreamReader<UploadFileRequest> requestStream)
         {
-            string fileID = "";
+            string fileId = "";
             int userId = 0;
             string type = "";
             MemoryStream fileData = new MemoryStream();
-            bool fileAlreadyExist = false;
-
-
 
             await foreach (var chunk in requestStream.ReadAllAsync())
             {
-                fileID = chunk.FileId;
+                fileId = chunk.FileId;
                 type = chunk.Type;
                 userId = chunk.UserId;
                 fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
             }
 
-            if (fileData.Length + this._fileVersionManager.GetUserUsedSpace(userId) > this._fixedUserStorageSpace || //memory
-                GetDirectorySize(Path.Combine(Directory.GetCurrentDirectory(), this._folderName, fileID)) > this._fixedUserTempStorageSpace)//temp memory
+            if (!SaveFile(fileId, userId, type, fileData))
             {
                 return null;
             }
 
-            string filePath = SaveFile(fileID, userId, fileData);
-            this._fileVersionManager.SaveFileVersion(userId, fileID, type, fileData.Length, filePath);
-            return $"[{userId},{fileID},{type},{this._fileVersionManager.GetLatestFileVersion(fileID, userId)}]";
+            return $"[{userId},{fileId},{type},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)}]";
         }
     
 
@@ -155,7 +159,32 @@ namespace NodeServer.Services
                 return new UploadFileResponse { Status = false, Message = $"Error updating the file: {ex.Message}"}; ;
             }
         }
+
+        private async Task<string> UpdateOperationArgsToString(IAsyncStreamReader<UpdateFileRequest> requestStream)
+        {
+            string fileId = "";
+            int userId = 0;
+            
+            MemoryStream fileData = new MemoryStream();
+
+            await foreach (var chunk in requestStream.ReadAllAsync())
+            {
+                fileId = chunk.FileId;
+                userId = chunk.UserId;
+                fileData.Write(chunk.NewContent.ToArray(), 0, chunk.NewContent.Length);
+            }
+
+            string type = this._fileVersionManager.GetFileType(fileId, userId);
+
+            if (!SaveFile(fileId, userId, type, fileData))
+            {
+                return null;
+            }
+
+            return $"[{userId},{fileId},{type},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)}]";
+        }
         
+
         public override async Task<UpdateFileResponse> UpdateFile(IAsyncStreamReader<UpdateFileRequest> requestStream, ServerCallContext context)
         {
             try
@@ -174,11 +203,10 @@ namespace NodeServer.Services
                     fileData.Write(chunk.NewContent.ToArray(), 0, chunk.NewContent.Length);
                 }
 
-                /*Raft: append entry*/
 
                 /*preform action*/
-                this._microservice.deleteFile(fileName);
-                await this._microservice.uploadFile(fileName, fileData.ToArray(), "");
+                //await this._microservice.deleteFile(fileName);
+                //await this._microservice.uploadFile(fileName, fileData.ToArray(), "");
 
 
                 return new UpdateFileResponse { Status = true, Message = "File updated successfully." };
@@ -202,15 +230,15 @@ namespace NodeServer.Services
             return (files.Length == 0);
         }
 
-        private async Task<byte[]> GetFile(string fileID, int userID)
+        private async Task<byte[]> GetFile(string fileId, int userId)
         {
-            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._folderName, fileID);
+            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._folderName, fileId);
             if (IsFolderEmpty(folderPath)) 
             {
-                return await this._microservice.downloadFile(fileID);
+                return await this._microservice.downloadFile(fileId);
             }
 
-            return File.ReadAllBytes(Path.Combine(folderPath, $"{fileID}_{this._fileVersionManager.GetLatestFileVersion(fileID, userID)}"));
+            return File.ReadAllBytes(Path.Combine(folderPath, $"{fileId}_{this._fileVersionManager.GetLatestFileVersion(fileId, userId)}"));
         }
 
         public override async Task DownloadFile(DownloadFileRequest request, IServerStreamWriter<DownloadFileResponse> responseStream, ServerCallContext context)

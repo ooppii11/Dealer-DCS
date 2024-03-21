@@ -208,6 +208,58 @@ namespace NodeServer.Managers
             return usedSpace;
         }
 
+        public int GetUserUsedSpace(int userId, string fileNameToExclude)
+        {
+            int usedSpace = 0;
 
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                string selectQuery = @"
+                                    SELECT SUM(Size) 
+                                    FROM Files 
+                                    WHERE (UserId, FileName, Version) IN (
+                                        SELECT UserId, FileName, MAX(Version) AS Version
+                                        FROM Files
+                                        WHERE UserId = @UserId AND FileName != @FileNameToExclude
+                                        GROUP BY UserId, FileName
+                                    )";
+                using (var command = new SQLiteCommand(selectQuery, connection))
+                {
+                    command.Parameters.AddWithValue("@UserId", userId);
+                    command.Parameters.AddWithValue("@FileNameToExclude", fileNameToExclude);
+                    object result = command.ExecuteScalar();
+                    if (result != DBNull.Value)
+                    {
+                        usedSpace = Convert.ToInt32(result);
+                    }
+                }
+            }
+
+            return usedSpace;
+        }
+
+        public string GetFileType(string fileName, int userId)
+        {
+            string fileType = null;
+
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                string selectQuery = "SELECT Type FROM Files WHERE FileName = @FileName AND UserId = @UserId ORDER BY Version DESC LIMIT 1;";
+                using (var command = new SQLiteCommand(selectQuery, connection))
+                {
+                    command.Parameters.AddWithValue("@FileName", fileName);
+                    command.Parameters.AddWithValue("@UserId", userId);
+                    object result = command.ExecuteScalar();
+                    if (result != DBNull.Value)
+                    {
+                        fileType = result.ToString();
+                    }
+                }
+            }
+
+            return fileType;
+        }
     }
 }
