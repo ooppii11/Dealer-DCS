@@ -8,14 +8,22 @@ namespace NodeServer.Managers
 
         public object[] Args { get; set; }
 
-        Action(string actionName, string args)
+        public Action(string actionName, string args)
         {
             ActionName = actionName;
             string[] values = args.Trim('[', ']').Split(',');
             this.Args = new object[values.Length];
             for (int i = 0; i < values.Length; i++)
             {
-                this.Args[i] = values[i];
+                int intValue;
+                if (int.TryParse(values[i], out intValue))
+                {
+                    this.Args[i] = intValue;
+                }
+                else
+                {
+                    this.Args[i] = values[i];
+                }
             }
         }
     }
