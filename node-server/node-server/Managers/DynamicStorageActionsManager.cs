@@ -1,35 +1,48 @@
-﻿using System.Collections.Generic;
-using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
-using System.Net;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace NodeServer.Managers
 {
     public class DynamicStorageActionsManager
     {
-
-        private FileVersionManager _fileVersionManager;
-        private FileSaving _microservice;
+        private readonly FileVersionManager _fileVersionManager;
+        private readonly FileSaving _microservice;
         private readonly string _baseFolderName = "TempFiles";
 
-        DynamicStorageActionsManager(FileSaving micro, FileVersionManager fileVerM)
+        public DynamicStorageActionsManager(FileSaving micro, FileVersionManager fileVerM)
         {
             this._microservice = micro;
             this._fileVersionManager = fileVerM;
         }
 
-        public bool NameToAction(Action ac)
+        public async Task<bool> NameToAction(Action ac)
         {
-            Dictionary<string, Delegate> functionsWrapper = new Dictionary<string, Delegate> 
-            {
-                { "UploadFile", UploadFile },
-                { "UpdateFile", UpdateFile },
-                { "DownloadFile", DownloadFile },
-                { "DeleteFile", DeleteFile }
-            };
-            //new Func<int, string, string, int, bool>(UpdateFile)
+            Dictionary<string, Delegate> functionsWrapper = new Dictionary<string, Delegate>
+        {
+            { "UploadFile", new Func<int, string, string, int, Task<bool>>(UploadFile) },
+            { "UpdateFile", new Func<int, string, string, int, Task<bool>>(UpdateFile) },
+            { "DownloadFile", new Func<string, int, bool>(DownloadFile) },
+            { "DeleteFile", new Func<string, int, bool>(DeleteFile) }
+        };
+
             if (functionsWrapper.TryGetValue(ac.ActionName, out Delegate func))
             {
-                return (bool)func.DynamicInvoke(ac.Args);
+                if (func is Func<int, string, string, int, Task<bool>> asyncFunc)
+                {
+                    var task = func.DynamicInvoke(ac.Args) as Task<bool>;
+                    return await task;
+                }
+                else if (func is Func<string, int, bool> syncFunc)
+                {
+                    return (bool)syncFunc.DynamicInvoke(ac.Args);
+                }
+                else
+                {
+                    throw new ArgumentException("Unsupported action delegate type");
+                }
             }
             else
             {
@@ -37,33 +50,102 @@ namespace NodeServer.Managers
             }
         }
 
-        private bool UploadFile(int userId, string fileId, string type, int version)
+        private byte[] GetFile(string fileId, int version)
         {
-            //check if file that the folder and file are not deleted, take the correct version of the file, remove all the previse versions from db, delete the file and the previse versions on the machine, save the file to google cloud using the microservice
-            //if folder is deleted it's ok
-            //if file is deleted it's ok
-            //if can't upload using microservice it's not ok
+            string dirPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId);
+            string filePath = Path.Combine(dirPath, $"{fileId}_{version}");
+            if (Directory.Exists(dirPath) && File.Exists(filePath))
+            {
+                return File.ReadAllBytes(filePath);
+            }
+            return null;
+        }
+
+        private void RemovePreviseVersions(int userId, string fileId, int version)
+        {
+            this._fileVersionManager.RemovePreviousVersions(fileId, userId, version);
+
+            string directoryPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId);
+            string[] previousVersionFiles = Directory.GetFiles(directoryPath, $"{fileId}_*");
+
+            foreach (string file in previousVersionFiles)
+            {
+                int fileVersion;
+                if (int.TryParse(Path.GetFileNameWithoutExtension(file).Split('_').Last(), out fileVersion))
+                {
+                    if (fileVersion < version)
+                    {
+                        File.Delete(file);
+                    }
+                }
+            }
+        }
+
+        private void RemoveCurrentVersion(int userId, string fileId, int version)
+        {
+            this._fileVersionManager.RemoveVersion(fileId, userId, version);
+            string filePath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId, $"{fileId}_{version}");
+            File.Delete(filePath);
+        }
+
+        private async Task<bool> UploadFile(int userId, string fileId, string type, int version)
+        {
+            try
+            {
+                byte[] data = GetFile(fileId, version);
+                if (data == null)
+                {
+                    return true;
+                }
+                await this._microservice.uploadFile(fileId, data, type);
+                RemovePreviseVersions(userId, fileId, version);
+                RemoveCurrentVersion(userId, fileId, version);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<bool> UpdateFile(int userId, string fileId, string type, int version)
+        {
+            try
+            {
+                byte[] data = GetFile(fileId, version);
+                if (data == null)
+                {
+                    return true;
+                }
+                this._microservice.deleteFile(fileId);
+                await this._microservice.uploadFile(fileId, data, type);
+                RemovePreviseVersions(userId, fileId, version);
+                RemoveCurrentVersion(userId, fileId, version);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool DownloadFile(string fileId, int userId)
+        {
             return true;
         }
 
-        private bool UpdateFile(int userId, string fileId, string type, int version)
+        private bool DeleteFile(string fileId, int userId)
         {
-            //check if file that the folder and file are not deleted, take the correct version of the file, remove all the previse versions from db, delete the file and the previse versions on the machine, delete the privies version using the microservice, save the new version of the file to google cloud using the microservice
-            //if folder is deleted it's ok
-            //if file is deleted it's ok
-            //if can't upload using microservice it's not ok
-            return true;
-        }
-
-        private bool DownloadFile(string fileId)
-        {
-            return true;
-        }
-
-        private bool DeleteFile(string fileId) 
-        {
-            //delete using the microservice
-            return true;
+            try
+            {
+                this._microservice.deleteFile(fileId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
         }
     }
 }
+
