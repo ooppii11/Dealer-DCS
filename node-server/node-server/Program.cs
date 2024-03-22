@@ -9,7 +9,12 @@ public class Startup
         services.AddSingleton<FileSaving>(new FileSaving("127.0.0.1", 50051));
         services.AddSingleton<FileVersionManager>(new FileVersionManager("FileManager.db"));
         RaftSettings raftSettings = new RaftSettings();
-        services.AddSingleton<Raft>(new Raft(raftSettings));
+        services.AddSingleton<Raft>(serviceProvider =>
+        {
+            var fileSaving = serviceProvider.GetRequiredService<FileSaving>();
+            var fileVersionManager = serviceProvider.GetRequiredService<FileVersionManager>();
+            return new Raft(raftSettings, fileSaving, fileVersionManager);
+        });
         services.AddGrpc(options =>
         {
             options.Interceptors.Add<ConnectionLoggerInterceptor>();

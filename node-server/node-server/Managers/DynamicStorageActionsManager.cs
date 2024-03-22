@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace NodeServer.Managers
 {
-    public class DynamicStorageActionsManager
+    public class DynamicStorageActionsManager : IDynamicActions
     {
         private readonly FileVersionManager _fileVersionManager;
         private readonly FileSaving _microservice;
@@ -18,14 +18,14 @@ namespace NodeServer.Managers
             this._fileVersionManager = fileVerM;
         }
 
-        public async Task<bool> NameToAction(Action ac)
+        public override async Task<bool> NameToAction(Action ac)
         {
             Dictionary<string, Delegate> functionsWrapper = new Dictionary<string, Delegate>
         {
-            { "UploadFile", new Func<int, string, string, int, Task<bool>>(UploadFile) },
-            { "UpdateFile", new Func<int, string, string, int, Task<bool>>(UpdateFile) },
-            { "DownloadFile", new Func<string, int, bool>(DownloadFile) },
-            { "DeleteFile", new Func<string, int, bool>(DeleteFile) }
+            { "UploadFileAfterCommit", new Func<int, string, string, int, Task<bool>>(UploadFileAfterCommit) },
+            { "UpdateFileAfterCommit", new Func<int, string, string, int, Task<bool>>(UpdateFileAfterCommit) },
+            { "DownloadFileAfterCommit", new Func<string, int, bool>(DownloadFileAfterCommit) },
+            { "DeleteFileAfterCommit", new Func<string, int, bool>(DeleteFileAfterCommit) }
         };
 
             if (functionsWrapper.TryGetValue(ac.ActionName, out Delegate func))
@@ -88,7 +88,7 @@ namespace NodeServer.Managers
             File.Delete(filePath);
         }
 
-        private async Task<bool> UploadFile(int userId, string fileId, string type, int version)
+        private async Task<bool> UploadFileAfterCommit(int userId, string fileId, string type, int version)
         {
             try
             {
@@ -108,7 +108,7 @@ namespace NodeServer.Managers
             }
         }
 
-        private async Task<bool> UpdateFile(int userId, string fileId, string type, int version)
+        private async Task<bool> UpdateFileAfterCommit(int userId, string fileId, string type, int version)
         {
             try
             {
@@ -129,12 +129,12 @@ namespace NodeServer.Managers
             }
         }
 
-        private bool DownloadFile(string fileId, int userId)
+        private bool DownloadFileAfterCommit(string fileId, int userId)
         {
             return true;
         }
 
-        private bool DeleteFile(string fileId, int userId)
+        private bool DeleteFileAfterCommit(string fileId, int userId)
         {
             try
             {
@@ -146,6 +146,8 @@ namespace NodeServer.Managers
                 return false;
             }
         }
+
+        
     }
 }
 

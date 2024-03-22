@@ -30,7 +30,7 @@ namespace NodeServer.Managers.RaftNameSpace
             File.WriteAllLines(this._logFilePath, fileContent);
         }
 
-        public void CommitEntry(int index)
+        public LogEntry CommitEntry(int index)
         {
             string logLine = "";
             string[] fileContent;
@@ -43,6 +43,7 @@ namespace NodeServer.Managers.RaftNameSpace
             fileContent[index] = entry.ToString();
 
             File.WriteAllLines(this._logFilePath, fileContent);
+            return entry;
         }
 
         public LogEntry GetLogAtPlaceN(uint n)

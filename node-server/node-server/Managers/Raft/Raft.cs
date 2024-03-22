@@ -24,6 +24,7 @@ namespace NodeServer.Managers.RaftNameSpace
         private State _state;
         private RaftSettings _settings;
         private Log _logger;
+        private IDynamicActions _dynamicActions;
 
         public StatesCode RaftStateCode
         {
@@ -32,8 +33,9 @@ namespace NodeServer.Managers.RaftNameSpace
         public State State { get { return _state; } }
         public RaftSettings Settings { get { return this._settings; } }
 
-        public Raft(RaftSettings settings)
+        public Raft(RaftSettings settings, FileSaving micro, FileVersionManager fileVerM)
         {
+            this._dynamicActions = new DynamicStorageActionsManager(micro, fileVerM);
             this._currentStateCode = StatesCode.Follower;
             this._settings = settings;
             this._logger = new Log(this._settings.LogFilePath);
@@ -156,18 +158,18 @@ namespace NodeServer.Managers.RaftNameSpace
                 if (totalLogEntries.Count() > 0 && (totalLogEntries[0].LogIndex == 1 + this._settings.LastLogIndex))//|| this._settings.LastLogIndex == 0))
             {
                     Console.WriteLine("Append entries");
-                    this._logger.AppendEntry(
-                        new LogEntry(
+                    LogEntry entry = new LogEntry(
                                 totalLogEntries[0].LogIndex,
                                 totalLogEntries[0].Timestamp.ToDateTime(),
                                 addres,
                                 totalLogEntries[0].Operation,
                                 totalLogEntries[0].OperationArgs,
                            false
-                        ));
+                        );
+                    this._logger.AppendEntry(entry);
                     this._settings.LastLogIndex += 1;
-
-                    //preform dynamic action before commit:
+                    Action commitAction = new Action(entry.Operation + "BeforeCommit", entry.OperationArgs);
+                    await this._dynamicActions.NameToAction(commitAction);
                 }
 
                 // commit
@@ -175,11 +177,12 @@ namespace NodeServer.Managers.RaftNameSpace
                 {
                     Console.WriteLine("commit");
                     Console.WriteLine(totalCommitIndex);
-                    this._logger.CommitEntry(totalCommitIndex);
+                    LogEntry entry = this._logger.CommitEntry(totalCommitIndex);
                     this._settings.CommitIndex = totalCommitIndex;
+                    Action commitAction = new Action(entry.Operation + "AfterCommit", entry.OperationArgs);
 
                     // preform dynamic action after commit:
-
+                    await this._dynamicActions.NameToAction(commitAction);
                 }
 
             }

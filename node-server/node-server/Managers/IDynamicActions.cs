@@ -1,6 +1,7 @@
 ﻿namespace NodeServer.Managers
 {
-    public class IDynamicActions
+    public abstract class IDynamicActions
     {
+        public abstract Task<bool> NameToAction(Action ac);
     }
 }
