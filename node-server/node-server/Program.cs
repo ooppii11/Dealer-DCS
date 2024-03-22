@@ -1,7 +1,7 @@
 using NodeServer.Services;
 using NodeServer.Managers;
 using NodeServer.Managers.RaftNameSpace;
-
+/*
 public class Startup
 {
     public void ConfigureServices(IServiceCollection services)
@@ -61,7 +61,7 @@ public class Program
 
                     options.Listen(IPAddress.Parse(ipAddress), port);
                 });
-                */
+                *//*
             })
             .ConfigureLogging(logging =>
             {
@@ -69,3 +69,4 @@ public class Program
                 logging.AddConsole();
             });
 }
+*/
