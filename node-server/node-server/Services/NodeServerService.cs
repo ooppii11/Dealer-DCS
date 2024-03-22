@@ -100,7 +100,7 @@ namespace NodeServer.Services
 
 
 
-        private async Task<string> UploadOperationArgsToString(IAsyncStreamReader<UploadFileRequest> requestStream)
+        private async Task<KeyValuePair<string, MemoryStream>> ParseUploadRequest(IAsyncStreamReader<UploadFileRequest> requestStream)
         {
             string fileId = "";
             int userId = 0;
@@ -117,10 +117,10 @@ namespace NodeServer.Services
 
             if (!SaveFile(fileId, userId, type, fileData))
             {
-                return null;
+                return new KeyValuePair<string, MemoryStream>(null, null);
             }
 
-            return $"[{userId},{fileId},{type},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)}]";
+            return new KeyValuePair<string, MemoryStream>($"[{userId},{fileId},{type},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)}]", fileData);
         }
     
 
@@ -129,15 +129,15 @@ namespace NodeServer.Services
             try
             {
                 const string operationName = "UploadFile";
-                string args = await UploadOperationArgsToString(requestStream);
-                if (args == null) 
+                KeyValuePair<string, MemoryStream> argsAndFileData = await ParseUploadRequest(requestStream);
+                if (argsAndFileData.Key == null) 
                 {
                     context.Status = new Status(StatusCode.ResourceExhausted, "Can't upload the file. Either the file is too big or the user has used up all their memory.");
                     return new UploadFileResponse { Status = false, Message = "Can't upload the file. Either the file is too big or the user has used up all their memory." };
                 }
 
-                LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
-                if (await this._raft.appendEntry(entry))
+                LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, argsAndFileData.Key);
+                if (await this._raft.appendEntry(entry, argsAndFileData.Value.ToArray()))
                 {
                     return new UploadFileResponse { Status = true, Message = "File uploaded successfully." };
                 }
@@ -153,7 +153,7 @@ namespace NodeServer.Services
             }
         }
 
-        private async Task<string> UpdateOperationArgsToString(IAsyncStreamReader<UpdateFileRequest> requestStream)
+        private async Task<KeyValuePair<string, MemoryStream>> UpdateOperationArgsToString(IAsyncStreamReader<UpdateFileRequest> requestStream)
         {
             string fileId = "";
             int userId = 0;
@@ -171,10 +171,10 @@ namespace NodeServer.Services
 
             if (!SaveFile(fileId, userId, type, fileData))
             {
-                return null;
+                return new KeyValuePair<string, MemoryStream>(null, null);
             }
 
-            return $"[{userId},{fileId},{type},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)}]";
+            return new KeyValuePair<string, MemoryStream>($"[{userId},{fileId},{type},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)}]", fileData);
         }
         
 
@@ -183,15 +183,15 @@ namespace NodeServer.Services
             try
             {
                 const string operationName = "UpdateFile";
-                string args = await UpdateOperationArgsToString(requestStream);
-                if (args == null)
+                KeyValuePair<string, MemoryStream> argsAndFileData = await UpdateOperationArgsToString(requestStream);
+                if (argsAndFileData.Key == null)
                 {
                     context.Status = new Status(StatusCode.ResourceExhausted, "Can't upload the file. Either the file is too big or the user has used up all their memory.");
                     return new UpdateFileResponse { Status = false, Message = "Can't upload the file. Either the file is too big or the user has used up all their memory." };
                 }
 
-                LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
-                if (await this._raft.appendEntry(entry))
+                LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, argsAndFileData.Key);
+                if (await this._raft.appendEntry(entry, argsAndFileData.Value.ToArray()))
                 {
                     return new UpdateFileResponse { Status = true, Message = "File uploaded successfully." };
                 }

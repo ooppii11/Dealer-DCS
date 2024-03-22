@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Timers;
@@ -169,7 +170,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
             }
         }
 
-        public async Task AppendEntries(LogEntry entry) // Add args
+        public async Task AppendEntries(LogEntry entry, byte[] fileData)
         {
             this._logger.AppendEntry(entry);
             this._lastLogEntry = entry;
@@ -194,10 +195,10 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         LogIndex = _lastLogEntry.Index,
                         Timestamp = Timestamp.FromDateTime(this._lastLogEntry.Timestamp),
                         Operation = _lastLogEntry.Operation,
-                        OperationData = _lastLogEntry.OperationArgs
-
+                        OperationArgs = _lastLogEntry.OperationArgs,
+                        
                     },
-                    Args = new operationArgs() { Args = this._lastLogEntry.OperationArgs }
+                    FileData = Google.Protobuf.ByteString.CopyFrom(fileData)
                 };
 
                 Console.WriteLine(this._followers[address].Request.ToString());
@@ -253,7 +254,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                             Console.WriteLine($"leader commit index {this._settings.CommitIndex}");
                             this._logger.CommitEntry(this._settings.CommitIndex);
 
-                            // call to action:
+                            // preform dynamic action after commit:
 
                         }
                         this._followers[address].CommitIndex = response.MatchIndex;
@@ -279,10 +280,9 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
                             Timestamp = Timestamp.FromDateTime(entry.Timestamp.ToUniversalTime()),
                             Operation = entry.Operation,
-                            OperationData = entry.OperationArgs
+                            OperationArgs = entry.OperationArgs
 
                         },
-                        Args = new operationArgs() { Args = entry.OperationArgs }
                     };
                 }
                 try
@@ -317,10 +317,10 @@ namespace NodeServer.Managers.RaftNameSpace.States
                             
                             Timestamp = Timestamp.FromDateTime(entry.Timestamp.ToUniversalTime()),
                             Operation = entry.Operation,
-                            OperationData = entry.OperationArgs
+                            OperationArgs = entry.OperationArgs
 
                         },
-                        Args = new operationArgs() { Args = entry.OperationArgs }
+                        //pass file data
                     };
                 }
                     Console.WriteLine("not successful"); 

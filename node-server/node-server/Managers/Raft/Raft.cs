@@ -56,12 +56,23 @@ namespace NodeServer.Managers.RaftNameSpace
 
             this.Start();
         }
+        public async Task<bool> appendEntry(LogEntry entry, byte[] fileData)
+        {
+            if (this._currentStateCode == StatesCode.Leader)
+            {
+                Leader leaderObject = this._state as Leader;
+                await leaderObject.AppendEntries(entry, fileData);
+
+            }
+            return false;
+        }
+
         public async Task<bool> appendEntry(LogEntry entry)
         {
             if (this._currentStateCode == StatesCode.Leader)
             {
                 Leader leaderObject = this._state as Leader;
-                await leaderObject.AppendEntries(entry);
+                await leaderObject.AppendEntries(entry, new byte[0]);
 
             }
             return false;
@@ -86,12 +97,12 @@ namespace NodeServer.Managers.RaftNameSpace
             int totalPrevTerm = 0;
             int totalCommitIndex = 0;
             var totalLogEntries = new List<GrpcServerToServer.LogEntry>();
-            var totalArgs = new List<GrpcServerToServer.operationArgs>();
+            MemoryStream fileData = new MemoryStream();
 
 
             /***
              add args
-             ***/ 
+             ***/
             try
             {               
                 await foreach (var request in requests.ReadAllAsync())
@@ -102,7 +113,7 @@ namespace NodeServer.Managers.RaftNameSpace
                     totalCommitIndex = request.CommitIndex;
                     if (request.LogEntry != null)
                         totalLogEntries.Add(request.LogEntry);
-                    totalArgs.Add(request.Args);
+                    fileData.Write(request.FileData.ToArray(), 0, request.FileData.Length);
                 }
             }
             catch (Exception ex)
@@ -123,7 +134,7 @@ namespace NodeServer.Managers.RaftNameSpace
                 Console.WriteLine("Total Log Entries" + totalLogEntries.Count());
                 foreach (var logEntry in totalLogEntries)
                 {
-                    Console.WriteLine($"- Term: {logEntry.Term}, LogIndex: {logEntry.LogIndex}, Operation: {logEntry.Operation}, OperationData: {logEntry.OperationData}, Timestamp: {logEntry.Timestamp}");
+                    Console.WriteLine($"- Term: {logEntry.Term}, LogIndex: {logEntry.LogIndex}, Operation: {logEntry.Operation}, OperationArgs: {logEntry.OperationArgs}, Timestamp: {logEntry.Timestamp}");
                 }
             }
             try
@@ -141,7 +152,7 @@ namespace NodeServer.Managers.RaftNameSpace
 
                 }
 
-                // check for apped new log line
+                // check for append new log line
                 if (totalLogEntries.Count() > 0 && (totalLogEntries[0].LogIndex == 1 + this._settings.LastLogIndex))//|| this._settings.LastLogIndex == 0))
             {
                     Console.WriteLine("Append entries");
@@ -151,10 +162,12 @@ namespace NodeServer.Managers.RaftNameSpace
                                 totalLogEntries[0].Timestamp.ToDateTime(),
                                 addres,
                                 totalLogEntries[0].Operation,
-                                totalLogEntries[0].OperationData,
+                                totalLogEntries[0].OperationArgs,
                            false
                         ));
                     this._settings.LastLogIndex += 1;
+
+                    //preform dynamic action before commit:
                 }
 
                 // commit
@@ -165,8 +178,8 @@ namespace NodeServer.Managers.RaftNameSpace
                     this._logger.CommitEntry(totalCommitIndex);
                     this._settings.CommitIndex = totalCommitIndex;
 
-                    // call to action function:
-                    
+                    // preform dynamic action after commit:
+
                 }
 
             }
