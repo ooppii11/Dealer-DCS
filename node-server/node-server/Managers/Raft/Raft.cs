@@ -168,8 +168,18 @@ namespace NodeServer.Managers.RaftNameSpace
                         );
                     this._logger.AppendEntry(entry);
                     this._settings.LastLogIndex += 1;
-                    Action commitAction = new Action(entry.Operation + "BeforeCommit", entry.OperationArgs);
-                    await this._dynamicActions.NameToAction(commitAction);
+                    
+                    if (fileData.Length > 0)
+                    {
+                        Action commitAction = new Action(entry.Operation + "BeforeCommit", entry.OperationArgs, fileData.ToArray());
+                        await this._dynamicActions.NameToAction(commitAction);
+                    }
+                    else 
+                    {
+                        Action commitAction = new Action(entry.Operation + "BeforeCommit", entry.OperationArgs);
+                        await this._dynamicActions.NameToAction(commitAction);
+                    }
+                    
                 }
 
                 // commit
@@ -246,7 +256,7 @@ namespace NodeServer.Managers.RaftNameSpace
                     }
                     else if (this._currentStateCode == StatesCode.Leader)
                     {
-                        this._state = new Leader(this._settings, this._logger);
+                        this._state = new Leader(this._settings, this._logger, this._dynamicActions);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
                     }

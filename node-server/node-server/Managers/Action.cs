@@ -15,16 +15,20 @@ namespace NodeServer.Managers
             this.Args = new object[values.Length];
             for (int i = 0; i < values.Length; i++)
             {
-                int intValue;
-                if (int.TryParse(values[i], out intValue))
-                {
-                    this.Args[i] = intValue;
-                }
-                else
-                {
-                    this.Args[i] = values[i];
-                }
+                this.Args[i] = values[i];
             }
+        }
+
+        public Action(string actionName, string args, byte[] fileData)
+        {
+            ActionName = actionName;
+            string[] values = args.Trim('[', ']').Split(',');
+            this.Args = new object[values.Length + 1];
+            for (int i = 0; i < values.Length; i++)
+            {
+                this.Args[i] = values[i];
+            }
+            this.Args[values.Length - 1] = fileData;
         }
     }
 }

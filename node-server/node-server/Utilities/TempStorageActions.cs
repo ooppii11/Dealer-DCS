@@ -1,0 +1,79 @@
+﻿using NodeServer.Managers;
+using NodeServer.Managers.RaftNameSpace;
+
+namespace NodeServer.Utilities
+{
+    public class TempStorageActions
+    {
+        private static readonly string _baseFolderName = "TempFiles";
+        private static readonly int _fixedUserStorageSpace = 100000000;//in bytes = 100mb
+        private static readonly int _fixedUserTempStorageSpace = 100000000;//in bytes = 100mb
+        public static void SaveMemoryStreamToFile(MemoryStream memoryStream, string filePath)
+        {
+            using (FileStream fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                memoryStream.CopyTo(fileStream);
+            }
+        }
+
+        public static long GetDirectorySize(string directoryPath)
+        {
+            long directorySize = 0;
+
+            if (Directory.Exists(directoryPath))
+            {
+                string[] files = Directory.GetFiles(directoryPath);
+                foreach (string file in files)
+                {
+                    FileInfo fileInfo = new FileInfo(file);
+                    directorySize += fileInfo.Length;
+                }
+                string[] subdirectories = Directory.GetDirectories(directoryPath);
+                foreach (string subdirectory in subdirectories)
+                {
+                    directorySize += GetDirectorySize(subdirectory);
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Directory {directoryPath} does not exist.");
+            }
+
+            return directorySize;
+        }
+
+        public static bool IsFolderEmpty(string path)
+        {
+            if (!Directory.Exists(path))
+            {
+                throw new DirectoryNotFoundException($"Directory not found: {path}");
+            }
+
+            string[] files = Directory.GetFiles(path);
+
+            return (files.Length == 0);
+        }
+
+        public static bool SaveFile(string fileId, int userId, string type, MemoryStream fileData, FileVersionManager fileVersionManager)
+        {
+            if (fileData.Length + fileVersionManager.GetUserUsedSpace(userId, fileId) > TempStorageActions._fixedUserStorageSpace || //memory
+                TempStorageActions.GetDirectorySize(Path.Combine(Directory.GetCurrentDirectory(), TempStorageActions._baseFolderName, fileId)) + fileData.Length > TempStorageActions._fixedUserTempStorageSpace) //temp memory
+            {
+                return false;
+            }
+
+            string currentDirectory = Directory.GetCurrentDirectory();
+            string folderPath = Path.Combine(currentDirectory, TempStorageActions._baseFolderName, fileId);
+            if (!Directory.Exists(folderPath))
+            {
+                Directory.CreateDirectory(folderPath);
+            }
+
+            string filePath = Path.Combine(folderPath, $"{fileId}_{fileVersionManager.GetLatestFileVersion(fileId, userId) + 1}");
+
+            TempStorageActions.SaveMemoryStreamToFile(fileData, filePath);
+            fileVersionManager.SaveFileVersion(userId, fileId, type, fileData.Length, filePath);
+            return true;
+        }
+    }
+}

@@ -6,6 +6,8 @@ using System.Timers;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using GrpcServerToServer;
+using static Grpc.Core.Metadata;
+
 namespace NodeServer.Managers.RaftNameSpace.States
 {
     class Node
@@ -49,9 +51,11 @@ namespace NodeServer.Managers.RaftNameSpace.States
         private CancellationToken _cancellationToken;
         private TaskCompletionSource<bool> _completionSource;
         private readonly string _cloudAddress = "127.0.0.1:50053";
-        public Leader(RaftSettings raftSettings, Log logger) :
+        private IDynamicActions _dynamicActions;
+        public Leader(RaftSettings raftSettings, Log logger, IDynamicActions dynamicActions) :
             base(raftSettings, logger)
         {
+            this._dynamicActions = dynamicActions;
             Console.WriteLine("leader");
             this._changeState = false;
             this._lastLogEntry = this._logger.GetLastLogEntry();
@@ -252,10 +256,11 @@ namespace NodeServer.Managers.RaftNameSpace.States
                             Console.WriteLine(response.MatchIndex);
                             this._settings.CommitIndex = response.MatchIndex;
                             Console.WriteLine($"leader commit index {this._settings.CommitIndex}");
-                            this._logger.CommitEntry(this._settings.CommitIndex);
+                            LogEntry entry = this._logger.CommitEntry(this._settings.CommitIndex);
 
                             // preform dynamic action after commit:
-
+                            Action commitAction = new Action(entry.Operation + "BeforeCommit", entry.OperationArgs);
+                            await this._dynamicActions.NameToAction(commitAction);
                         }
                         this._followers[address].CommitIndex = response.MatchIndex;
                         this._followers[address].Request.CommitIndex = response.MatchIndex;

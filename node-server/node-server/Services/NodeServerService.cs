@@ -4,6 +4,7 @@ using GrpcNodeServer;
 using NodeServer.Managers;
 using NodeServer.Managers.RaftNameSpace;
 using LogEntry = NodeServer.Managers.RaftNameSpace.LogEntry;
+using NodeServer.Utilities;
 
 namespace NodeServer.Services
 {
@@ -13,8 +14,7 @@ namespace NodeServer.Services
         private Raft _raft;
         private FileVersionManager _fileVersionManager;
         private readonly string _baseFolderName = "TempFiles";
-        private readonly int _fixedUserStorageSpace = 100000000;//in bytes = 100mb
-        private readonly int _fixedUserTempStorageSpace = 10000000;//in bytes = 10mb
+        
 
         public NodeServerService(FileSaving micro, Raft raft, FileVersionManager fileVerM)
         {
@@ -30,75 +30,18 @@ namespace NodeServer.Services
             }
         }
 
-        private static void SaveMemoryStreamToFile(MemoryStream memoryStream, string filePath)
-        {
-            using (FileStream fileStream = new FileStream(filePath, FileMode.Create))
-            {
-                memoryStream.CopyTo(fileStream);
-            }
-        }
-        private int GetLastIndex()
+        
+        static private int GetLastIndex()
         {
             RaftSettings tempRaftSettings = new RaftSettings();
             return (new Log(tempRaftSettings.LogFilePath)).GetLastLogEntry().Index;
         }
 
-        private string GetServerIP()
+        private static string GetServerIP()
         {
             RaftSettings tempRaftSettings = new RaftSettings();
             return tempRaftSettings.ServerAddress;
         }
-
-        private bool SaveFile(string fileId, int userId, string type, MemoryStream fileData)
-        {
-            if (fileData.Length + this._fileVersionManager.GetUserUsedSpace(userId, fileId) > this._fixedUserStorageSpace || //memory
-                GetDirectorySize(Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId)) + fileData.Length > this._fixedUserTempStorageSpace) //temp memory
-            {
-                return false;
-            }
-
-            string currentDirectory = Directory.GetCurrentDirectory();
-            string folderPath = Path.Combine(currentDirectory, this._baseFolderName, fileId);
-            if (!Directory.Exists(folderPath))
-            {
-                Directory.CreateDirectory(folderPath);
-            }
-
-            string filePath = Path.Combine(folderPath, $"{fileId}_{this._fileVersionManager.GetLatestFileVersion(fileId, userId) + 1}");
-
-            SaveMemoryStreamToFile(fileData, filePath);
-            this._fileVersionManager.SaveFileVersion(userId, fileId, type, fileData.Length, filePath);
-            return true;
-        }
-
-
-        private static long GetDirectorySize(string directoryPath)
-        {
-            long directorySize = 0;
-
-            if (Directory.Exists(directoryPath))
-            {
-                string[] files = Directory.GetFiles(directoryPath);
-                foreach (string file in files)
-                {
-                    FileInfo fileInfo = new FileInfo(file);
-                    directorySize += fileInfo.Length;
-                }
-                string[] subdirectories = Directory.GetDirectories(directoryPath);
-                foreach (string subdirectory in subdirectories)
-                {
-                    directorySize += GetDirectorySize(subdirectory);
-                }
-            }
-            else
-            {
-                Console.WriteLine($"Directory {directoryPath} does not exist.");
-            }
-
-            return directorySize;
-        }
-
-
 
         private async Task<KeyValuePair<string, MemoryStream>> ParseUploadRequest(IAsyncStreamReader<UploadFileRequest> requestStream)
         {
@@ -115,7 +58,7 @@ namespace NodeServer.Services
                 fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
             }
 
-            if (!SaveFile(fileId, userId, type, fileData))
+            if (!TempStorageActions.SaveFile(fileId, userId, type, fileData, this._fileVersionManager))
             {
                 return new KeyValuePair<string, MemoryStream>(null, null);
             }
@@ -169,12 +112,12 @@ namespace NodeServer.Services
 
             string type = this._fileVersionManager.GetFileType(fileId, userId);
 
-            if (!SaveFile(fileId, userId, type, fileData))
+            if (!TempStorageActions.SaveFile(fileId, userId, type, fileData, this._fileVersionManager))
             {
                 return new KeyValuePair<string, MemoryStream>(null, null);
             }
 
-            return new KeyValuePair<string, MemoryStream>($"[{userId},{fileId},{type},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)}]", fileData);
+            return new KeyValuePair<string, MemoryStream>($"[{userId},{fileId},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)}]", fileData);
         }
         
 
@@ -207,22 +150,12 @@ namespace NodeServer.Services
             }
         }
 
-        private static bool IsFolderEmpty(string path)
-        { 
-            if (!Directory.Exists(path))
-            {
-                throw new DirectoryNotFoundException($"Directory not found: {path}");
-            }
-
-            string[] files = Directory.GetFiles(path);
-
-            return (files.Length == 0);
-        }
+        
 
         private async Task<byte[]> GetFile(string fileId, int userId)
         {
             string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId);
-            if (IsFolderEmpty(folderPath)) 
+            if (TempStorageActions.IsFolderEmpty(folderPath)) 
             {
                 return await this._microservice.downloadFile(fileId);
             }
@@ -297,8 +230,6 @@ namespace NodeServer.Services
 
                 Directory.Delete(folderPath, true);
                 this._fileVersionManager.RemoveAllFileVersions(request.FileId, request.UserId);
-
-                //this._microservice.deleteFile(request.FileId);
 
                 return new DeleteFileResponse { Status = true, Message = "File deleted successfully." };
             }
