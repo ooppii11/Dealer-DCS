@@ -3,7 +3,7 @@ using NodeServer.Managers.RaftNameSpace;
 
 namespace NodeServer.Utilities
 {
-    public class TempStorageActions
+    public class OnMachineStorageActions
     {
         private static readonly string _baseFolderName = "TempFiles";
         private static readonly int _fixedUserStorageSpace = 100000000;//in bytes = 100mb
@@ -56,14 +56,14 @@ namespace NodeServer.Utilities
 
         public static bool SaveFile(string fileId, int userId, string type, MemoryStream fileData, FileVersionManager fileVersionManager)
         {
-            if (fileData.Length + fileVersionManager.GetUserUsedSpace(userId, fileId) > TempStorageActions._fixedUserStorageSpace || //memory
-                TempStorageActions.GetDirectorySize(Path.Combine(Directory.GetCurrentDirectory(), TempStorageActions._baseFolderName, fileId)) + fileData.Length > TempStorageActions._fixedUserTempStorageSpace) //temp memory
+            if (fileData.Length + fileVersionManager.GetUserUsedSpace(userId, fileId) > OnMachineStorageActions._fixedUserStorageSpace || //memory
+                OnMachineStorageActions.GetDirectorySize(Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, fileId)) + fileData.Length > OnMachineStorageActions._fixedUserTempStorageSpace) //temp memory
             {
                 return false;
             }
 
             string currentDirectory = Directory.GetCurrentDirectory();
-            string folderPath = Path.Combine(currentDirectory, TempStorageActions._baseFolderName, fileId);
+            string folderPath = Path.Combine(currentDirectory, OnMachineStorageActions._baseFolderName, fileId);
             if (!Directory.Exists(folderPath))
             {
                 Directory.CreateDirectory(folderPath);
@@ -71,9 +71,31 @@ namespace NodeServer.Utilities
 
             string filePath = Path.Combine(folderPath, $"{fileId}_{fileVersionManager.GetLatestFileVersion(fileId, userId) + 1}");
 
-            TempStorageActions.SaveMemoryStreamToFile(fileData, filePath);
+            OnMachineStorageActions.SaveMemoryStreamToFile(fileData, filePath);
             fileVersionManager.SaveFileVersion(userId, fileId, type, fileData.Length, filePath);
             return true;
+        }
+
+        public static async Task<byte[]> GetFile(string opName, string opArgs, bool beforeCommit, FileSaving micro)
+        {
+            string[] argsList = OnMachineStorageActions.ParseLogEntryArgs(opArgs);
+            if (opName == "UploadFile" || opName == "UpdateFile")
+            {
+                string folderPath = Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, argsList[1]);
+                if (beforeCommit)
+                {
+                    return File.ReadAllBytes(Path.Combine(folderPath, $"{argsList[1]}_{argsList[2]}"));
+                }
+                return await micro.downloadFile(argsList[1]);
+            }
+            return new byte[0];
+        }
+
+
+        private static string[] ParseLogEntryArgs(string args)
+        {
+            return args.Trim('[', ']').Split(',');
+
         }
     }
 }

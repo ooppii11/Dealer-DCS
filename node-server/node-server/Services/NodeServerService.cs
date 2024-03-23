@@ -58,12 +58,12 @@ namespace NodeServer.Services
                 fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
             }
 
-            if (!TempStorageActions.SaveFile(fileId, userId, type, fileData, this._fileVersionManager))
+            if (!OnMachineStorageActions.SaveFile(fileId, userId, type, fileData, this._fileVersionManager))
             {
                 return new KeyValuePair<string, MemoryStream>(null, null);
             }
 
-            return new KeyValuePair<string, MemoryStream>($"[{userId},{fileId},{type},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)}]", fileData);
+            return new KeyValuePair<string, MemoryStream>($"[{userId},{fileId},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)},{type}]", fileData);
         }
     
 
@@ -112,7 +112,7 @@ namespace NodeServer.Services
 
             string type = this._fileVersionManager.GetFileType(fileId, userId);
 
-            if (!TempStorageActions.SaveFile(fileId, userId, type, fileData, this._fileVersionManager))
+            if (!OnMachineStorageActions.SaveFile(fileId, userId, type, fileData, this._fileVersionManager))
             {
                 return new KeyValuePair<string, MemoryStream>(null, null);
             }
@@ -155,7 +155,7 @@ namespace NodeServer.Services
         private async Task<byte[]> GetFile(string fileId, int userId)
         {
             string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId);
-            if (TempStorageActions.IsFolderEmpty(folderPath)) 
+            if (OnMachineStorageActions.IsFolderEmpty(folderPath)) 
             {
                 return await this._microservice.downloadFile(fileId);
             }
@@ -168,7 +168,7 @@ namespace NodeServer.Services
             try
             {
                 const string operationName = "DownloadFile";
-                string args = $"[{request.UserId},{request.FileId}]";
+                string args = $"[{request.UserId},{request.FileId},{this._fileVersionManager.GetLatestFileVersion(request.FileId, request.UserId)}]";
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
                 if (!await this._raft.appendEntry(entry))
                 {
@@ -213,7 +213,7 @@ namespace NodeServer.Services
             try
             {
                 const string operationName = "DeleteFile";
-                string args = $"[{request.UserId},{request.FileId}]";
+                string args = $"[{request.UserId},{request.FileId},{this._fileVersionManager.GetLatestFileVersion(request.FileId, request.UserId)}]";
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
                 if (!await this._raft.appendEntry(entry))
                 {

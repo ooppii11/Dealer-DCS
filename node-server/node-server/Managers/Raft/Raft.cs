@@ -191,6 +191,10 @@ namespace NodeServer.Managers.RaftNameSpace
                         this._logger.AppendEntry(entry);
                         this._settings.LastLogIndex += 1;
                     }
+                    else 
+                    {
+                        return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
+                    }
                     
                 }
 
@@ -208,6 +212,10 @@ namespace NodeServer.Managers.RaftNameSpace
                         this._logger.CommitEntry(totalCommitIndex);
                         this._settings.CommitIndex = totalCommitIndex;
                     }
+                    else
+                    {
+                        return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
+                    }
                 }
 
             }
@@ -217,11 +225,11 @@ namespace NodeServer.Managers.RaftNameSpace
             }
 
             return new AppendEntriesResponse()
-                {
-                    MatchIndex = this._settings.LastLogIndex,
-                    Success = true,
-                    Term = this._settings.CurrentTerm
-                };
+            {
+                MatchIndex = this._settings.LastLogIndex,
+                Success = true,
+                Term = this._settings.CurrentTerm
+            };
             
         }
 

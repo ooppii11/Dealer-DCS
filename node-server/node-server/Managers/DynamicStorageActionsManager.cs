@@ -21,19 +21,24 @@ namespace NodeServer.Managers
             this._fileVersionManager = fileVerM;
         }
 
+        public override ActionMaker getActionMaker()
+        {
+            return this._microservice;
+        }
+
         public override async Task<bool> NameToAction(Action ac)
         {
             Dictionary<string, Delegate> functionsWrapper = new Dictionary<string, Delegate>
         {
             { "UploadFileAfterCommit", new Func<string, string, string, string, Task<bool>>(UploadFileAfterCommit) },
             { "UpdateFileAfterCommit", new Func<string, string, string, Task<bool>>(UpdateFileAfterCommit) },
-            { "DownloadFileAfterCommit", new Func<string, string, bool>(DownloadFileAfterCommit) },
-            { "DeleteFileAfterCommit", new Func<string, string, bool>(DeleteFileAfterCommit) },
+            { "DownloadFileAfterCommit", new Func<string, string, string, bool>(DownloadFileAfterCommit) },
+            { "DeleteFileAfterCommit", new Func<string, string, string, bool>(DeleteFileAfterCommit) },
 
             { "UploadFileBeforeCommit", new Func<string, string, string, string, byte[], bool>(UploadFileBeforeCommit) },
             { "UpdateFileBeforeCommit", new Func<string, string, string, byte[], bool>(UpdateFileBeforeCommit) },
-            { "DownloadFileBeforeCommit", new Func<string, string, bool>(DownloadFileBeforeCommit) },
-            { "DeleteFileBeforeCommit", new Func<string, string, bool>(DeleteFileBeforeCommit) },
+            { "DownloadFileBeforeCommit", new Func<string, string, string, bool>(DownloadFileBeforeCommit) },
+            { "DeleteFileBeforeCommit", new Func< string, string, string, bool >(DeleteFileBeforeCommit) },
         };
 
             if (functionsWrapper.TryGetValue(ac.ActionName, out Delegate func))
@@ -97,7 +102,7 @@ namespace NodeServer.Managers
             File.Delete(filePath);
         }
 
-        private async Task<bool> UploadFileAfterCommit(string strUserId, string fileId, string type, string strVersion)
+        private async Task<bool> UploadFileAfterCommit(string strUserId, string fileId, string strVersion, string type)
         {
             try
             {
@@ -124,7 +129,7 @@ namespace NodeServer.Managers
             try
             {
                 int userId = Convert.ToInt32(strUserId);
-                int version = Convert.ToInt32(strVersion); 
+                int version = Convert.ToInt32(strVersion);
                 string type = this._fileVersionManager.GetFileType(fileId, userId);
                 if (type == null)
                 {
@@ -147,12 +152,12 @@ namespace NodeServer.Managers
             }
         }
 
-        private bool DownloadFileAfterCommit(string userId, string fileId)
+        private bool DownloadFileAfterCommit(string userId, string fileId, string strVersion)
         {
             return true;
         }
 
-        private bool DeleteFileAfterCommit(string userId, string fileId)
+        private bool DeleteFileAfterCommit(string userId, string fileId, string strVersion)
         {
             try
             {
@@ -168,7 +173,7 @@ namespace NodeServer.Managers
         private bool UploadFileBeforeCommit(string strUserId, string fileId, string type, string strVersion, byte[] fileData)
         {
             int userId = Convert.ToInt32(strUserId);
-            if (!TempStorageActions.SaveFile(fileId, userId, type, new MemoryStream(fileData), this._fileVersionManager))
+            if (!OnMachineStorageActions.SaveFile(fileId, userId, type, new MemoryStream(fileData), this._fileVersionManager))
             {
                 return false;
             }
@@ -183,19 +188,19 @@ namespace NodeServer.Managers
             {
                 return true;
             }
-            if (!TempStorageActions.SaveFile(fileId, userId, type, new MemoryStream(fileData), this._fileVersionManager))
+            if (!OnMachineStorageActions.SaveFile(fileId, userId, type, new MemoryStream(fileData), this._fileVersionManager))
             {
                 return false;
             }
             return true;
         }
 
-        private bool DownloadFileBeforeCommit(string userId, string fileId)
+        private bool DownloadFileBeforeCommit(string userId, string fileId, string strVersion)
         {
             return true;
         }
 
-        private bool DeleteFileBeforeCommit(string strUserId, string fileId)
+        private bool DeleteFileBeforeCommit(string strUserId, string fileId, string strVersion)
         {
             int userId = Convert.ToInt32(strUserId);
             string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId);
@@ -208,6 +213,8 @@ namespace NodeServer.Managers
             this._fileVersionManager.RemoveAllFileVersions(fileId, userId);
             return true;
         }
+
+
     }
 }
 

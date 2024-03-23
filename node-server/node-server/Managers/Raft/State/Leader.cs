@@ -8,19 +8,20 @@ using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using GrpcServerToServer;
 using static Grpc.Core.Metadata;
+using NodeServer.Utilities;
 
 namespace NodeServer.Managers.RaftNameSpace.States
 {
     class Node
     {
-        private readonly string addres;
+        private readonly string address;
         private int _matchIndex;
         private int _commitIndex;
         private AppendEntriesRequest _request;
 
-        public Node(string addres)
+        public Node(string address)
         {
-            this.addres = addres;
+            this.address = address;
             this._matchIndex = -1;
             this._commitIndex = -1;
         }
@@ -53,7 +54,6 @@ namespace NodeServer.Managers.RaftNameSpace.States
         private TaskCompletionSource<bool> _completionSource;
         private readonly string _cloudAddress = "127.0.0.1:50053";
         private IDynamicActions _dynamicActions;
-        private object _lock;
         public Leader(RaftSettings raftSettings, Log logger, IDynamicActions dynamicActions) :
             base(raftSettings, logger)
         {
@@ -122,24 +122,29 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         private async Task SendHeartbeatRequest()
         {
-            foreach (string address in _followers.Keys.ToList())
+            //foreach (string address in _followers.Keys.ToList())
+            foreach (string address in this._settings.ServersAddresses)
             {
-                try
+                if (address != this._settings.ServerAddress)
                 {
-                    ServerToServerClient s2s = new ServerToServerClient(address);
-                    AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
-                    this.OnReceiveAppendEntriesResponse(response, address);
-                }
-                catch (RpcException e)
-                {
-                    if (e.StatusCode == StatusCode.Unavailable)
+                    Console.WriteLine($"HeartBeat Address: {address}");
+                    try
                     {
-                        Console.WriteLine($"Server at {address} is Unavailable (down)");
+                        ServerToServerClient s2s = new ServerToServerClient(address);
+                        AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
+                        this.OnReceiveAppendEntriesResponse(response, address);
                     }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"error send to {address}");
+                    catch (RpcException e)
+                    {
+                        if (e.StatusCode == StatusCode.Unavailable)
+                        {
+                            Console.WriteLine($"Server at {address} is Unavailable (down)");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"error send to {address}");
+                    }
                 }
             }
             await sendLeaderToViewerHeartBeat();
@@ -318,7 +323,11 @@ namespace NodeServer.Managers.RaftNameSpace.States
             }
             else
             {
-                if (response.MatchIndex < this._followers[address].Request.LogEntry.LogIndex)
+                /*if (MajorityAgreeOnMatchIndex(response.MatchIndex))
+                {
+                    //install snapshot
+                }
+                else*/ if (response.MatchIndex < this._followers[address].Request.LogEntry.LogIndex)
                 {
                     LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
                     Console.WriteLine(entry.Timestamp);
@@ -334,13 +343,13 @@ namespace NodeServer.Managers.RaftNameSpace.States
                             Term = this._settings.CurrentTerm,
                             PrevLogIndex = response.MatchIndex,
                             LogIndex = response.MatchIndex + 1,
-                            
+
                             Timestamp = Timestamp.FromDateTime(entry.Timestamp.ToUniversalTime()),
                             Operation = entry.Operation,
                             OperationArgs = entry.OperationArgs
 
                         },
-                        //pass file data
+                        FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex), this._dynamicActions.getActionMaker() as FileSaving))
                     };
                 }
                     Console.WriteLine("not successful"); 
