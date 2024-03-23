@@ -9,7 +9,8 @@ namespace NodeServer.Services
 {
     public class ServerToServerService : ServerToServer.ServerToServerBase
     {
-        private Raft _raft;    
+        private Raft _raft;
+        
         public ServerToServerService(Raft raft)
         {
             this._raft = raft;
@@ -18,19 +19,19 @@ namespace NodeServer.Services
         public override Task<RequestVoteResponse> RequestVote(RequestVoteRequest request, ServerCallContext context)
         {
             bool vote = this._raft.OnReceiveVoteRequest(request);
-           
+
+
             RequestVoteResponse response = new RequestVoteResponse()
             {
                 Term = this._raft.Settings.CurrentTerm,
                 Vote = vote
             };
-
             return Task.FromResult(response);
         }
 
         public async override Task<AppendEntriesResponse> AppendEntries(IAsyncStreamReader<AppendEntriesRequest> requestStream, ServerCallContext context)
         {
-            AppendEntriesResponse response;
+            AppendEntriesResponse response = null;
 
             try
             {

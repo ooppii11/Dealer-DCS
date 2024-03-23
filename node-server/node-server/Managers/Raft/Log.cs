@@ -7,6 +7,7 @@ namespace NodeServer.Managers.RaftNameSpace
     public class Log
     {
         private string _logFilePath;
+        private static object _fileLock = new object();
 
         public Log(string logFilePath)
         {
@@ -20,14 +21,17 @@ namespace NodeServer.Managers.RaftNameSpace
 
         public void AppendEntry(LogEntry entry)
         {
-            List<string> fileContent = new List<string>();
-            if (File.Exists(this._logFilePath))
+            lock (_fileLock) 
             {
-                fileContent = File.ReadAllLines(this._logFilePath).ToList();
+                List<string> fileContent = new List<string>();
+                if (File.Exists(this._logFilePath))
+                {
+                    fileContent = File.ReadAllLines(this._logFilePath).ToList();
+                }
+                entry.Index = fileContent.Count();
+                fileContent.Add(entry.ToString());
+                File.WriteAllLines(this._logFilePath, fileContent);
             }
-            entry.Index = fileContent.Count();
-            fileContent.Add(entry.ToString());
-            File.WriteAllLines(this._logFilePath, fileContent);
         }
 
         public LogEntry CommitEntry(int index)
@@ -35,53 +39,56 @@ namespace NodeServer.Managers.RaftNameSpace
             string logLine = "";
             string[] fileContent;
             LogEntry entry;
-
-            fileContent = File.ReadAllLines(this._logFilePath);
-            logLine = fileContent[index];
-            entry = new LogEntry(logLine);
-            entry.SetCommit(true);
-            fileContent[index] = entry.ToString();
-
-            File.WriteAllLines(this._logFilePath, fileContent);
+            lock (_fileLock)
+            {
+                fileContent = File.ReadAllLines(this._logFilePath);
+                logLine = fileContent[index];
+                entry = new LogEntry(logLine);
+                entry.SetCommit(true);
+                fileContent[index] = entry.ToString();
+                File.WriteAllLines(this._logFilePath, fileContent);
+            }
             return entry;
         }
 
-        public LogEntry GetLogAtPlaceN(uint n)
+        public LogEntry GetLogAtPlaceN(int n)
         {
             string logLine = "";
             LogEntry entry;
-
-            var logLines = File.ReadLines(this._logFilePath);
-            if (logLines.Count() < n)
+            lock (_fileLock)
             {
-                logLine = "";
-                entry = new LogEntry(-1, DateTime.MinValue, "null", "null", "null", false);
+                var logLines = File.ReadLines(this._logFilePath);
+                if (logLines.Count() < n)
+                {
+                    logLine = "";
+                    entry = new LogEntry(-1, DateTime.MinValue, "null", "null", "null", false);
+                }
+                else
+                {
+                    logLine = logLines.ToArray()[n];
+                    entry = new LogEntry(logLine);
+                }
             }
-            else
-            {
-                logLine = logLines.ToArray()[n];
-                entry = new LogEntry(logLine);
-            }
-
             return entry;
         }
         public LogEntry GetLastLogEntry()
         {
             string logLine = "";
             LogEntry entry;
-
-            var logLines = File.ReadLines(this._logFilePath);
-            if (logLines.Count() == 0)
+            lock (_fileLock)
             {
-                logLine = "";
-                entry = new LogEntry(-1, DateTime.MinValue, "null", "null", "null", false);
+                var logLines = File.ReadLines(this._logFilePath);
+                if (logLines.Count() == 0)
+                {
+                    logLine = "";
+                    entry = new LogEntry(-1, DateTime.MinValue, "null", "null", "null", false);
+                }
+                else
+                {
+                    logLine = logLines.Last();
+                    entry = new LogEntry(logLine);
+                }
             }
-            else
-            {
-                logLine = logLines.Last();
-                entry = new LogEntry(logLine);
-            }
-
             return entry;
         }
 

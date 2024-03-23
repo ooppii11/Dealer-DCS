@@ -13,8 +13,8 @@ def main():
     # Set the working directory
     os.chdir(directory)
 
-    #ports = ["1111 1.log", "2222 2.log", "3333 3.log"]
-    ports = ["2222 2.log", "3333 3.log"]
+    ports = ["1111 1.log", "2222 2.log", "3333 3.log"]
+    #ports = ["2222 2.log", "3333 3.log"]
 
     for port in ports:
         full_path = f'"{base_path}" {port}'

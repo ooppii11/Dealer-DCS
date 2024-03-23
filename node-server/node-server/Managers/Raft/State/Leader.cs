@@ -52,6 +52,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
         private TaskCompletionSource<bool> _completionSource;
         private readonly string _cloudAddress = "127.0.0.1:50053";
         private IDynamicActions _dynamicActions;
+        private object _lock;
         public Leader(RaftSettings raftSettings, Log logger, IDynamicActions dynamicActions) :
             base(raftSettings, logger)
         {
@@ -95,7 +96,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
         {
             this._cancellationToken = cancellationToken;
             this._completionSource = new TaskCompletionSource<bool>();
-
+            
 
             this._timer = new System.Timers.Timer();
             this._timer.Interval = this._settings.HeartbeatTimeout;
@@ -114,12 +115,12 @@ namespace NodeServer.Managers.RaftNameSpace.States
             return Raft.StatesCode.Follower;
         }
 
-        private void OnHeartBeatTimerElapsed(object sender, ElapsedEventArgs e)
+        private async void OnHeartBeatTimerElapsed(object sender, ElapsedEventArgs e)
         {
-            this.SendHeartbeatRequest();
+            await this.SendHeartbeatRequest();
         }
 
-        private async void SendHeartbeatRequest()
+        private async Task SendHeartbeatRequest()
         {
             foreach (string address in this._settings.ServersAddresses)
             {
@@ -144,10 +145,11 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     }
                 }
             }
-            sendLeaderToViewerHeartBeat();
+            await sendLeaderToViewerHeartBeat();
+            this._settings.LockLeaderFirstHeartBeat = false;
         }
 
-        private async void sendLeaderToViewerHeartBeat()
+        private async Task sendLeaderToViewerHeartBeat()
         {
             try 
             {
@@ -213,6 +215,13 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     Console.WriteLine($"sent new append entries to {address}");
                     this.OnReceiveAppendEntriesResponse(response, address);
                 }
+                catch (RpcException e)
+                {
+                    if (e.StatusCode == StatusCode.Unavailable)
+                    {
+                        Console.WriteLine($"Server at {address} is Unavailable (down)");
+                    }
+                }
                 catch (Exception e) 
                 {
                     Console.WriteLine($"error send append entries to {address}");
@@ -268,7 +277,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 }
                 else if (response.MatchIndex < this._settings.LastLogIndex)
                 {
-                    LogEntry entry = this._logger.GetLogAtPlaceN((uint)response.MatchIndex + 1);
+                    LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
                     Console.WriteLine(entry.Timestamp);
                     this._followers[address].Request = new AppendEntriesRequest()
                     {
@@ -294,6 +303,13 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 {
                     await s2s.sendAppendEntriesRequest(this._followers[address].Request);
                 }
+                catch (RpcException e)
+                {
+                    if (e.StatusCode == StatusCode.Unavailable)
+                    {
+                        Console.WriteLine($"Server at {address} is Unavailable (down)");
+                    }
+                }
                 catch (Exception e)
                 {
                     Console.WriteLine($"error send commit to {address}\n\n\n");
@@ -305,7 +321,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
             {
                 if (response.MatchIndex < this._followers[address].Request.LogEntry.LogIndex)
                 {
-                    LogEntry entry = this._logger.GetLogAtPlaceN((uint)response.MatchIndex + 1);
+                    LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
                     Console.WriteLine(entry.Timestamp);
                     this._followers[address].Request = new AppendEntriesRequest()
                     {

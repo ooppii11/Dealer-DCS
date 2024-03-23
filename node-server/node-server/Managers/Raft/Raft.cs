@@ -48,7 +48,7 @@ namespace NodeServer.Managers.RaftNameSpace
             {
                 for (int i = entry.Index - 1; i > -1; i--)
                 {
-                    if (this._logger.GetLogAtPlaceN((uint)i).IsCommited())
+                    if (this._logger.GetLogAtPlaceN(i).IsCommited())
                     {
                         this._settings.CommitIndex = i;
                         break;
@@ -65,6 +65,7 @@ namespace NodeServer.Managers.RaftNameSpace
                 Leader leaderObject = this._state as Leader;
                 await leaderObject.AppendEntries(entry, fileData);
 
+                return true;
             }
             return false;
         }
@@ -75,7 +76,7 @@ namespace NodeServer.Managers.RaftNameSpace
             {
                 Leader leaderObject = this._state as Leader;
                 await leaderObject.AppendEntries(entry, new byte[0]);
-
+                return true;
             }
             return false;
         }
@@ -91,10 +92,15 @@ namespace NodeServer.Managers.RaftNameSpace
             Run();
 
         }
-        public async Task<AppendEntriesResponse> OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> requests, string addres)
+        public async Task<AppendEntriesResponse> OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> requests, string address)
         {
+            if (this._settings.LockLeaderFirstHeartBeat)
+            {
+                return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
+            }
+            
             _cancellationTokenSource.Cancel();
-            Console.WriteLine("resetting timer");
+            //Console.WriteLine("resetting timer");
             int totalTerm = 0;
             int totalPrevIndex = 0;
             int totalPrevTerm = 0;
@@ -127,14 +133,14 @@ namespace NodeServer.Managers.RaftNameSpace
 
             if (totalLogEntries.Count > 0)
             {
-                Console.WriteLine("addres: " + addres);
+                Console.WriteLine("address: " + address);
                 Console.WriteLine("Total Term: " + totalTerm);
                 Console.WriteLine("Total Previous Index: " + totalPrevIndex);
                 Console.WriteLine("Total Previous Term: " + totalPrevTerm);
                 Console.WriteLine("Total Commit Index: " + totalCommitIndex);
 
                 // Print accumulated log entries
-                Console.WriteLine("Total Log Entries" + totalLogEntries.Count());
+                Console.WriteLine($"Total Log Entries {totalLogEntries.Count()}");
                 foreach (var logEntry in totalLogEntries)
                 {
                     Console.WriteLine($"- Term: {logEntry.Term}, LogIndex: {logEntry.LogIndex}, Operation: {logEntry.Operation}, OperationArgs: {logEntry.OperationArgs}, Timestamp: {logEntry.Timestamp}");
@@ -157,28 +163,33 @@ namespace NodeServer.Managers.RaftNameSpace
 
                 // check for append new log line
                 if (totalLogEntries.Count() > 0 && (totalLogEntries[0].LogIndex == 1 + this._settings.LastLogIndex))//|| this._settings.LastLogIndex == 0))
-            {
+                {
                     Console.WriteLine("Append entries");
                     LogEntry entry = new LogEntry(
                                 totalLogEntries[0].LogIndex,
                                 totalLogEntries[0].Timestamp.ToDateTime(),
-                                addres,
+                                address,
                                 totalLogEntries[0].Operation,
                                 totalLogEntries[0].OperationArgs,
                            false
                         );
-                    this._logger.AppendEntry(entry);
-                    this._settings.LastLogIndex += 1;
                     
+                    bool result = false;
                     if (fileData.Length > 0)
                     {
                         Action commitAction = new Action(entry.Operation + "BeforeCommit", entry.OperationArgs, fileData.ToArray());
-                        await this._dynamicActions.NameToAction(commitAction);
+                        result = await this._dynamicActions.NameToAction(commitAction);
                     }
                     else 
                     {
                         Action commitAction = new Action(entry.Operation + "BeforeCommit", entry.OperationArgs);
-                        await this._dynamicActions.NameToAction(commitAction);
+                        result = await this._dynamicActions.NameToAction(commitAction);
+                    }
+
+                    if (result)
+                    {
+                        this._logger.AppendEntry(entry);
+                        this._settings.LastLogIndex += 1;
                     }
                     
                 }
@@ -188,12 +199,15 @@ namespace NodeServer.Managers.RaftNameSpace
                 {
                     Console.WriteLine("commit");
                     Console.WriteLine(totalCommitIndex);
-                    LogEntry entry = this._logger.CommitEntry(totalCommitIndex);
-                    this._settings.CommitIndex = totalCommitIndex;
+                    LogEntry entry = this._logger.GetLogAtPlaceN(totalCommitIndex);
                     Action commitAction = new Action(entry.Operation + "AfterCommit", entry.OperationArgs);
 
                     // preform dynamic action after commit:
-                    await this._dynamicActions.NameToAction(commitAction);
+                    if (await this._dynamicActions.NameToAction(commitAction))
+                    {
+                        this._logger.CommitEntry(totalCommitIndex);
+                        this._settings.CommitIndex = totalCommitIndex;
+                    }
                 }
 
             }
@@ -201,6 +215,7 @@ namespace NodeServer.Managers.RaftNameSpace
             {
                 Console.WriteLine(ex.Message);
             }
+
             return new AppendEntriesResponse()
                 {
                     MatchIndex = this._settings.LastLogIndex,
@@ -211,17 +226,20 @@ namespace NodeServer.Managers.RaftNameSpace
         }
 
         public bool OnReceiveVoteRequest(RequestVoteRequest request)
-        { 
-            Console.WriteLine($"Voting");
-            Console.WriteLine($"My Term: {this._settings.CurrentTerm}, Request Term: {request.Term}");
-            _cancellationTokenSource.Cancel();
-            Console.WriteLine("resetting timer");
-            if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+        {
+            if (!this._settings.LockLeaderFirstHeartBeat)
             {
-                this._settings.PreviousTerm = this._settings.CurrentTerm;
-                this._settings.CurrentTerm = request.Term;
-                this._settings.VotedFor = request.CandidateId;
-                return true;
+                Console.WriteLine($"Voting");
+                Console.WriteLine($"My Term: {this._settings.CurrentTerm}, Request Term: {request.Term}");
+                _cancellationTokenSource.Cancel();
+                //Console.WriteLine("resetting timer");
+                if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+                {
+                    this._settings.PreviousTerm = this._settings.CurrentTerm;
+                    this._settings.CurrentTerm = request.Term;
+                    this._settings.VotedFor = request.CandidateId;
+                    return true;
+                }
             }
             Console.WriteLine("REJECT");
             return false;
@@ -241,25 +259,22 @@ namespace NodeServer.Managers.RaftNameSpace
                 {
                     if (this._currentStateCode == StatesCode.Follower)
                     {
-                        Console.WriteLine("Follower");
+                        //Console.WriteLine("Follower");
                         this._state = new Follower(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
                     }
                     else if (this._currentStateCode == StatesCode.Candidate)
                     {
-                        Console.WriteLine("Candidate");
+                        //Console.WriteLine("Candidate");
                         this._state = new Candidate(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
-                        if (this._currentStateCode == StatesCode.Leader)
-                        {
-                            this._settings.ElectionTimeout = new Random().Next(150, 3011);
-                        }
                     }
                     else if (this._currentStateCode == StatesCode.Leader)
                     {
-                        Console.WriteLine("Leader");
+                        //Console.WriteLine("Leader");
+                        this._settings.LockLeaderFirstHeartBeat = true;
                         this._state = new Leader(this._settings, this._logger, this._dynamicActions);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
