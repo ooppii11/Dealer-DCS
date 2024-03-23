@@ -67,19 +67,18 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         private void InitHeartbeatMessages()
         {
-            for (int i = 0; i < this._settings.ServersAddresses.Count; i++)
+            foreach (string serverAddress in this._settings.ServersAddresses)
             {
-                if (this._settings.ServersAddresses[i] != this._settings.ServerAddress)
+                if (serverAddress != this._settings.ServerAddress)
                 {
-                    this._followers.Add(this._settings.ServersAddresses[i], new Node(this._settings.ServersAddresses[i]));
-                    this._followers[this._settings.ServersAddresses[i]].Request =  new AppendEntriesRequest()
+                    this._followers.Add(serverAddress, new Node(serverAddress));
+                    this._followers[serverAddress].Request = new AppendEntriesRequest()
                     {
                         Term = this._settings.CurrentTerm,
                         PrevTerm = this._settings.PreviousTerm,
                         PrevIndex = _lastLogEntry.Index,
                         CommitIndex = this._settings.CommitIndex
                     };
-                   
                 }
             }
         }
@@ -123,27 +122,24 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         private async Task SendHeartbeatRequest()
         {
-            foreach (string address in this._settings.ServersAddresses)
+            foreach (string address in _followers.Keys.ToList())
             {
-                if (address != this._settings.ServerAddress)
+                try
                 {
-                    try
+                    ServerToServerClient s2s = new ServerToServerClient(address);
+                    AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
+                    this.OnReceiveAppendEntriesResponse(response, address);
+                }
+                catch (RpcException e)
+                {
+                    if (e.StatusCode == StatusCode.Unavailable)
                     {
-                        ServerToServerClient s2s = new ServerToServerClient(address);
-                        AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
-                        this.OnReceiveAppendEntriesResponse(response, address);
+                        Console.WriteLine($"Server at {address} is Unavailable (down)");
                     }
-                    catch (RpcException e)
-                    {
-                        if (e.StatusCode == StatusCode.Unavailable)
-                        {
-                            Console.WriteLine($"Server at {address} is Unavailable (down)");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"error send to {address}");
-                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"error send to {address}");
                 }
             }
             await sendLeaderToViewerHeartBeat();

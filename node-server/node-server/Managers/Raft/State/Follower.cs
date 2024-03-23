@@ -15,7 +15,12 @@ namespace NodeServer.Managers.RaftNameSpace.States
         public Follower(RaftSettings settings, Log logger) :
             base(settings, logger)
         {
-            this._settings.ElectionTimeout = (new Random().Next(500, 3001));
+            int addition = 0;
+            if (new Random().Next(0, 2) == 0)
+            {
+                addition = new Random().Next(100, 500);
+            }
+            this._settings.ElectionTimeout = (new Random().Next(300, 3001)) + addition;
         }
 
         ~Follower()
@@ -29,7 +34,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
         private void StartTimer()
         {
             this._timer = new System.Timers.Timer();
-            this._timer.Interval = this._settings.ElectionTimeout + (new Random().Next(0, 500));
+            this._timer.Interval = this._settings.ElectionTimeout + (new Random().Next(50, 500));
             this._timer.Elapsed += new ElapsedEventHandler(OnHeartBeatTimerElapsed);
             this._timer.Start();
         }
