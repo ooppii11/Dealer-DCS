@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Net;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Timers;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
@@ -42,7 +43,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
             set => _request = value;
         }
     }
-        public class Leader : State
+    public class Leader : State
     {
         private Dictionary<string, Node> _followers;
         private System.Timers.Timer _timer;
@@ -178,6 +179,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         public async Task AppendEntries(LogEntry entry, byte[] fileData)
         {
+            this._timer.Stop();
             this._logger.AppendEntry(entry);
             this._lastLogEntry = entry;
 
@@ -227,6 +229,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     Console.WriteLine($"error send append entries to {address}");
                 }
             }
+            this._timer.Start();
         }
 
         private bool MajorityAgreeOnMatchIndex(int matchIndexToCheck)
