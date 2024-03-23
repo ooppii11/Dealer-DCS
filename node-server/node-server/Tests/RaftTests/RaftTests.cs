@@ -1,10 +1,11 @@
-﻿using NodeServer.Managers.RaftNameSpace;
+﻿using NodeServer.Managers;
+using NodeServer.Managers.RaftNameSpace;
 using NodeServer.Services;
 using System.Net;
 using static Google.Protobuf.Compiler.CodeGeneratorResponse.Types;
 
-/*
-namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
+
+namespace Tests.RaftTests
 {
     public class GlobalVariables
     {
@@ -13,7 +14,7 @@ namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
     }
     public class Startup
     {
-        
+
         public void ConfigureServices(IServiceCollection services)
         {
             RaftSettings settings = new RaftSettings();
@@ -21,10 +22,15 @@ namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
             settings.ServerId = int.Parse(GlobalVariables.args);
             settings.LogFilePath = GlobalVariables.path;
             settings.ServerAddress = $"127.0.0.1:{settings.ServersPort}";
-            settings.ServersAddresses= new List<string> { "127.0.0.1:1111", "127.0.0.1:2222", "127.0.0.1:3333" };
+            settings.ServersAddresses = new List<string> { "127.0.0.1:1111", "127.0.0.1:2222", "127.0.0.1:3333" };
 
-            services.AddSingleton<Raft>(new Raft(settings));
-            services.AddSingleton<FileSaving>(new FileSaving("127.0.0.1", 50051));
+            FileSaving micro = new FileSaving("127.0.0.1", 50051);
+            FileVersionManager db = new FileVersionManager("FileManager.db");
+
+            services.AddSingleton<FileSaving>(micro);
+            services.AddSingleton<FileVersionManager>(db);
+            services.AddSingleton<Raft>(new Raft(settings, micro, db));
+
             services.AddGrpc();
 
         }
@@ -61,4 +67,3 @@ namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
                 });
     }
 }
-*/

@@ -2,7 +2,7 @@
   "profiles": {
     "node-server": {
       "commandName": "Project",
-      "commandLineArgs": "1111",
+      "commandLineArgs": "1111 1.log",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },

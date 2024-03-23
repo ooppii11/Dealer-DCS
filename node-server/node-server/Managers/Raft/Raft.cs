@@ -94,6 +94,7 @@ namespace NodeServer.Managers.RaftNameSpace
         public async Task<AppendEntriesResponse> OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> requests, string addres)
         {
             _cancellationTokenSource.Cancel();
+            Console.WriteLine("resetting timer");
             int totalTerm = 0;
             int totalPrevIndex = 0;
             int totalPrevTerm = 0;
@@ -214,6 +215,7 @@ namespace NodeServer.Managers.RaftNameSpace
             Console.WriteLine($"Voting");
             Console.WriteLine($"My Term: {this._settings.CurrentTerm}, Request Term: {request.Term}");
             _cancellationTokenSource.Cancel();
+            Console.WriteLine("resetting timer");
             if (this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
             {
                 this._settings.PreviousTerm = this._settings.CurrentTerm;
@@ -235,17 +237,18 @@ namespace NodeServer.Managers.RaftNameSpace
             while (true)
             {
                 CancellationToken cancellationToken = _cancellationTokenSource.Token;
-
                 if (this._state == null)
                 {
                     if (this._currentStateCode == StatesCode.Follower)
                     {
+                        Console.WriteLine("Follower");
                         this._state = new Follower(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
                     }
                     else if (this._currentStateCode == StatesCode.Candidate)
                     {
+                        Console.WriteLine("Candidate");
                         this._state = new Candidate(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
@@ -256,6 +259,7 @@ namespace NodeServer.Managers.RaftNameSpace
                     }
                     else if (this._currentStateCode == StatesCode.Leader)
                     {
+                        Console.WriteLine("Leader");
                         this._state = new Leader(this._settings, this._logger, this._dynamicActions);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;

@@ -5,7 +5,7 @@ def open_terminal_and_run_exe(exe_path):
 
 def main():
     #update the path
-    base_path = r'C:\Users\test0\OneDrive\שולחן העבודה\cloud storage\DEALER_DCS\node-server\node-server\bin\Debug\net7.0\node-server.exe'
+    base_path = r'C:\src\cloud-project\DEALER_DCS\node-server\node-server\bin\Debug\net7.0\node-server.exe'
     
     # Extract the directory part of the path
     directory = os.path.dirname(base_path)
@@ -13,7 +13,8 @@ def main():
     # Set the working directory
     os.chdir(directory)
 
-    ports = ["1111 1.log", "2222 2.log", "3333 3.log"]
+    #ports = ["1111 1.log", "2222 2.log", "3333 3.log"]
+    ports = ["2222 2.log", "3333 3.log"]
 
     for port in ports:
         full_path = f'"{base_path}" {port}'
