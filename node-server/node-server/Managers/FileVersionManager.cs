@@ -74,7 +74,7 @@ namespace NodeServer.Managers
                     command.Parameters.AddWithValue("@FileName", fileName);
                     command.Parameters.AddWithValue("@UserId", userId);
                     object result = command.ExecuteScalar();
-                    if (result != DBNull.Value)
+                    if (result != DBNull.Value && result != null)
                     {
                         latestVersion = Convert.ToInt32(result);
                     }
@@ -99,7 +99,7 @@ namespace NodeServer.Managers
                     command.Parameters.AddWithValue("@Version", version);
                     command.Parameters.AddWithValue("@UserId", userId);
                     object result = command.ExecuteScalar();
-                    if (result != DBNull.Value)
+                    if (result != DBNull.Value && result != null)
                     {
                         filePath = result.ToString();
                     }
@@ -168,7 +168,7 @@ namespace NodeServer.Managers
                 {
                     command.Parameters.AddWithValue("@UserId", userId);
                     object result = command.ExecuteScalar();
-                    if (result != DBNull.Value)
+                    if (result != DBNull.Value && result != null)
                     {
                         numOfFiles = Convert.ToInt32(result);
                     }
@@ -198,7 +198,7 @@ namespace NodeServer.Managers
                 {
                     command.Parameters.AddWithValue("@UserId", userId);
                     object result = command.ExecuteScalar();
-                    if (result != DBNull.Value)
+                    if (result != DBNull.Value && result != null)
                     {
                         usedSpace = Convert.ToInt32(result);
                     }
@@ -229,7 +229,7 @@ namespace NodeServer.Managers
                     command.Parameters.AddWithValue("@UserId", userId);
                     command.Parameters.AddWithValue("@FileNameToExclude", fileNameToExclude);
                     object result = command.ExecuteScalar();
-                    if (result != DBNull.Value)
+                    if (result != DBNull.Value && result != null)
                     {
                         usedSpace = Convert.ToInt32(result);
                     }
@@ -252,7 +252,7 @@ namespace NodeServer.Managers
                     command.Parameters.AddWithValue("@FileName", fileName);
                     command.Parameters.AddWithValue("@UserId", userId);
                     object result = command.ExecuteScalar();
-                    if (result != DBNull.Value)
+                    if (result != DBNull.Value && result != null)
                     {
                         fileType = result.ToString();
                     }

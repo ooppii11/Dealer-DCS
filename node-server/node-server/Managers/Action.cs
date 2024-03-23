@@ -28,7 +28,7 @@ namespace NodeServer.Managers
             {
                 this.Args[i] = values[i];
             }
-            this.Args[values.Length - 1] = fileData;
+            this.Args[values.Length] = fileData;
         }
     }
 }

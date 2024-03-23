@@ -168,7 +168,7 @@ namespace NodeServer.Services
             try
             {
                 const string operationName = "DownloadFile";
-                string args = $"[{request.FileId},{request.UserId}]";
+                string args = $"[{request.UserId},{request.FileId}]";
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
                 if (!await this._raft.appendEntry(entry))
                 {
@@ -213,7 +213,7 @@ namespace NodeServer.Services
             try
             {
                 const string operationName = "DeleteFile";
-                string args = $"[{request.FileId},{request.UserId}]";
+                string args = $"[{request.UserId},{request.FileId}]";
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
                 if (!await this._raft.appendEntry(entry))
                 {

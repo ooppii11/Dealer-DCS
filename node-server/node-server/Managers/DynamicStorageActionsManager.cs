@@ -113,7 +113,7 @@ namespace NodeServer.Managers
                 RemoveCurrentVersion(userId, fileId, version);
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
                 return false;
             }
@@ -126,6 +126,10 @@ namespace NodeServer.Managers
                 int userId = Convert.ToInt32(strUserId);
                 int version = Convert.ToInt32(strVersion); 
                 string type = this._fileVersionManager.GetFileType(fileId, userId);
+                if (type == null)
+                {
+                    return true;
+                }
                 byte[] data = GetFile(fileId, version);
                 if (data == null)
                 {
@@ -137,18 +141,18 @@ namespace NodeServer.Managers
                 RemoveCurrentVersion(userId, fileId, version);
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
                 return false;
             }
         }
 
-        private bool DownloadFileAfterCommit(string fileId, string userId)
+        private bool DownloadFileAfterCommit(string userId, string fileId)
         {
             return true;
         }
 
-        private bool DeleteFileAfterCommit(string fileId, string userId)
+        private bool DeleteFileAfterCommit(string userId, string fileId)
         {
             try
             {
@@ -175,6 +179,10 @@ namespace NodeServer.Managers
         {
             int userId = Convert.ToInt32(strUserId);
             string type = this._fileVersionManager.GetFileType(fileId, userId);
+            if (type == null)
+            {
+                return true;
+            }
             if (!TempStorageActions.SaveFile(fileId, userId, type, new MemoryStream(fileData), this._fileVersionManager))
             {
                 return false;
@@ -182,12 +190,12 @@ namespace NodeServer.Managers
             return true;
         }
 
-        private bool DownloadFileBeforeCommit(string fileId, string userId)
+        private bool DownloadFileBeforeCommit(string userId, string fileId)
         {
             return true;
         }
 
-        private bool DeleteFileBeforeCommit(string fileId, string strUserId)
+        private bool DeleteFileBeforeCommit(string strUserId, string fileId)
         {
             int userId = Convert.ToInt32(strUserId);
             string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId);
