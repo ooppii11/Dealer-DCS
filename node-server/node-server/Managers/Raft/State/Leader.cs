@@ -329,11 +329,11 @@ namespace NodeServer.Managers.RaftNameSpace.States
             }
             else
             {
-                /*if (MajorityAgreeOnMatchIndex(response.MatchIndex))
+                /*if (response.MatchIndex < this._settings.CommitIndex)
                 {
                     //install snapshot
                 }
-                else*/ if (response.MatchIndex < this._followers[address].Request.LogEntry.LogIndex)
+                else*/if (response.MatchIndex < this._followers[address].Request.LogEntry.LogIndex)
                 {
                     LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
                     Console.WriteLine(entry.Timestamp);
