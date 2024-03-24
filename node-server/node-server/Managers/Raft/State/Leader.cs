@@ -105,7 +105,12 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
             this._cancellationToken.Register(() =>
             {
-                this._completionSource.SetResult(true);
+                if (!this._completionSource.Task.IsCompleted)
+                {
+                    this._completionSource.SetResult(true);
+                    this._timer.Stop();
+                }
+                
             });
 
             this._timer.Start();
@@ -117,34 +122,35 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         private async void OnHeartBeatTimerElapsed(object sender, ElapsedEventArgs e)
         {
+            if (!this._completionSource.Task.IsCompleted && this._cancellationToken.IsCancellationRequested)
+            {
+                this._completionSource.SetResult(true);
+                this._timer.Stop();
+            }
             await this.SendHeartbeatRequest();
         }
 
         private async Task SendHeartbeatRequest()
         {
-            //foreach (string address in _followers.Keys.ToList())
-            foreach (string address in this._settings.ServersAddresses)
+            foreach (string address in _followers.Keys.ToList())
             {
-                if (address != this._settings.ServerAddress)
+
+                try
                 {
-                    Console.WriteLine($"HeartBeat Address: {address}");
-                    try
+                    ServerToServerClient s2s = new ServerToServerClient(address);
+                    AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
+                    this.OnReceiveAppendEntriesResponse(response, address);
+                }
+                catch (RpcException e)
+                {
+                    if (e.StatusCode == StatusCode.Unavailable)
                     {
-                        ServerToServerClient s2s = new ServerToServerClient(address);
-                        AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
-                        this.OnReceiveAppendEntriesResponse(response, address);
+                        Console.WriteLine($"Server at {address} is Unavailable (down)");
                     }
-                    catch (RpcException e)
-                    {
-                        if (e.StatusCode == StatusCode.Unavailable)
-                        {
-                            Console.WriteLine($"Server at {address} is Unavailable (down)");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"error send to {address}");
-                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"error send to {address}");
                 }
             }
             await sendLeaderToViewerHeartBeat();

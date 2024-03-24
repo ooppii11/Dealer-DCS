@@ -35,7 +35,6 @@ namespace NodeServer.Services
 
             try
             {
-                Console.WriteLine($"Peer Address: {context.Peer}");
                 response = await this._raft.OnReceiveAppendEntriesRequest(requestStream, context.Peer);
             }
             catch

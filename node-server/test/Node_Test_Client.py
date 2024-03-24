@@ -24,20 +24,20 @@ class CloudServicer(cloud_pb2_grpc.CloudServicer):
         lock.acquire()
         LEADER_ADDRESS = request.LeaderAddress
         lock.release()
-        condition.notify()
+        with lock:
+            condition.notify()
         response = cloud_pb2.LeaderToViewerHeartBeatResponse(status=True, message="Leader found")
         return response
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     cloud_pb2_grpc.add_CloudServicer_to_server(CloudServicer(), server)
-    server.add_insecure_port('127.0.0.1:50053')
+    server.add_insecure_port('0.0.0.0:50053')
     server.start()
-    signal.signal(signal.SIGINT, lambda signum, frame: terminate_signal.set())
-    server.wait_for_termination()
+    global terminate_signal
+    terminate_signal.wait()
+    
 
-if __name__ == '__main__':
-    serve()
 
 
 def upload_file(stub):
@@ -90,7 +90,9 @@ def run_client():
     global LEADER_ADDRESS
     while True:
         try:
-            condition.wait()
+            with lock:
+                condition.acquire()
+                condition.wait()
             channel = grpc.insecure_channel(LEADER_ADDRESS)
             stub = node_pb2_grpc.NodeServicesStub(channel)
             print("Select an option:")
@@ -110,6 +112,8 @@ def run_client():
             elif choice == "4":
                 delete_file(stub)
             elif choice == "0":
+                global terminate_signal
+                terminate_signal.set()
                 break
             else:
                 print("Invalid choice. Please try again.")
@@ -117,16 +121,18 @@ def run_client():
         except grpc.RpcError as e:
             print(f"Failed to create channel: {e}")
 
+        finally:
+            condition.release()
         
     
 
 if __name__ == '__main__':
-    client_thread = threading.Thread(target=run_client)
+    run_client()
+    #client_thread = threading.Thread(target=run_client)
     server_thread = threading.Thread(target=serve)
 
     server_thread.start()
-    client_thread.start()
+    #client_thread.start()
 
     server_thread.join()
-    terminate_signal.set() 
-    client_thread.join()
+    #client_thread.join()
