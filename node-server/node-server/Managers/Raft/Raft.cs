@@ -100,7 +100,7 @@ namespace NodeServer.Managers.RaftNameSpace
             }
             
             _cancellationTokenSource.Cancel();
-            this._settings.ElectionTimeout = 2000;
+            this._settings.IsAppendEnteriesReset = true;
             //Console.WriteLine("resetting timer");
             int totalTerm = 0;
             int totalPrevIndex = 0;
@@ -250,20 +250,7 @@ namespace NodeServer.Managers.RaftNameSpace
                     return true;
                 }
 
-                int addition = 0;
-                if (new Random().Next(0, 2) == 0)
-                {
-                    addition = 200;
-                    if (new Random().Next(0, 2) == 0)
-                    {
-                        addition = 400;
-                        if (new Random().Next(0, 2) == 0)
-                        {
-                            addition = 600;
-                        }
-                    }
-                }
-                this._settings.ElectionTimeout = (new Random().Next(300, 4001)) + addition;
+                
             }
 
             Console.WriteLine("REJECT");

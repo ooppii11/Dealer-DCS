@@ -2,6 +2,7 @@
 {
     public class RaftSettings
     {
+        public bool IsAppendEnteriesReset {get; set;} = false;
         public bool LockLeaderFirstHeartBeat { get; set; } = false;
         public int CurrentTerm { get; set; } = 1;
         public int PreviousTerm { get; set; } = 0;

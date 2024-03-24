@@ -15,6 +15,28 @@ namespace NodeServer.Managers.RaftNameSpace.States
         public Follower(RaftSettings settings, Log logger) :
             base(settings, logger)
         {
+            if (this._settings.IsAppendEnteriesReset)
+            {
+                this._settings.ElectionTimeout = 2000;
+                this._settings.IsAppendEnteriesReset = false;
+            }
+            else 
+            {
+                int addition = 0;
+                if (new Random().Next(0, 2) == 0)
+                {
+                    addition = 200;
+                    if (new Random().Next(0, 2) == 0)
+                    {
+                        addition = 400;
+                        if (new Random().Next(0, 2) == 0)
+                        {
+                            addition = 600;
+                        }
+                    }
+                }
+                this._settings.ElectionTimeout = (new Random().Next(300, 4001)) + addition;
+            }
             
         }
 
