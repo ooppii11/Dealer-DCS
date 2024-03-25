@@ -14,14 +14,14 @@ namespace NodeServer.Managers.RaftNameSpace.States
 {
     class Node
     {
-        private readonly string address;
+        private readonly string _address;
         private int _matchIndex;
         private int _commitIndex;
         private AppendEntriesRequest _request;
 
         public Node(string address)
         {
-            this.address = address;
+            this._address = address;
             this._matchIndex = -1;
             this._commitIndex = -1;
         }
