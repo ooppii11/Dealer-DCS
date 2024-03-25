@@ -127,12 +127,12 @@ def run_client():
     
 
 if __name__ == '__main__':
-    run_client()
+    
     #client_thread = threading.Thread(target=run_client)
     server_thread = threading.Thread(target=serve)
 
     server_thread.start()
     #client_thread.start()
-
+    run_client()
     server_thread.join()
     #client_thread.join()

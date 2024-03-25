@@ -94,11 +94,6 @@ namespace NodeServer.Managers.RaftNameSpace
         }
         public async Task<AppendEntriesResponse> OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> requests, string address)
         {
-            if (this._settings.LockLeaderFirstHeartBeat)
-            {
-                return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
-            }
-            
             _cancellationTokenSource.Cancel();
             this._settings.IsAppendEnteriesReset = true;
             //Console.WriteLine("resetting timer");
@@ -282,6 +277,7 @@ namespace NodeServer.Managers.RaftNameSpace
                         this._state = new Candidate(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
+                        this._settings.LockLeaderFirstHeartBeat = false;
                     }
                     else if (this._currentStateCode == StatesCode.Leader)
                     {
@@ -290,6 +286,7 @@ namespace NodeServer.Managers.RaftNameSpace
                         this._state = new Leader(this._settings, this._logger, this._dynamicActions);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
+
                     }
                     _cancellationTokenSource.Dispose();
                     _cancellationTokenSource = new CancellationTokenSource();
