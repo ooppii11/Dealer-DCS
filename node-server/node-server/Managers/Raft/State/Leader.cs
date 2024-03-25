@@ -333,7 +333,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 {
                     //install snapshot
                 }
-                else*/if (response.MatchIndex < this._followers[address].Request.LogEntry.LogIndex)
+                else*/if (response.MatchIndex < this._followers[address].Request.PrevIndex + 1)
                 {
                     LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
                     Console.WriteLine(entry.Timestamp);
