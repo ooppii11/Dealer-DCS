@@ -57,13 +57,13 @@ namespace NodeServer.Utilities
         public static bool SaveFile(string fileId, int userId, string type, MemoryStream fileData, FileVersionManager fileVersionManager)
         {
             if (fileData.Length + fileVersionManager.GetUserUsedSpace(userId, fileId) > OnMachineStorageActions._fixedUserStorageSpace || //memory
-                OnMachineStorageActions.GetDirectorySize(Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, fileId)) + fileData.Length > OnMachineStorageActions._fixedUserTempStorageSpace) //temp memory
+                OnMachineStorageActions.GetDirectorySize(Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, userId.ToString(), fileId)) + fileData.Length > OnMachineStorageActions._fixedUserTempStorageSpace) //temp memory
             {
                 return false;
             }
 
             string currentDirectory = Directory.GetCurrentDirectory();
-            string folderPath = Path.Combine(currentDirectory, OnMachineStorageActions._baseFolderName, fileId);
+            string folderPath = Path.Combine(currentDirectory, OnMachineStorageActions._baseFolderName, userId.ToString(), fileId);
             if (!Directory.Exists(folderPath))
             {
                 Directory.CreateDirectory(folderPath);
@@ -76,9 +76,9 @@ namespace NodeServer.Utilities
             return true;
         }
 
-        public static bool DoesFileExist(string fileId)
+        public static bool DoesFileExist(int userId, string fileId)
         {
-            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, fileId);
+            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, userId.ToString(), fileId);
             if (Directory.Exists(folderPath))
             {
                 return true;
@@ -91,7 +91,7 @@ namespace NodeServer.Utilities
             string[] argsList = OnMachineStorageActions.ParseLogEntryArgs(opArgs);
             if (opName == "UploadFile" || opName == "UpdateFile")
             {
-                string folderPath = Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, argsList[1]);
+                string folderPath = Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, argsList[0], argsList[1]);
                 if (beforeCommit)
                 {
                     return File.ReadAllBytes(Path.Combine(folderPath, $"{argsList[1]}_{argsList[2]}"));

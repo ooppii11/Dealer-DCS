@@ -59,7 +59,7 @@ namespace NodeServer.Services
                 fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
             }
 
-            if (OnMachineStorageActions.DoesFileExist(fileId))
+            if (OnMachineStorageActions.DoesFileExist(userId, fileId))
             {
                 return new Tuple<Status, string, MemoryStream>(new Status(StatusCode.AlreadyExists, "Can't upload the file. The file already exist in the system"), null, null);
             }
@@ -120,7 +120,7 @@ namespace NodeServer.Services
 
             string type = this._fileVersionManager.GetFileType(fileId, userId);
 
-            if (!OnMachineStorageActions.DoesFileExist(fileId))
+            if (!OnMachineStorageActions.DoesFileExist(userId, fileId))
             {
                 return new Tuple<Status, string, MemoryStream>(new Status(StatusCode.AlreadyExists, "Can't update the file. The file doesn't exist int the system"), null, null);
             }
