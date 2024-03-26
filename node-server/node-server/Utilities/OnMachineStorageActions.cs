@@ -76,6 +76,16 @@ namespace NodeServer.Utilities
             return true;
         }
 
+        public static bool DoesFileExist(string fileId)
+        {
+            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, fileId);
+            if (Directory.Exists(folderPath))
+            {
+                return true;
+            }
+            return false;
+        }
+
         public static async Task<byte[]> GetFile(string opName, string opArgs, bool beforeCommit, FileSaving micro)
         {
             string[] argsList = OnMachineStorageActions.ParseLogEntryArgs(opArgs);

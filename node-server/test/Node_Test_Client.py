@@ -21,11 +21,9 @@ terminate_signal = threading.Event()
 class CloudServicer(cloud_pb2_grpc.CloudServicer):
     def GetOrUpdateSystemLeader(self, request, context):
         global LEADER_ADDRESS
-        lock.acquire()
-        LEADER_ADDRESS = request.LeaderAddress
-        lock.release()
-        with lock:
-            condition.notify()
+        with condition:
+            LEADER_ADDRESS = request.LeaderAddress
+            condition.notify_all()
         response = cloud_pb2.LeaderToViewerHeartBeatResponse(status=True, message="Leader found")
         return response
 
@@ -46,35 +44,30 @@ def upload_file(stub):
     file_content = input("Enter file content: ").encode()
     user_id = int(input("Enter user ID: "))
 
-    response = stub.UploadFile(node_pb2.UploadFileRequest(
-        file_id=file_id,
-        type=file_type,
-        file_content=file_content,
-        user_id=user_id
-    ))
-    print("Upload Response:", response)
+    upload_file_request = node_pb2.UploadFileRequest(file_id=file_id, file_content=file_content, type=file_type,user_id=user_id)
+    upload_file_response = stub.UploadFile(iter([upload_file_request]))
+    print(f'UploadFileResponse: {upload_file_response.message}')
+
 
 def download_file(stub):
     file_id = input("Enter file ID: ")
     user_id = int(input("Enter user ID: "))
+    
+    download_file_request = node_pb2.DownloadFileRequest(file_id=file_id, user_id=user_id)
+    download_file_response = stub.DownloadFile(download_file_request)
 
-    response = stub.DownloadFile(node_pb2.DownloadFileRequest(
-        file_id=file_id,
-        user_id=user_id
-    ))
-    print("Download Response:", response)
+    for response in download_file_response:
+        print(f'DownloadFileResponse: {response.file_content.decode()}')
 
 def update_file(stub):
     file_id = input("Enter file ID: ")
     new_content = input("Enter new content: ").encode()
     user_id = int(input("Enter user ID: "))
 
-    response = stub.UpdateFile(node_pb2.UpdateFileRequest(
-        file_id=file_id,
-        new_content=new_content,
-        user_id=user_id
-    ))
-    print("Update Response:", response)
+    update_file_request = node_pb2.UpdateFileRequest(file_id=file_id, new_content=new_content, user_id=user_id)
+    update_file_response = stub.UploadFile(iter([update_file_request]))
+    print(f'UpdateFileRespone: {update_file_response.message}')
+
 
 def delete_file(stub):
     file_id = input("Enter file ID: ")
@@ -90,10 +83,13 @@ def run_client():
     global LEADER_ADDRESS
     while True:
         try:
-            with lock:
-                condition.acquire()
-                condition.wait()
-            channel = grpc.insecure_channel(LEADER_ADDRESS)
+            channel = None
+            with condition:
+                while LEADER_ADDRESS == "":
+                    condition.wait()
+                    print(LEADER_ADDRESS)
+                channel = grpc.insecure_channel(LEADER_ADDRESS)     
+            #channel = grpc.insecure_channel(LEADER_ADDRESS)
             stub = node_pb2_grpc.NodeServicesStub(channel)
             print("Select an option:")
             print("1. Upload File")
@@ -120,19 +116,21 @@ def run_client():
         
         except grpc.RpcError as e:
             print(f"Failed to create channel: {e}")
+            LEADER_ADDRESS = ""
 
         finally:
-            condition.release()
+            with condition:
+                condition.release()
         
     
 
 if __name__ == '__main__':
     
-    #client_thread = threading.Thread(target=run_client)
+    client_thread = threading.Thread(target=run_client)
     server_thread = threading.Thread(target=serve)
 
     server_thread.start()
-    #client_thread.start()
-    run_client()
+    client_thread.start()
+    #run_client()
     server_thread.join()
-    #client_thread.join()
+    client_thread.join()

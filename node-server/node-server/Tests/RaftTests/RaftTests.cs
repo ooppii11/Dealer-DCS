@@ -63,6 +63,7 @@ namespace Tests.RaftTests
                 {
                     webBuilder.UseStartup<Startup>();
                     webBuilder.UseUrls($"http://0.0.0.0:{address}");
+                    //webBuilder.UseUrls($"http://127.0.0.1:{address}");
 
                 });
     }

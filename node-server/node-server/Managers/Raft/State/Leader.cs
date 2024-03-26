@@ -145,6 +145,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 {
                     if (e.StatusCode == StatusCode.Unavailable)
                     {
+                        continue;
                         Console.WriteLine($"Server at {address} is Unavailable (down)");
                     }
                 }
@@ -228,6 +229,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 {
                     if (e.StatusCode == StatusCode.Unavailable)
                     {
+                        continue;
                         Console.WriteLine($"Server at {address} is Unavailable (down)");
                     }
                 }
@@ -329,7 +331,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
             }
             else
             {
-                /*if (response.MatchIndex < this._settings.CommitIndex)
+                /*if (response.MatchIndex < this._settings.CommitIndex || more then n files behind)
                 {
                     //install snapshot
                 }

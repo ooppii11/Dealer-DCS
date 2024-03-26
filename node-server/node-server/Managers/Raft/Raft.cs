@@ -36,7 +36,10 @@ namespace NodeServer.Managers.RaftNameSpace
         public Raft(RaftSettings settings, FileSaving micro, FileVersionManager fileVerM)
         {
             this._dynamicActions = new DynamicStorageActionsManager(micro, fileVerM);
-            this._currentStateCode = StatesCode.Follower;
+
+            //this._currentStateCode = StatesCode.Follower;
+            this._currentStateCode = StatesCode.Leader;
+
             this._settings = settings;
             this._logger = new Log(this._settings.LogFilePath);
             this._cancellationTokenSource = new CancellationTokenSource();

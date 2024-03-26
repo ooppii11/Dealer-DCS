@@ -5,6 +5,7 @@ using NodeServer.Managers;
 using NodeServer.Managers.RaftNameSpace;
 using LogEntry = NodeServer.Managers.RaftNameSpace.LogEntry;
 using NodeServer.Utilities;
+using System.Diagnostics.CodeAnalysis;
 
 namespace NodeServer.Services
 {
@@ -43,7 +44,7 @@ namespace NodeServer.Services
             return tempRaftSettings.ServerAddress;
         }
 
-        private async Task<KeyValuePair<string, MemoryStream>> ParseUploadRequest(IAsyncStreamReader<UploadFileRequest> requestStream)
+        private async Task<Tuple<Status, string, MemoryStream>> ParseUploadRequest(IAsyncStreamReader<UploadFileRequest> requestStream)
         {
             string fileId = "";
             int userId = 0;
@@ -58,29 +59,36 @@ namespace NodeServer.Services
                 fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
             }
 
-            if (!OnMachineStorageActions.SaveFile(fileId, userId, type, fileData, this._fileVersionManager))
+            if (OnMachineStorageActions.DoesFileExist(fileId))
             {
-                return new KeyValuePair<string, MemoryStream>(null, null);
+                return new Tuple<Status, string, MemoryStream>(new Status(StatusCode.AlreadyExists, "Can't upload the file. The file already exist in the system"), null, null);
             }
 
-            return new KeyValuePair<string, MemoryStream>($"[{userId},{fileId},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)},{type}]", fileData);
+            if (!OnMachineStorageActions.SaveFile(fileId, userId, type, fileData, this._fileVersionManager))
+            {
+                return new Tuple<Status, string, MemoryStream>(new Status(StatusCode.ResourceExhausted, "Can't upload the file. Either the file is too big or the user has used up all their memory."), null, null);
+            }
+
+            return new Tuple<Status, string, MemoryStream>(new Status(), $"[{userId},{fileId},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)},{type}]", fileData);
         }
-    
+        
 
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
         {
             try
             {
                 const string operationName = "UploadFile";
-                KeyValuePair<string, MemoryStream> argsAndFileData = await ParseUploadRequest(requestStream);
-                if (argsAndFileData.Key == null) 
+                Tuple<Status, string, MemoryStream> StatusArgsAndFileData = await ParseUploadRequest(requestStream);
+                if (StatusArgsAndFileData.Item2 == null) 
                 {
-                    context.Status = new Status(StatusCode.ResourceExhausted, "Can't upload the file. Either the file is too big or the user has used up all their memory.");
-                    return new UploadFileResponse { Status = false, Message = "Can't upload the file. Either the file is too big or the user has used up all their memory." };
+                    context.Status = StatusArgsAndFileData.Item1;
+                    return new UploadFileResponse { Status = false, Message = StatusArgsAndFileData.Item1.Detail };
                 }
 
-                LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, argsAndFileData.Key);
-                if (await this._raft.appendEntry(entry, argsAndFileData.Value.ToArray()))
+                
+
+                LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, StatusArgsAndFileData.Item2);
+                if (await this._raft.appendEntry(entry, StatusArgsAndFileData.Item3.ToArray()))
                 {
                     return new UploadFileResponse { Status = true, Message = "File uploaded successfully." };
                 }
@@ -96,7 +104,7 @@ namespace NodeServer.Services
             }
         }
 
-        private async Task<KeyValuePair<string, MemoryStream>> UpdateOperationArgsToString(IAsyncStreamReader<UpdateFileRequest> requestStream)
+        private async Task<Tuple<Status, string, MemoryStream>> UpdateOperationArgsToString(IAsyncStreamReader<UpdateFileRequest> requestStream)
         {
             string fileId = "";
             int userId = 0;
@@ -112,12 +120,17 @@ namespace NodeServer.Services
 
             string type = this._fileVersionManager.GetFileType(fileId, userId);
 
-            if (!OnMachineStorageActions.SaveFile(fileId, userId, type, fileData, this._fileVersionManager))
+            if (!OnMachineStorageActions.DoesFileExist(fileId))
             {
-                return new KeyValuePair<string, MemoryStream>(null, null);
+                return new Tuple<Status, string, MemoryStream>(new Status(StatusCode.AlreadyExists, "Can't update the file. The file doesn't exist int the system"), null, null);
             }
 
-            return new KeyValuePair<string, MemoryStream>($"[{userId},{fileId},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)}]", fileData);
+            if (!OnMachineStorageActions.SaveFile(fileId, userId, type, fileData, this._fileVersionManager))
+            {
+                return new Tuple<Status, string, MemoryStream>(new Status(StatusCode.ResourceExhausted, "Can't upload the file. Either the file is too big or the user has used up all their memory."), null, null);
+            }
+
+            return new Tuple<Status, string, MemoryStream>(new Status(), $"[{userId},{fileId},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)}]", fileData);
         }
         
 
@@ -126,15 +139,15 @@ namespace NodeServer.Services
             try
             {
                 const string operationName = "UpdateFile";
-                KeyValuePair<string, MemoryStream> argsAndFileData = await UpdateOperationArgsToString(requestStream);
-                if (argsAndFileData.Key == null)
+                Tuple<Status, string, MemoryStream> StatusArgsAndFileData = await UpdateOperationArgsToString(requestStream);
+                if (StatusArgsAndFileData.Item2 == null)
                 {
-                    context.Status = new Status(StatusCode.ResourceExhausted, "Can't upload the file. Either the file is too big or the user has used up all their memory.");
-                    return new UpdateFileResponse { Status = false, Message = "Can't upload the file. Either the file is too big or the user has used up all their memory." };
+                    context.Status = StatusArgsAndFileData.Item1;
+                    return new UpdateFileResponse { Status = false, Message = StatusArgsAndFileData.Item1.Detail };
                 }
 
-                LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, argsAndFileData.Key);
-                if (await this._raft.appendEntry(entry, argsAndFileData.Value.ToArray()))
+                LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, StatusArgsAndFileData.Item2);
+                if (await this._raft.appendEntry(entry, StatusArgsAndFileData.Item3.ToArray()))
                 {
                     return new UpdateFileResponse { Status = true, Message = "File uploaded successfully." };
                 }
