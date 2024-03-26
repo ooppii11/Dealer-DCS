@@ -7,6 +7,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Grpc;
+using static Google.Protobuf.Reflection.SourceCodeInfo.Types;
 namespace cloud_server.Services
 {
     public class NodeServerCommunication
@@ -60,7 +61,7 @@ namespace cloud_server.Services
             this._client.DeleteFile(request);
         }
 
-        public async Task<UploadFileResponse> uploadFile(string fileId, byte[] fileData, string type, Location locations)
+        public async Task<UploadFileResponse> uploadFile(string fileId, byte[] fileData, string type, cloud_server.DB.Location locations)
         {
             List<UploadFileRequest> requests = createUploadRequests(fileId, fileData, type, locations);
             
@@ -80,7 +81,65 @@ namespace cloud_server.Services
             return response;
         }
 
-        private List<UploadFileRequest> createUploadRequests(string fileId, byte[] fileData, string type, Location location)
+        public async Task<UpdateFileResponse> updateFile(string fileId, byte[] fileData)
+        {
+            List<UpdateFileRequest> requests = createUpdateRequests(fileId, fileData);
+
+            var call = this._client.UpdateFile();
+
+            // For evry chunk of file call to upload 
+            foreach (var request in requests)
+            {
+                await call.RequestStream.WriteAsync(request);
+            }
+
+            // Wait until all request are send
+            await call.RequestStream.CompleteAsync();
+
+            // Wait for response
+            var response = await call.ResponseAsync;
+            return response;
+        }
+
+        private List<UpdateFileRequest> createUpdateRequests(string fileId, byte[] fileData)
+        {
+            List<UpdateFileRequest> updateFileRequests = null;
+            byte[] chunk = null;
+            UpdateFileRequest request = null;
+            int numberOfChunks = 0;
+            int chunkSize = NodeServerCommunication.MaxFileChunckLength;
+            int i, j = 0;
+
+            updateFileRequests = new List<UpdateFileRequest>();
+            numberOfChunks = fileData.Length / chunkSize + ((fileData.Length % chunkSize == 0) ? 0 : 1);
+
+            for (i = 0; i < numberOfChunks; i++)
+            {
+                // Check for the size of the new chunck of bytes:
+                if ((i + 1) * chunkSize < fileData.Length) { chunk = new byte[chunkSize]; }
+                else { chunk = new byte[fileData.Length % ((i + 1) * chunkSize)]; }
+
+                // Set data inside the Chunck 
+                for (j = 0; j < chunkSize && j + i * chunkSize < fileData.Length; j++)
+                {
+                    chunk[j] = fileData[i * chunkSize + j];
+                }
+
+                // Create new request:
+             
+                request = new UpdateFileRequest()
+                {
+                    FileId = fileId,
+                    NewContent = Google.Protobuf.ByteString.CopyFrom(chunk)
+                };
+
+                // Append request to the stream
+                updateFileRequests.Add(request);
+            }
+
+            return updateFileRequests;
+        }
+        private List<UploadFileRequest> createUploadRequests(string fileId, byte[] fileData, string type, cloud_server.DB.Location location)
         {
             List<UploadFileRequest> uploadFileRequests = null;
             byte[] chunk = null;

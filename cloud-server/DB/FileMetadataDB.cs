@@ -7,6 +7,10 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.AspNetCore.Components.Routing;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using cloud_server.Utilities;
+using Google.Protobuf.WellKnownTypes;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace cloud_server.DB
 {
@@ -122,6 +126,28 @@ namespace cloud_server.DB
                 {
                     throw new DBErrorException("Unable to delete this file");
                 }
+            }
+        }
+
+        public void updateFileMetadata(int userId, string name, long size)
+        {
+            string query = @"UPDATE file_metadata
+                            SET size = @newSize, last_modify = CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
+                            WHERE creator_id = @creator_id AND name = @name;";
+            try
+            {
+                using (var cmd = new NpgsqlCommand(query, this._conn))
+                {
+                    cmd.Parameters.AddWithValue("@creator_id", userId);
+                    cmd.Parameters.AddWithValue("@newSize", size);
+                    cmd.Parameters.AddWithValue("@name", name);
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch
+            {
+                throw new DBErrorException("DB Error");
             }
         }
 
