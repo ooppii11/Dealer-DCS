@@ -8,6 +8,7 @@ using cloud_server.DB;
 using System.Threading.Tasks;
 using System.Net;
 using System.Linq.Expressions;
+using GrpcNodeServer;
 
 namespace cloud_server.Services
 {   
@@ -222,8 +223,8 @@ namespace cloud_server.Services
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error.");
                 // Send Error response:
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error.");
                 return Task.FromResult(new SignupResponse
                 {
                     Status = GrpcCloud.Status.Failure,
@@ -239,17 +240,17 @@ namespace cloud_server.Services
 
             try
             {
-                sessionId = this._authManager.Login(request.Username, request.Password);
+                sessionId = this._authManager.Login(request.Username, request.Password).Item1;
                 StartProcessQueueForUser(sessionId);
                 return Task.FromResult(new LoginResponse { SessionId = sessionId, Status = GrpcCloud.Status.Success });
-
 
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error");
+
                 // Send Error response:
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error");
                 return Task.FromResult(new LoginResponse
                 {
                     Status = GrpcCloud.Status.Failure,
@@ -363,6 +364,37 @@ namespace cloud_server.Services
             }
         }
 
+        public override async Task<UploadFileResponse> UpdateFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
+        {
+            try
+            {
+                List<UploadFileRequest> requestStreamList = await GetStreamInfoAsList<UploadFileRequest>(requestStream);
+                this._authManager.GetUser(requestStreamList[0].SessionId);
+                var task = await EnqueueRequestAsync(requestStreamList[0].SessionId, ProcessUpdateFile, requestStreamList, context);
+                return (UploadFileResponse)task;
+            }
+            catch (IncorrectSessionIdException ex)
+            {
+                context.Status = new Grpc.Core.Status(StatusCode.InvalidArgument, ex.Message);
+                return new UploadFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
+            }
+            catch (RpcException ex)
+            {
+                Console.WriteLine(ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Aborted, "Error: connection failed");
+                return new UploadFileResponse { Message = $"Error: connection failed", Status = GrpcCloud.Status.Failure };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Internal, "Internal Error uploading file.");
+                return new UploadFileResponse()
+                {
+                    Status = GrpcCloud.Status.Failure,
+                    Message = $"Internal Error uploading file."
+                };
+            }
+            }
         public override async Task<UploadFileResponse> UploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, ServerCallContext context)
         {
             try
@@ -478,6 +510,29 @@ namespace cloud_server.Services
             }
 
             await this._filesManager.uploadFile(user.Id, fileName, type, fileData.Length, fileData.ToArray());
+
+            return new UploadFileResponse()
+            {
+                Status = GrpcCloud.Status.Success,
+                Message = "File uploaded successfully."
+            };
+        }
+
+        private async Task<UploadFileResponse> ProcessUpdateFile(List<UploadFileRequest> requestStreamList, ServerCallContext context)
+        {
+            User user = this._authManager.GetUser(requestStreamList[0].SessionId);
+
+            string fileName = requestStreamList[0].FileName;
+            string type = requestStreamList[0].Type;
+
+            MemoryStream fileData = new MemoryStream();
+
+            foreach (var chunk in requestStreamList)
+            {
+                fileData.Write(chunk.FileData.ToArray(), 0, chunk.FileData.Length);
+            }
+
+            await this._filesManager.updateFile(user.Id, fileName, type, fileData.Length, fileData.ToArray());
 
             return new UploadFileResponse()
             {

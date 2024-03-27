@@ -2,6 +2,7 @@
 using cloud_server.Services;
 using cloud_server.Utilities;
 using Grpc.Core;
+using static Google.Protobuf.Reflection.SourceCodeInfo.Types;
 
 namespace cloud_server.Managers
 {
@@ -29,8 +30,8 @@ namespace cloud_server.Managers
 
         public async Task uploadFile(int userid, string filename, string type, long size, byte[] fileData)
         {
-            FileMetadata file = new FileMetadata(userid, filename, type, (int)size);
-            Location location = this.getLocation();
+            FileMetadata file = new FileMetadata(userid, filename, type, (int)size); // create metadata for the file
+            cloud_server.DB.Location location = this.getLocation(); // Find loactions for save this file.
             int fileId = 0;
 
             this._db.uploadFileMetadata(file, location);
@@ -40,6 +41,17 @@ namespace cloud_server.Managers
             // save the file
             NodeServerCommunication client = new NodeServerCommunication(this._leaderAddress);
             await client.uploadFile($"{fileId}", fileData, type, location);
+        }
+
+        public async Task updateFile(int userid, string filename, string type, long size, byte[] fileData)
+        {
+            int fileId = 0;
+            fileId = this._db.getFileId(filename, userid);
+
+            this._db.updateFileMetadata(userid, filename, size);
+
+            NodeServerCommunication client = new NodeServerCommunication(this._leaderAddress);
+            await client.updateFile($"{fileId}", fileData);
         }
 
         public void deleteFile(int userId, string filename)
@@ -70,15 +82,14 @@ namespace cloud_server.Managers
             fileId = this._db.getFileId(filename, userId);
             return await (new NodeServerCommunication(this._leaderAddress)).DownloadFile($"{fileId}");
         }
-         
-        
+                 
 
-        private Location getLocation()
+        private cloud_server.DB.Location getLocation()
         {
             // decide where to save the file
             // Not implomented
             //return new Location("172.18.0.4", "172.18.0.5", "172.18.0.6");
-            return new Location("127.0.0.1::1111", "127.0.0.1::2222", "127.0.0.1::3333");
+            return new cloud_server.DB.Location("127.0.0.1::1111", "127.0.0.1::2222", "127.0.0.1::3333");
         }
     }
 }
