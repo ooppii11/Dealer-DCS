@@ -89,7 +89,6 @@ def run_client():
                     condition.wait()
                     print(LEADER_ADDRESS)
                 channel = grpc.insecure_channel(LEADER_ADDRESS)     
-            #channel = grpc.insecure_channel(LEADER_ADDRESS)
             stub = node_pb2_grpc.NodeServicesStub(channel)
             print("Select an option:")
             print("1. Upload File")
@@ -118,9 +117,6 @@ def run_client():
             print(f"Failed to create channel: {e}")
             LEADER_ADDRESS = ""
 
-        finally:
-            with condition:
-                condition.release()
         
     
 
