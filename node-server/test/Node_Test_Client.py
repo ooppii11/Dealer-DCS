@@ -46,7 +46,7 @@ def upload_file(stub):
 
     upload_file_request = node_pb2.UploadFileRequest(file_id=file_id, file_content=file_content, type=file_type,user_id=user_id)
     upload_file_response = stub.UploadFile(iter([upload_file_request]))
-    print(f'UploadFileResponse: {upload_file_response.message}')
+    print(f'Upload File Response: {upload_file_response.message}')
 
 
 def download_file(stub):
@@ -57,7 +57,8 @@ def download_file(stub):
     download_file_response = stub.DownloadFile(download_file_request)
 
     for response in download_file_response:
-        print(f'DownloadFileResponse: {response.file_content.decode()}')
+        print(f'Download File Response:\n{response.file_content.decode()}', end='')
+    print('\n')
 
 def update_file(stub):
     file_id = input("Enter file ID: ")
@@ -65,8 +66,8 @@ def update_file(stub):
     user_id = int(input("Enter user ID: "))
 
     update_file_request = node_pb2.UpdateFileRequest(file_id=file_id, new_content=new_content, user_id=user_id)
-    update_file_response = stub.UploadFile(iter([update_file_request]))
-    print(f'UpdateFileRespone: {update_file_response.message}')
+    update_file_response = stub.UpdateFile(iter([update_file_request]))
+    print(f'Update File Respone: {update_file_response.message}')
 
 
 def delete_file(stub):
@@ -114,8 +115,11 @@ def run_client():
                 print("Invalid choice. Please try again.")
         
         except grpc.RpcError as e:
-            print(f"Failed to create channel: {e}")
-            LEADER_ADDRESS = ""
+            if isinstance(e, grpc.ChannelConnectivityError):
+                print("Failed to create channel:", e)
+                LEADER_ADDRESS = ""
+            else:
+                print("An error occurred:", e)
 
         
     

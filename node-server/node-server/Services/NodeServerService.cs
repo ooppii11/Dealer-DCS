@@ -88,7 +88,7 @@ namespace NodeServer.Services
                 
 
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, StatusArgsAndFileData.Item2);
-                if (await this._raft.appendEntry(entry, StatusArgsAndFileData.Item3.ToArray()))
+                if (this._raft.appendEntry(entry, StatusArgsAndFileData.Item3.ToArray()))
                 {
                     return new UploadFileResponse { Status = true, Message = "File uploaded successfully." };
                 }
@@ -147,7 +147,7 @@ namespace NodeServer.Services
                 }
 
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, StatusArgsAndFileData.Item2);
-                if (await this._raft.appendEntry(entry, StatusArgsAndFileData.Item3.ToArray()))
+                if (this._raft.appendEntry(entry, StatusArgsAndFileData.Item3.ToArray()))
                 {
                     return new UpdateFileResponse { Status = true, Message = "File uploaded successfully." };
                 }
@@ -167,7 +167,7 @@ namespace NodeServer.Services
 
         private async Task<byte[]> GetFile(string fileId, int userId)
         {
-            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId);
+            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, userId.ToString(), fileId);
             if (OnMachineStorageActions.IsFolderEmpty(folderPath)) 
             {
                 return await this._microservice.downloadFile(fileId);
@@ -183,7 +183,7 @@ namespace NodeServer.Services
                 const string operationName = "DownloadFile";
                 string args = $"[{request.UserId},{request.FileId},{this._fileVersionManager.GetLatestFileVersion(request.FileId, request.UserId)}]";
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
-                if (!await this._raft.appendEntry(entry))
+                if (!this._raft.appendEntry(entry))
                 {
                     context.Status = new Status(StatusCode.PermissionDenied, "Can't get requests from cloud, this server is not the leader at the moment.");
                     return;
@@ -228,7 +228,7 @@ namespace NodeServer.Services
                 const string operationName = "DeleteFile";
                 string args = $"[{request.UserId},{request.FileId},{this._fileVersionManager.GetLatestFileVersion(request.FileId, request.UserId)}]";
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
-                if (!await this._raft.appendEntry(entry))
+                if (!this._raft.appendEntry(entry))
                 {
                     context.Status = new Status(StatusCode.PermissionDenied, "Can't get requests from cloud, this server is not the leader at the moment.");
                     return new DeleteFileResponse { Status = false, Message = "Can't get requests from cloud, this server is not the leader at the moment." }; ;

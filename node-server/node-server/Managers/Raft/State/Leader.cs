@@ -185,7 +185,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
             }
         }
 
-        public async Task AppendEntries(LogEntry entry, byte[] fileData)
+        public async void AppendEntries(LogEntry entry, byte[] fileData)
         {
             this._timer.Stop();
             this._logger.AppendEntry(entry);

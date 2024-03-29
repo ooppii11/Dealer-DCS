@@ -61,24 +61,24 @@ namespace NodeServer.Managers.RaftNameSpace
 
             this.Start();
         }
-        public async Task<bool> appendEntry(LogEntry entry, byte[] fileData)
+        public bool appendEntry(LogEntry entry, byte[] fileData)
         {
             if (this._currentStateCode == StatesCode.Leader)
             {
                 Leader leaderObject = this._state as Leader;
-                await leaderObject.AppendEntries(entry, fileData);
+                leaderObject.AppendEntries(entry, fileData);
 
                 return true;
             }
             return false;
         }
 
-        public async Task<bool> appendEntry(LogEntry entry)
+        public bool appendEntry(LogEntry entry)
         {
             if (this._currentStateCode == StatesCode.Leader)
             {
                 Leader leaderObject = this._state as Leader;
-                await leaderObject.AppendEntries(entry, new byte[0]);
+                leaderObject.AppendEntries(entry, new byte[0]);
                 return true;
             }
             return false;

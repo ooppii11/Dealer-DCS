@@ -10,6 +10,7 @@ namespace NodeServer.Utilities
         private static readonly int _fixedUserTempStorageSpace = 100000000;//in bytes = 100mb
         public static void SaveMemoryStreamToFile(MemoryStream memoryStream, string filePath)
         {
+            memoryStream.Position = 0;
             using (FileStream fileStream = new FileStream(filePath, FileMode.Create))
             {
                 memoryStream.CopyTo(fileStream);
