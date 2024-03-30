@@ -37,8 +37,8 @@ namespace NodeServer.Managers.RaftNameSpace
         {
             this._dynamicActions = new DynamicStorageActionsManager(micro, fileVerM);
 
-            //this._currentStateCode = StatesCode.Follower;
-            this._currentStateCode = StatesCode.Leader;
+            this._currentStateCode = StatesCode.Follower;
+            //this._currentStateCode = StatesCode.Leader;
 
             this._settings = settings;
             this._logger = new Log(this._settings.LogFilePath);
@@ -61,6 +61,36 @@ namespace NodeServer.Managers.RaftNameSpace
 
             this.Start();
         }
+
+        public Raft(RaftSettings settings, FileSaving micro, FileVersionManager fileVerM, string folderName)
+        {
+            this._dynamicActions = new DynamicStorageActionsManager(micro, fileVerM, folderName);
+
+            this._currentStateCode = StatesCode.Follower;
+            //this._currentStateCode = StatesCode.Leader;
+
+            this._settings = settings;
+            this._logger = new Log(this._settings.LogFilePath);
+            this._cancellationTokenSource = new CancellationTokenSource();
+            LogEntry entry = this._logger.GetLastLogEntry();
+            this._settings.CurrentTerm = entry.Term;
+            this._settings.LastLogIndex = entry.Index;
+            if (entry.IsCommited()) { this._settings.CommitIndex = entry.Index; }
+            else
+            {
+                for (int i = entry.Index - 1; i > -1; i--)
+                {
+                    if (this._logger.GetLogAtPlaceN(i).IsCommited())
+                    {
+                        this._settings.CommitIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            this.Start();
+        }
+
         public bool appendEntry(LogEntry entry, byte[] fileData)
         {
             if (this._currentStateCode == StatesCode.Leader)
@@ -280,7 +310,7 @@ namespace NodeServer.Managers.RaftNameSpace
                         this._state = new Candidate(this._settings, this._logger);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
-                        this._settings.LockLeaderFirstHeartBeat = false;
+                        
                     }
                     else if (this._currentStateCode == StatesCode.Leader)
                     {
@@ -289,8 +319,8 @@ namespace NodeServer.Managers.RaftNameSpace
                         this._state = new Leader(this._settings, this._logger, this._dynamicActions);
                         this._currentStateCode = await this._state.Start(cancellationToken);
                         this._state = null;
-
                     }
+                    this._settings.LockLeaderFirstHeartBeat = false;
                     _cancellationTokenSource.Dispose();
                     _cancellationTokenSource = new CancellationTokenSource();
                 }

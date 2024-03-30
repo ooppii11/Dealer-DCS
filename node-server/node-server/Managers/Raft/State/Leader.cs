@@ -18,6 +18,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
         private int _matchIndex;
         private int _commitIndex;
         private AppendEntriesRequest _request;
+    
 
         public Node(string address)
         {
@@ -49,7 +50,6 @@ namespace NodeServer.Managers.RaftNameSpace.States
         private Dictionary<string, Node> _followers;
         private System.Timers.Timer _timer;
         private LogEntry _lastLogEntry;
-        private bool _changeState;
         private CancellationToken _cancellationToken;
         private TaskCompletionSource<bool> _completionSource;
         private readonly string _cloudAddress = "127.0.0.1:50053";
@@ -59,7 +59,6 @@ namespace NodeServer.Managers.RaftNameSpace.States
         {
             this._dynamicActions = dynamicActions;
             Console.WriteLine("leader");
-            this._changeState = false;
             this._lastLogEntry = this._logger.GetLastLogEntry();
             this._followers = new Dictionary<string, Node>();
             this.InitHeartbeatMessages();
@@ -262,7 +261,6 @@ namespace NodeServer.Managers.RaftNameSpace.States
         public async void OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
         {
             ServerToServerClient s2s = new ServerToServerClient(address);
-
             if (response.Success)
             {
                 this._followers[address].Request.LogEntry = null;
@@ -275,18 +273,22 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         if(this._settings.CommitIndex < response.MatchIndex)
                         {
                             Console.WriteLine(response.MatchIndex);
-                            this._settings.CommitIndex = response.MatchIndex;
+                            LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex);
                             Console.WriteLine($"leader commit index {this._settings.CommitIndex}");
-                            LogEntry entry = this._logger.CommitEntry(this._settings.CommitIndex);
-
+                            
                             // preform dynamic action after commit:
-                            Action commitAction = new Action(entry.Operation + "BeforeCommit", entry.OperationArgs);
-                            await this._dynamicActions.NameToAction(commitAction);
+                            Action commitAction = new Action(entry.Operation + "AfterCommit", entry.OperationArgs);
+                            if (await this._dynamicActions.NameToAction(commitAction))
+                            {
+                                this._settings.CommitIndex = response.MatchIndex;
+                                this._logger.CommitEntry(this._settings.CommitIndex);
+                            }
                         }
                         this._followers[address].CommitIndex = response.MatchIndex;
                         this._followers[address].Request.CommitIndex = response.MatchIndex;
                     }
                 }
+                //
                 else if (response.MatchIndex < this._settings.LastLogIndex)
                 {
                     LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
@@ -309,6 +311,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                             OperationArgs = entry.OperationArgs
 
                         },
+                        FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex), this._dynamicActions.getActionMaker() as FileSaving))
                     };
                 }
                 try

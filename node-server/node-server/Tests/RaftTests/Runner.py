@@ -13,14 +13,18 @@ def main():
     # Set the working directory
     os.chdir(directory)
 
-    #ports = ["1111 1.log", "2222 2.log", "3333 3.log"]
-    ports = ["2222 2.log", "3333 3.log"]
+    configurations = [
+        {"port": "1111", "log": "1.log"},
+        {"port": "2222", "log": "2.log"},
+        {"port": "3333", "log": "3.log"}
+    ]
 
-    for port in ports:
-        full_path = f'"{base_path}" {port}'
+    for config in configurations:
+        full_path = f'"{base_path}" {config["port"]} {config["log"]}'
         print(full_path)
         time.sleep(0.2)
         open_terminal_and_run_exe(full_path)
 
 if __name__ == "__main__":
     main()
+

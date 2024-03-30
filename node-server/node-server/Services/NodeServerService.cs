@@ -14,7 +14,6 @@ namespace NodeServer.Services
         private FileSaving _microservice;
         private Raft _raft;
         private FileVersionManager _fileVersionManager;
-        private readonly string _baseFolderName = "TempFiles";
         
 
         public NodeServerService(FileSaving micro, Raft raft, FileVersionManager fileVerM)
@@ -24,7 +23,7 @@ namespace NodeServer.Services
             this._fileVersionManager = fileVerM;
 
             string currentDirectory = Directory.GetCurrentDirectory();
-            string folderPath = Path.Combine(currentDirectory, this._baseFolderName);
+            string folderPath = Path.Combine(currentDirectory, OnMachineStorageActions._baseFolderName);
             if (!Directory.Exists(folderPath))
             {
                 Directory.CreateDirectory(folderPath);
@@ -167,7 +166,7 @@ namespace NodeServer.Services
 
         private async Task<byte[]> GetFile(string fileId, int userId)
         {
-            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, userId.ToString(), fileId);
+            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, userId.ToString(), fileId);
             if (OnMachineStorageActions.IsFolderEmpty(folderPath)) 
             {
                 return await this._microservice.downloadFile(fileId);
@@ -234,7 +233,7 @@ namespace NodeServer.Services
                     return new DeleteFileResponse { Status = false, Message = "Can't get requests from cloud, this server is not the leader at the moment." }; ;
                 }
 
-                string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, request.FileId);
+                string folderPath = Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, request.FileId);
                 if (!Directory.Exists(folderPath))
                 {
                     context.Status = new Status(StatusCode.NotFound, "The Requested file doesn't exist");

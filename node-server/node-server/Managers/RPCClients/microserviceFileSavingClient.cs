@@ -78,7 +78,6 @@ namespace NodeServer.Managers
             }
             catch (Exception ex)
             {
-
                 throw new Exception("Error occurred while uploading this file");
             }
             

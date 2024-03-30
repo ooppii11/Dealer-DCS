@@ -21,6 +21,13 @@ namespace NodeServer.Managers
             this._fileVersionManager = fileVerM;
         }
 
+        public DynamicStorageActionsManager(FileSaving micro, FileVersionManager fileVerM, string baseFolderName)
+        {
+            this._microservice = micro;
+            this._fileVersionManager = fileVerM;
+            this._baseFolderName = baseFolderName;
+        }
+
         public override ActionMaker getActionMaker()
         {
             return this._microservice;
@@ -64,9 +71,9 @@ namespace NodeServer.Managers
             }
         }
 
-        private byte[] GetFile(string fileId, int version)
+        private byte[] GetFile(string userId, string fileId, int version)
         {
-            string dirPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId);
+            string dirPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, userId, fileId);
             string filePath = Path.Combine(dirPath, $"{fileId}_{version}");
             if (Directory.Exists(dirPath) && File.Exists(filePath))
             {
@@ -79,7 +86,7 @@ namespace NodeServer.Managers
         {
             this._fileVersionManager.RemovePreviousVersions(fileId, userId, version);
 
-            string directoryPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId);
+            string directoryPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, userId.ToString(), fileId);
             string[] previousVersionFiles = Directory.GetFiles(directoryPath, $"{fileId}_*");
 
             foreach (string file in previousVersionFiles)
@@ -98,7 +105,7 @@ namespace NodeServer.Managers
         private void RemoveCurrentVersion(int userId, string fileId, int version)
         {
             this._fileVersionManager.RemoveVersion(fileId, userId, version);
-            string filePath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId, $"{fileId}_{version}");
+            string filePath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, userId.ToString(), fileId, $"{fileId}_{version}");
             File.Delete(filePath);
         }
 
@@ -108,7 +115,7 @@ namespace NodeServer.Managers
             {
                 int userId = Convert.ToInt32(strUserId);
                 int version = Convert.ToInt32(strVersion);
-                byte[] data = GetFile(fileId, version);
+                byte[] data = GetFile(strUserId, fileId, version);
                 if (data == null)
                 {
                     return true;
@@ -135,7 +142,7 @@ namespace NodeServer.Managers
                 {
                     return true;
                 }
-                byte[] data = GetFile(fileId, version);
+                byte[] data = GetFile(strUserId,fileId, version);
                 if (data == null)
                 {
                     return true;

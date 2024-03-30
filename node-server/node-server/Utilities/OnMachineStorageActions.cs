@@ -5,9 +5,11 @@ namespace NodeServer.Utilities
 {
     public class OnMachineStorageActions
     {
-        private static readonly string _baseFolderName = "TempFiles";
+        public static string _baseFolderName = "TempFiles";
         private static readonly int _fixedUserStorageSpace = 100000000;//in bytes = 100mb
         private static readonly int _fixedUserTempStorageSpace = 100000000;//in bytes = 100mb
+
+
         public static void SaveMemoryStreamToFile(MemoryStream memoryStream, string filePath)
         {
             memoryStream.Position = 0;
