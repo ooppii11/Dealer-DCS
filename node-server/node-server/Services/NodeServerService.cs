@@ -179,15 +179,6 @@ namespace NodeServer.Services
         {
             try
             {
-                const string operationName = "DownloadFile";
-                string args = $"[{request.UserId},{request.FileId},{this._fileVersionManager.GetLatestFileVersion(request.FileId, request.UserId)}]";
-                LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
-                if (!this._raft.appendEntry(entry))
-                {
-                    context.Status = new Status(StatusCode.PermissionDenied, "Can't get requests from cloud, this server is not the leader at the moment.");
-                    return;
-                }
-
                 byte[] file = await GetFile(request.FileId, request.UserId);
                 int offset = 0;
                 int chunkSize = 64000;

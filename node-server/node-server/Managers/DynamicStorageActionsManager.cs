@@ -39,12 +39,10 @@ namespace NodeServer.Managers
         {
             { "UploadFileAfterCommit", new Func<string, string, string, string, Task<bool>>(UploadFileAfterCommit) },
             { "UpdateFileAfterCommit", new Func<string, string, string, Task<bool>>(UpdateFileAfterCommit) },
-            { "DownloadFileAfterCommit", new Func<string, string, string, bool>(DownloadFileAfterCommit) },
             { "DeleteFileAfterCommit", new Func<string, string, string, bool>(DeleteFileAfterCommit) },
 
             { "UploadFileBeforeCommit", new Func<string, string, string, string, byte[], bool>(UploadFileBeforeCommit) },
             { "UpdateFileBeforeCommit", new Func<string, string, string, byte[], bool>(UpdateFileBeforeCommit) },
-            { "DownloadFileBeforeCommit", new Func<string, string, string, bool>(DownloadFileBeforeCommit) },
             { "DeleteFileBeforeCommit", new Func< string, string, string, bool >(DeleteFileBeforeCommit) },
         };
 
@@ -159,11 +157,6 @@ namespace NodeServer.Managers
             }
         }
 
-        private bool DownloadFileAfterCommit(string userId, string fileId, string strVersion)
-        {
-            return true;
-        }
-
         private bool DeleteFileAfterCommit(string userId, string fileId, string strVersion)
         {
             try
@@ -199,11 +192,6 @@ namespace NodeServer.Managers
             {
                 return false;
             }
-            return true;
-        }
-
-        private bool DownloadFileBeforeCommit(string userId, string fileId, string strVersion)
-        {
             return true;
         }
 
