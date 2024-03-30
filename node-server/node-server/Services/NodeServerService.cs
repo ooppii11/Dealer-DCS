@@ -103,7 +103,7 @@ namespace NodeServer.Services
             }
         }
 
-        private async Task<Tuple<Status, string, MemoryStream>> UpdateOperationArgsToString(IAsyncStreamReader<UpdateFileRequest> requestStream)
+        private async Task<Tuple<Status, string, MemoryStream>> ParseUpdateRequest(IAsyncStreamReader<UpdateFileRequest> requestStream)
         {
             string fileId = "";
             int userId = 0;
@@ -138,7 +138,7 @@ namespace NodeServer.Services
             try
             {
                 const string operationName = "UpdateFile";
-                Tuple<Status, string, MemoryStream> StatusArgsAndFileData = await UpdateOperationArgsToString(requestStream);
+                Tuple<Status, string, MemoryStream> StatusArgsAndFileData = await ParseUpdateRequest(requestStream);
                 if (StatusArgsAndFileData.Item2 == null)
                 {
                     context.Status = StatusArgsAndFileData.Item1;
