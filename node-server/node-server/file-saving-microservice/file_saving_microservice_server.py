@@ -34,15 +34,20 @@ class FileCloudAccessServicer(file_saving_microservice_pb2_grpc.FileCloudAccessS
         Returns:
             UploadFileResponse: The response indicating the success of the operation.
         """
-        print("uploading")
-        for request in request_iterator:
-            file_name = request.file_name
-            file_data = request.file_data
-            file_type = request.type
 
-            # Call the file storage manager to upload the file
-            self._file_storage_manager.upload_file(file_data, file_name, file_type)
+        print("upload")
+        try:
+            for request in request_iterator:
+                file_name = request.file_name
+                file_data = request.file_data
+                file_type = request.type
 
+            
+                # Call the file storage manager to upload the file
+            
+                self._file_storage_manager.upload_file(file_data, file_name, file_type)
+        except Exception as e:
+            print(e)
         response = file_saving_microservice_pb2.UploadFileResponse()
         return response
 
@@ -85,6 +90,7 @@ class FileCloudAccessServicer(file_saving_microservice_pb2_grpc.FileCloudAccessS
         """
         response = file_saving_microservice_pb2.DeleteFileResponse()
         try:
+            print("delete")
             # Delete the file using the file storage manager
             self._file_storage_manager.delete_file(request.file_name)
         except FileNotFoundError:

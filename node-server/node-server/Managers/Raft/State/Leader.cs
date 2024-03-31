@@ -138,7 +138,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 {
                     ServerToServerClient s2s = new ServerToServerClient(address);
                     AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
-                    this.OnReceiveAppendEntriesResponse(response, address);
+                    await this.OnReceiveAppendEntriesResponse(response, address);
                 }
                 catch (RpcException e)
                 {
@@ -222,7 +222,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     ServerToServerClient s2s = new ServerToServerClient(address);
                     AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
                     Console.WriteLine($"sent new append entries to {address}");
-                    this.OnReceiveAppendEntriesResponse(response, address);
+                    await this.OnReceiveAppendEntriesResponse(response, address);
                 }
                 catch (RpcException e)
                 {
@@ -258,7 +258,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
             return agreeCount + 1 > nodesCount / 2;
         }
 
-        public async void OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
+        public async Task OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
         {
             ServerToServerClient s2s = new ServerToServerClient(address);
             if (response.Success)
@@ -272,7 +272,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     {
                         if(this._settings.CommitIndex < response.MatchIndex)
                         {
-                            Console.WriteLine(response.MatchIndex);
+                            this._settings.CommitIndex++;
                             LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex);
                             Console.WriteLine($"leader commit index {this._settings.CommitIndex}");
                             
@@ -294,6 +294,8 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
                     Console.WriteLine("MatchIndex: ", response.MatchIndex);
                     Console.WriteLine(entry.Timestamp);
+                    Console.WriteLine(this._followers[address].Request);
+
                     this._followers[address].Request = new AppendEntriesRequest()
                     {
                         Term = this._settings.CurrentTerm,
@@ -314,6 +316,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         },
                         FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex || this._settings.CommitIndex == -1), this._dynamicActions.getActionMaker() as FileSaving))
                     };
+
                 }
                 try
                 {
