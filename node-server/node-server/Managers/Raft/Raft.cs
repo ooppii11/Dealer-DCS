@@ -236,15 +236,16 @@ namespace NodeServer.Managers.RaftNameSpace
                     Action commitAction = new Action(entry.Operation + "AfterCommit", entry.OperationArgs);
 
                     // preform dynamic action after commit:
+                    this._settings.CommitIndex++;
                     if (await this._dynamicActions.NameToAction(commitAction))
                     {
-                        this._settings.CommitIndex++;
                         this._logger.CommitEntry(totalCommitIndex);
                         Console.WriteLine("good commit");
 
                     }
                     else
                     {
+                        this._settings.CommitIndex--;
                         //return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
                         return new AppendEntriesResponse() { MatchIndex = this._settings.CommitIndex, Success = false, Term = this._settings.CurrentTerm };
                     }
