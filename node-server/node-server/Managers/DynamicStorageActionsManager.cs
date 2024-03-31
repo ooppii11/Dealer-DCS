@@ -39,11 +39,11 @@ namespace NodeServer.Managers
         {
             { "UploadFileAfterCommit", new Func<string, string, string, string, Task<bool>>(UploadFileAfterCommit) },
             { "UpdateFileAfterCommit", new Func<string, string, string, Task<bool>>(UpdateFileAfterCommit) },
-            { "DeleteFileAfterCommit", new Func<string, string, string, bool>(DeleteFileAfterCommit) },
+            { "DeleteFileAfterCommit", new Func<string, string, bool>(DeleteFileAfterCommit) },
 
             { "UploadFileBeforeCommit", new Func<string, string, string, string, byte[], bool>(UploadFileBeforeCommit) },
             { "UpdateFileBeforeCommit", new Func<string, string, string, byte[], bool>(UpdateFileBeforeCommit) },
-            { "DeleteFileBeforeCommit", new Func< string, string, string, bool >(DeleteFileBeforeCommit) },
+            { "DeleteFileBeforeCommit", new Func< string, string, bool >(DeleteFileBeforeCommit) },
         };
 
             if (functionsWrapper.TryGetValue(ac.ActionName, out Delegate func))
@@ -140,7 +140,7 @@ namespace NodeServer.Managers
                 {
                     return true;
                 }
-                byte[] data = GetFile(strUserId,fileId, version);
+                byte[] data = GetFile(strUserId, fileId, version);
                 if (data == null)
                 {
                     return true;
@@ -157,7 +157,7 @@ namespace NodeServer.Managers
             }
         }
 
-        private bool DeleteFileAfterCommit(string userId, string fileId, string strVersion)
+        private bool DeleteFileAfterCommit(string userId, string fileId)
         {
             try
             {
@@ -195,10 +195,10 @@ namespace NodeServer.Managers
             return true;
         }
 
-        private bool DeleteFileBeforeCommit(string strUserId, string fileId, string strVersion)
+        private bool DeleteFileBeforeCommit(string strUserId, string fileId)
         {
             int userId = Convert.ToInt32(strUserId);
-            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId);
+            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, strUserId, fileId);
             if (!Directory.Exists(folderPath))
             {
                 return false;
