@@ -272,7 +272,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     {
                         if(this._settings.CommitIndex < response.MatchIndex)
                         {
-                            Console.WriteLine(response.MatchIndex);
+                            this._settings.CommitIndex++;
                             LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex);
                             Console.WriteLine($"leader commit index {this._settings.CommitIndex}");
                             
@@ -292,7 +292,8 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 else if (response.MatchIndex < this._settings.LastLogIndex)
                 {
                     LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
-                    Console.WriteLine(entry.Timestamp);
+                    Console.WriteLine(this._followers[address].Request);
+
                     this._followers[address].Request = new AppendEntriesRequest()
                     {
                         Term = this._settings.CurrentTerm,
@@ -313,6 +314,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         },
                         FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex), this._dynamicActions.getActionMaker() as FileSaving))
                     };
+
                 }
                 try
                 {
