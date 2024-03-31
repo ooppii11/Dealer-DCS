@@ -312,7 +312,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                             OperationArgs = entry.OperationArgs
 
                         },
-                        FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex), this._dynamicActions.getActionMaker() as FileSaving))
+                        FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex || this._settings.CommitIndex == -1), this._dynamicActions.getActionMaker() as FileSaving))
                     };
                 }
                 try
@@ -340,7 +340,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     //install snapshot
                 }
                 else*/
-                if (response.MatchIndex < this._followers[address].Request.PrevIndex + 1 && response.MatchIndex < this._settings.LastLogIndex)
+                if (response.MatchIndex < this._settings.LastLogIndex)
                 {
                     LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
                     Console.WriteLine(entry.Timestamp);
@@ -363,30 +363,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                             OperationArgs = entry.OperationArgs
 
                         },
-                        FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex), this._dynamicActions.getActionMaker() as FileSaving))
-                    };
-                }
-                else if (this._logger.GetLogAtPlaceN(response.MatchIndex).IsCommited())
-                {
-                    LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex);
-                    this._followers[address].Request = new AppendEntriesRequest()
-                    {
-                        Term = this._settings.CurrentTerm,
-                        PrevTerm = this._settings.PreviousTerm,
-                        PrevIndex = response.MatchIndex,
-                        CommitIndex = Math.Min(this._settings.CommitIndex, response.MatchIndex),
-                        LogEntry = new GrpcServerToServer.LogEntry()
-                        {
-                            PrevTerm = this._settings.PreviousTerm,
-                            Term = this._settings.CurrentTerm,
-                            PrevLogIndex = response.MatchIndex,
-                            LogIndex = response.MatchIndex + 1,
-
-                            Timestamp = Timestamp.FromDateTime(entry.Timestamp.ToUniversalTime()),
-                            Operation = entry.Operation,
-                            OperationArgs = entry.OperationArgs
-
-                        },
+                        FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex || this._settings.CommitIndex == -1), this._dynamicActions.getActionMaker() as FileSaving))
                     };
                 }
 

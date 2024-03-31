@@ -34,6 +34,7 @@ class FileCloudAccessServicer(file_saving_microservice_pb2_grpc.FileCloudAccessS
         Returns:
             UploadFileResponse: The response indicating the success of the operation.
         """
+        print("uploading")
         for request in request_iterator:
             file_name = request.file_name
             file_data = request.file_data

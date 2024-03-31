@@ -216,7 +216,7 @@ namespace NodeServer.Services
             try
             {
                 const string operationName = "DeleteFile";
-                string args = $"[{request.UserId},{request.FileId},{this._fileVersionManager.GetLatestFileVersion(request.FileId, request.UserId)}]";
+                string args = $"[{request.UserId},{request.FileId}]";
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
                 if (!this._raft.appendEntry(entry))
                 {
