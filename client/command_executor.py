@@ -30,7 +30,6 @@ def get_stub():
     return stub
 
 def main():
-    print("hello")
     if len(sys.argv) < 3:
         print("Usage: python command_executor.py <user_input> <session_id>")
         sys.exit(1)
