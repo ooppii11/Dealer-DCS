@@ -24,6 +24,7 @@ namespace cloud_server.Services
         private static readonly Dictionary<string, ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>> _usersRequestQueues = new Dictionary<string, ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>>();
         private static readonly Dictionary<string, object> _usersQueueLockObjects = new Dictionary<string, object>();
         private static readonly Dictionary<string, CancellationTokenSource> _usersCancellationTokens = new Dictionary<string, CancellationTokenSource>();
+        private static readonly Dictionary<string, bool> _usersLoggedInStatus = new Dictionary<string, bool>();
         //private readonly object _queueLockObject = new object();
         //private readonly ManualResetEventSlim _queueEvent = new ManualResetEventSlim(false);
         private static readonly Dictionary<string, ManualResetEventSlim> _usersQueueEvent = new Dictionary<string, ManualResetEventSlim>();
@@ -46,67 +47,72 @@ namespace cloud_server.Services
             this._logger = logger;
             this._authManager = auth;
         }
-        private void StartProcessQueueForUser(string userId)
+        private void StartProcessQueueForUser(string userSessionId)
         {
-            if (!CloudGrpcService._usersCancellationTokens.ContainsKey(userId))
+            if (!CloudGrpcService._usersCancellationTokens.ContainsKey(userSessionId))
             {
                 var cancellationTokenSource = new CancellationTokenSource();
-                CloudGrpcService._usersCancellationTokens[userId] = cancellationTokenSource;
+                CloudGrpcService._usersCancellationTokens[userSessionId] = cancellationTokenSource;
 
                 var userQueueLockObject = new object();
-                CloudGrpcService._usersQueueLockObjects[userId] = userQueueLockObject;
+                CloudGrpcService._usersQueueLockObjects[userSessionId] = userQueueLockObject;
 
                 var userQueueEvent = new ManualResetEventSlim(false);
-                CloudGrpcService._usersQueueEvent[userId] = userQueueEvent;
+                CloudGrpcService._usersQueueEvent[userSessionId] = userQueueEvent;
 
-                CloudGrpcService._usersRequestQueues[userId] = new ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>();
+                CloudGrpcService._usersRequestQueues[userSessionId] = new ConcurrentQueue<(Delegate Action, TaskCompletionSource<object> Completion, object[] Parameters)>();
 
 
-                Task.Factory.StartNew(() => ProcessQueue(userId), TaskCreationOptions.LongRunning);
+                Task.Factory.StartNew(() => ProcessQueue(userSessionId), TaskCreationOptions.LongRunning);
             }
         }
 
-        private void StopProcessQueueForUser(string userId)
+        private void StopProcessQueueForUser(string userSessionId)
         {
-            if (CloudGrpcService._usersCancellationTokens.TryGetValue(userId, out var cancellationTokenSource))
+            
+            if (CloudGrpcService._usersCancellationTokens.TryGetValue(userSessionId, out var cancellationTokenSource))
             {
                 cancellationTokenSource.Cancel();
-                CloudGrpcService._usersCancellationTokens.Remove(userId);
+                CloudGrpcService._usersCancellationTokens.Remove(userSessionId);
             }
-            if (CloudGrpcService._usersQueueLockObjects.TryGetValue(userId, out var userQueueLockObject))
+            if (CloudGrpcService._usersQueueLockObjects.TryGetValue(userSessionId, out var userQueueLockObject))
             {
                 lock (userQueueLockObject)
                 {
-                    CloudGrpcService._usersQueueLockObjects.Remove(userId);
+                    CloudGrpcService._usersQueueLockObjects.Remove(userSessionId);
                 }
             }
-            if (CloudGrpcService._usersRequestQueues.TryGetValue(userId, out var userQueue))
+            if (CloudGrpcService._usersRequestQueues.TryGetValue(userSessionId, out var userQueue))
             {
-                _usersRequestQueues.Remove(userId);
+                _usersRequestQueues.Remove(userSessionId);
             }
         }
 
 
-        private Task<object> EnqueueRequestAsync(string userId, Delegate action, params object[] parameters)
+        private Task<object> EnqueueRequestAsync(string userSessionId, Delegate action, params object[] parameters)
         {
+            if (!_usersLoggedInStatus.ContainsKey(userSessionId) || !_usersLoggedInStatus[userSessionId])
+            {
+                throw new UserIsNotLoggedIn("User is not logged in.");
+            }
             var completionSource = new TaskCompletionSource<object>();
-            CloudGrpcService._usersRequestQueues[userId].Enqueue((action, completionSource, parameters));
-            CloudGrpcService._usersQueueEvent[userId].Set();
+            CloudGrpcService._usersRequestQueues[userSessionId].Enqueue((action, completionSource, parameters));
+            CloudGrpcService._usersQueueEvent[userSessionId].Set();
             return completionSource.Task;
         }
 
 
 
-        private async Task ProcessQueue(string userId)
+        private async Task ProcessQueue(string userSessionId)
         {
-            while (!CloudGrpcService._usersCancellationTokens[userId].IsCancellationRequested)
+            while (!CloudGrpcService._usersCancellationTokens[userSessionId].IsCancellationRequested)
             {
-                CloudGrpcService._usersQueueEvent[userId].Wait();
+                CloudGrpcService._usersQueueEvent[userSessionId].Wait();
 
-                lock (CloudGrpcService._usersQueueLockObjects[userId])
+                lock (CloudGrpcService._usersQueueLockObjects[userSessionId])
                 {
                     bool stopProcessingQueueNow = false;
-                    while (CloudGrpcService._usersRequestQueues[userId].TryPeek(out var requestPair) && !stopProcessingQueueNow)
+                    while (CloudGrpcService._usersRequestQueues[userSessionId].TryPeek(out var requestPair) && !stopProcessingQueueNow)
                     {
                         try
                         {
@@ -147,7 +153,7 @@ namespace cloud_server.Services
                             }
                             if (!stopProcessingQueueNow)
                             {
-                                CloudGrpcService._usersRequestQueues[userId].TryDequeue(out requestPair);
+                                CloudGrpcService._usersRequestQueues[userSessionId].TryDequeue(out requestPair);
                             }
                         }
                         catch (NoLeaderException ex)
@@ -161,7 +167,7 @@ namespace cloud_server.Services
                         }
                             
                     }
-                    CloudGrpcService._usersQueueEvent[userId].Reset();
+                    CloudGrpcService._usersQueueEvent[userSessionId].Reset();
                 }
             }
         }
@@ -233,16 +239,70 @@ namespace cloud_server.Services
 
             }
         }
+        private void UpdateDictionariesOnSessionChange(string oldSessionId, string newSessionId)
+        {
+            lock (_fileLock)
+            {
+                if (_usersRequestQueues.TryGetValue(oldSessionId, out var oldQueue))
+                {
+                    _usersRequestQueues.Remove(oldSessionId);
+                    _usersRequestQueues[newSessionId] = oldQueue;
+                }
+
+                if (_usersQueueLockObjects.TryGetValue(oldSessionId, out var oldLockObject))
+                {
+                    _usersQueueLockObjects.Remove(oldSessionId);
+                    _usersQueueLockObjects[newSessionId] = oldLockObject;
+                }
+
+                if (_usersQueueEvent.TryGetValue(oldSessionId, out var oldQueueEvent))
+                {
+                    _usersQueueEvent.Remove(oldSessionId);
+                    _usersQueueEvent[newSessionId] = oldQueueEvent;
+                }
+
+                if (_usersCancellationTokens.TryGetValue(oldSessionId, out var oldCancellationToken))
+                {
+                    _usersCancellationTokens[oldSessionId].Cancel();
+                    _usersCancellationTokens.Remove(oldSessionId);
+                    _usersCancellationTokens[newSessionId] = oldCancellationToken;
+                }
+
+                if (_usersLoggedInStatus.TryGetValue(oldSessionId, out var isLoggedIn))
+                {
+                    _usersLoggedInStatus.Remove(oldSessionId);
+                    _usersLoggedInStatus[newSessionId] = isLoggedIn;
+                }
+
+                Task.Factory.StartNew(() => ProcessQueue(newSessionId), TaskCreationOptions.LongRunning);
+            }
+        }
 
         public override Task<LoginResponse> login(LoginRequest request, ServerCallContext context)
         {
-            string sessionId = "";
+            string newSessionId = "";
+            string existingSessionId = "";
 
             try
             {
-                sessionId = this._authManager.Login(request.Username, request.Password).Item1;
-                StartProcessQueueForUser(sessionId);
-                return Task.FromResult(new LoginResponse { SessionId = sessionId, Status = GrpcCloud.Status.Success });
+                var oldSessionIdAndNew = this._authManager.Login(request.Username, request.Password);
+                newSessionId = oldSessionIdAndNew.Item1;
+                existingSessionId = oldSessionIdAndNew.Item2;
+                if (!_usersCancellationTokens.ContainsKey(newSessionId))
+                {
+                    if (!_usersCancellationTokens.ContainsKey(existingSessionId))
+                    {
+                        StartProcessQueueForUser(newSessionId);
+                    }
+                    else 
+                    {
+                        UpdateDictionariesOnSessionChange(existingSessionId, newSessionId);
+                    }
+                }
+
+                
+                CloudGrpcService._usersLoggedInStatus[newSessionId] = true;
+                return Task.FromResult(new LoginResponse { SessionId = newSessionId, Status = GrpcCloud.Status.Success });
 
             }
             catch (Exception ex)
@@ -259,12 +319,31 @@ namespace cloud_server.Services
 
             }
         }
-      
-        public override Task<LogoutResponse> logout(LogoutRequest request, ServerCallContext context)
+        private async Task WaitForQueueEmpty(string userSessionId)
         {
-            this._authManager.Logout(request.SessionId);
-            StopProcessQueueForUser(request.SessionId);
-            return Task.FromResult(new LogoutResponse());
+            while (CloudGrpcService._usersRequestQueues[userSessionId].Count > 0)
+            {
+                // Wait for a short duration before checking again
+                await Task.Delay(100); // You can adjust the delay time as needed
+            }
+        }
+        public override async Task<LogoutResponse> logout(LogoutRequest request, ServerCallContext context)
+        {
+            try
+            {
+                this._authManager.Logout(request.SessionId);
+                CloudGrpcService._usersLoggedInStatus[request.SessionId] = false;
+                await WaitForQueueEmpty(request.SessionId);
+
+                StopProcessQueueForUser(request.SessionId);
+
+                return new LogoutResponse();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return new LogoutResponse();
+            }
         }
 
         public override async Task<GetListOfFilesResponse> getListOfFiles(GetListOfFilesRequest request, ServerCallContext context)
@@ -275,9 +354,9 @@ namespace cloud_server.Services
                 var task = await EnqueueRequestAsync(request.SessionId, ProcessGetListOfFiles, request, context);
                 return (GetListOfFilesResponse)task;
             }
-            catch (IncorrectSessionIdException ex)
+            catch (AuthenticationException ex)
             {
-                context.Status = new Grpc.Core.Status(StatusCode.InvalidArgument, ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.PermissionDenied, ex.Message);
                 return new GetListOfFilesResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
             }
             catch (Exception ex)
@@ -300,8 +379,9 @@ namespace cloud_server.Services
                 var task = await EnqueueRequestAsync(request.SessionId, ProcessGetFileMetadata, request, context);
                 return (GetFileMetadataResponse)task;
             }
-            catch (IncorrectSessionIdException ex)
+            catch (AuthenticationException ex)
             {
+                context.Status = new Grpc.Core.Status(StatusCode.PermissionDenied, ex.Message);
                 return new GetFileMetadataResponse { Message = $"Error: {ex.Message}" , Status = GrpcCloud.Status.Failure};
             }
             catch (Exception ex)
@@ -323,9 +403,9 @@ namespace cloud_server.Services
                 var task = await EnqueueRequestAsync(request.SessionId, ProcessDeleteFile, request, context);
                 return (DeleteFileResponse)task;
             }
-            catch (IncorrectSessionIdException ex)
+            catch (AuthenticationException ex)
             {
-                context.Status = new Grpc.Core.Status(StatusCode.InvalidArgument, ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.PermissionDenied, ex.Message);
                 return new DeleteFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
             }
             catch (Exception ex)
@@ -349,9 +429,9 @@ namespace cloud_server.Services
                 var task = EnqueueRequestAsync(request.SessionId, ProcessDownloadFile, request, responseStream, context);
                 return;
             }
-            catch (IncorrectSessionIdException ex)
+            catch (AuthenticationException ex)
             {
-                context.Status = new Grpc.Core.Status(StatusCode.InvalidArgument, ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.PermissionDenied, ex.Message);
                 await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Error: {ex.Message}", FileData = ByteString.Empty });
                 return;
             }
@@ -372,9 +452,9 @@ namespace cloud_server.Services
                 var task = await EnqueueRequestAsync(requestStreamList[0].SessionId, ProcessUpdateFile, requestStreamList, context);
                 return (UpdateFileResponse)task;
             }
-            catch (IncorrectSessionIdException ex)
+            catch (AuthenticationException ex)
             {
-                context.Status = new Grpc.Core.Status(StatusCode.InvalidArgument, ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.PermissionDenied, ex.Message);
                 return new UpdateFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
             }
             catch (RpcException ex)
@@ -404,9 +484,9 @@ namespace cloud_server.Services
                 var task = await EnqueueRequestAsync(requestStreamList[0].SessionId, ProcessUploadFile, requestStreamList, context);
                 return (UploadFileResponse)task;
             }
-            catch (IncorrectSessionIdException ex)
+            catch (AuthenticationException ex)
             {
-                context.Status = new Grpc.Core.Status(StatusCode.InvalidArgument, ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.PermissionDenied, ex.Message);
                 return new UploadFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
             }
             catch (RpcException ex)
