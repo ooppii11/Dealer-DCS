@@ -8,17 +8,14 @@ public class AuthDB
     private NpgsqlConnection _conn;
     public AuthDB(string tablesPath, string host, string username, string port, string password, string db)
     {
-        //"Server=172.18.0.2;Port=5432;User Id=dBserver;Password=123AvIt456;Database=mydatabase;"
+        //for debug "Server=172.18.0.2;Port=5432;User Id=dBserver;Password=123AvIt456;Database=mydatabase;"
         var connectionString = $"Server={host};Port={port};User Id={username};Password={password};Database={db};";
         this._conn = new NpgsqlConnection(connectionString);
         try
         {
-            if (this._conn.State == System.Data.ConnectionState.Open)
-            {
-            }
-            else
-            {
-                this._conn.Open();
+            if (this._conn.State != System.Data.ConnectionState.Open) 
+            { 
+                this._conn.Open();  // Open connection with the db.
             }
         }
         catch (Exception ex)
@@ -31,7 +28,7 @@ public class AuthDB
 
     private void createTables(string pathToTablesFile)
     {
-        string strText = System.IO.File.ReadAllText(pathToTablesFile, System.Text.Encoding.UTF8);
+        string strText = System.IO.File.ReadAllText(pathToTablesFile, System.Text.Encoding.UTF8); // Load tables quries 
         using (NpgsqlCommand command = new NpgsqlCommand(strText, this._conn))
         {
             command.ExecuteNonQuery();
@@ -51,6 +48,7 @@ public class AuthDB
                 @password,
                 @email,
                 @phoneNumber);";
+
         using (NpgsqlCommand command = new NpgsqlCommand(query, this._conn))
         {
             try

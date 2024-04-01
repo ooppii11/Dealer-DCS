@@ -1,18 +1,19 @@
 using NodeServer.Services;
 using NodeServer.Managers;
-using System.Net;
-using Microsoft.AspNetCore.Hosting.Server.Features;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-
-
+using NodeServer.Managers.RaftNameSpace;
+/*
 public class Startup
 {
     public void ConfigureServices(IServiceCollection services)
     {
-        services.AddSingleton<FileSaving>(new FileSaving("127.0.0.1", 50051));
-        services.AddSingleton<NodeSystemParse>(new NodeSystemParse());
+        RaftSettings raftSettings = new RaftSettings();
+        FileSaving micro = new FileSaving("127.0.0.1", 50051);
+        FileVersionManager db = new FileVersionManager("FileManager.db");
+
+        services.AddSingleton<FileSaving>(micro);
+        services.AddSingleton<FileVersionManager>(db);
+        services.AddSingleton<Raft>(new Raft(raftSettings, micro, db));
+
         services.AddGrpc(options =>
         {
             options.Interceptors.Add<ConnectionLoggerInterceptor>();
@@ -59,7 +60,7 @@ public class Program
 
                     options.Listen(IPAddress.Parse(ipAddress), port);
                 });
-                */
+                *//*
             })
             .ConfigureLogging(logging =>
             {
@@ -67,3 +68,4 @@ public class Program
                 logging.AddConsole();
             });
 }
+*/

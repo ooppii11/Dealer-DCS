@@ -5,6 +5,10 @@ WORKDIR /app
 EXPOSE 80
 EXPOSE 443
 EXPOSE 50052
+COPY ./file-saving-microservice/requirements.txt ./file-saving-microservice/requirements.txt
+RUN apt-get update
+RUN apt-get install -y python3 python3-pip
+RUN pip3 install --no-cache-dir -r ./file-saving-microservice/requirements.txt
 
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 WORKDIR /src
@@ -24,12 +28,6 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 COPY ./file-saving-microservice/ ./file-saving-microservice/
 RUN chmod +r ./file-saving-microservice/dealer-dcs-150291856e98.json
-
-
-RUN apt-get update
-RUN apt-get install -y python3 python3-pip
-
-RUN pip3 install --no-cache-dir -r ./file-saving-microservice/requirements.txt
 
 COPY entrypoint.sh .
 RUN chmod +x ./entrypoint.sh

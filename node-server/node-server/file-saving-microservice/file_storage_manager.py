@@ -65,6 +65,7 @@ class FileStorageManager:
             None
 
         """
+        self._drive = DriveServiceHelper.authenticate(self._credentials_file)
         file = UploadFile(file_bytes, filename, mimetype, self._region_folder_id)
         DriveServiceHelper.upload_file(self._drive, file)
 
@@ -82,6 +83,7 @@ class FileStorageManager:
             Exception: If the file ID cannot be found.
 
         """
+        self._drive = DriveServiceHelper.authenticate(self._credentials_file)
         file_id = DriveServiceHelper.get_file_id(self._drive, filename, self._region_folder_id)
         return DriveServiceHelper.download_file(self._drive, file_id)
 
@@ -99,5 +101,7 @@ class FileStorageManager:
             Exception: If the file ID cannot be found.
 
         """
-        file_id = DriveServiceHelper.get_file_id(self._drive, filename, self._region_folder_id)
-        DriveServiceHelper.delete_file(self._drive, file_id)
+        drive = DriveServiceHelper.authenticate(self._credentials_file)
+        file_id = DriveServiceHelper.get_file_id(drive, filename, self._region_folder_id)
+        print("file exsists")
+        DriveServiceHelper.delete_file(drive, file_id)

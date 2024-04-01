@@ -7,7 +7,8 @@ import file_saving_microservice_pb2
 import file_saving_microservice_pb2_grpc 
 
 
-REGION_ID = os.getenv('REGION_ID')
+#REGION_ID = os.getenv('REGION_ID')
+REGION_ID = "X"
 CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "dealer-dcs-150291856e98.json")
 
 
@@ -21,6 +22,7 @@ class FileCloudAccessServicer(file_saving_microservice_pb2_grpc.FileCloudAccessS
             file_storage_manager (FileStorageManager): The file storage manager.
         """
         self._file_storage_manager = file_storage_manager
+        #self._file_storage_manager.upload_file(b"file_data", "file_name", "text/plain")
 
 
     def UploadFile(self, request_iterator, context):
@@ -33,14 +35,19 @@ class FileCloudAccessServicer(file_saving_microservice_pb2_grpc.FileCloudAccessS
         Returns:
             UploadFileResponse: The response indicating the success of the operation.
         """
-        for request in request_iterator:
-            file_name = request.file_name
-            file_data = request.file_data
-            file_type = request.type
 
-            # Call the file storage manager to upload the file
-            self._file_storage_manager.upload_file(file_data, file_name, file_type)
-
+        try:
+            for request in request_iterator:
+                file_name = request.file_name
+                file_data = request.file_data
+                file_type = request.type
+                print(f"{file_name}  {file_type}: {file_data}")
+            
+                # Call the file storage manager to upload the file
+                self._file_storage_manager.upload_file(file_data, file_name, file_type)
+                break
+        except Exception as e:
+            print(e)
         response = file_saving_microservice_pb2.UploadFileResponse()
         return response
 

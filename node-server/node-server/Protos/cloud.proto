@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+option csharp_namespace = "GrpcCloud";
+
+
+enum Status {
+    SUCCESS = 0;
+    FAILURE = 1;
+}
+
+message LeaderToViewerHeartBeatRequest
+{
+	int32 term = 1;
+	int32 systemLastIndex = 2;
+	string LeaderAddress = 3;
+}
+
+message LeaderToViewerHeartBeatResponse
+{
+	bool status = 1;
+	optional string message = 2;
+}
+
+service Cloud {
+	//Raft:
+	rpc GetOrUpdateSystemLeader(LeaderToViewerHeartBeatRequest) returns (LeaderToViewerHeartBeatResponse);
+}

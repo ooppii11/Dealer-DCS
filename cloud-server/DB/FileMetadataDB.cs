@@ -6,6 +6,11 @@ using System.Drawing;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.AspNetCore.Components.Routing;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using cloud_server.Utilities;
+using Google.Protobuf.WellKnownTypes;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace cloud_server.DB
 {
@@ -25,12 +30,9 @@ namespace cloud_server.DB
             this._conn = new NpgsqlConnection(connectionString);
             try
             {
-                if (this._conn.State == System.Data.ConnectionState.Open)
-                {
-                }
-                else
-                {
-                    this._conn.Open();
+                if (this._conn.State != System.Data.ConnectionState.Open)
+                { 
+                    this._conn.Open();  // Open connection with the db.
                 }
             }
             catch (Exception ex)
@@ -42,7 +44,7 @@ namespace cloud_server.DB
 
         private void createTables(string pathToTablesFile)
         {
-            string strText = System.IO.File.ReadAllText(pathToTablesFile, System.Text.Encoding.UTF8);
+            string strText = System.IO.File.ReadAllText(pathToTablesFile, System.Text.Encoding.UTF8);  // Load tables quries 
             using (NpgsqlCommand command = new NpgsqlCommand(strText, this._conn))
             {
                 command.ExecuteNonQuery();
@@ -53,7 +55,7 @@ namespace cloud_server.DB
         {
             string sqlQuery = "SELECT insertFileMetadata(@creatorId, @fileName, @fileType, @fileSize) AS inserted_id";
 
-                int fileId = 0;
+            int fileId = 0;
 
             using (var command = new NpgsqlCommand(sqlQuery, this._conn))
             {
@@ -65,14 +67,8 @@ namespace cloud_server.DB
 
                 fileId = Convert.ToInt32(command.ExecuteScalar());
 
-                if (fileId != 0)
-                {
-                    this.addFileLocation(fileId, location);
-                }
-                else
-                {
-                    throw new Exception("File already exists");
-                }
+                if (fileId != 0) {  this.addFileLocation(fileId, location); }
+                else { throw new FileAlreadyExistException("File already exists"); }
             }
         
         }
@@ -96,12 +92,13 @@ namespace cloud_server.DB
             }
             catch (Exception ex)
             {
-                throw new Exception("File not exists");
+                throw new FileDoesNotExistException("File not exists");
             }
         }
         private void addFileLocation(int fileId, Location location)
         {
             string sqlQuery = @"INSERT INTO file_location VALUES(@file_id, @primary_server_ip, @backup_server_ip_1, @backup_server_ip_2);";
+           
             using (var cmd = new NpgsqlCommand(sqlQuery, this._conn))
             {
                 cmd.Parameters.AddWithValue("@file_id", fileId);
@@ -116,6 +113,7 @@ namespace cloud_server.DB
         public void deleteFileMetadata(int userId, string name)
         {
             string query = @"DELETE FROM file_metadata WHERE creator_id = @creator_id AND name = @name;";
+            
             using (NpgsqlCommand command = new NpgsqlCommand(query, this._conn))
             {
                 try
@@ -126,14 +124,37 @@ namespace cloud_server.DB
                 }
                 catch
                 {
-                    throw new Exception("Unable to delete this file");
+                    throw new DBErrorException("Unable to delete this file");
                 }
+            }
+        }
+
+        public void updateFileMetadata(int userId, string name, long size)
+        {
+            string query = @"UPDATE file_metadata
+                            SET size = @newSize, last_modify = CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
+                            WHERE creator_id = @creator_id AND name = @name;";
+            try
+            {
+                using (var cmd = new NpgsqlCommand(query, this._conn))
+                {
+                    cmd.Parameters.AddWithValue("@creator_id", userId);
+                    cmd.Parameters.AddWithValue("@newSize", size);
+                    cmd.Parameters.AddWithValue("@name", name);
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch
+            {
+                throw new DBErrorException("DB Error");
             }
         }
 
         public FileMetadata getFile(int userId, string name)
         {
             string query = @"SELECT * FROM file_metadata WHERE creator_id = @creator_id AND name = @name;";
+            
             try
             {
                 using (NpgsqlCommand command = new NpgsqlCommand(query, this._conn))
@@ -153,13 +174,13 @@ namespace cloud_server.DB
                                 reader.GetDateTime(reader.GetOrdinal("creation_time")),
                                 reader.GetDateTime(reader.GetOrdinal("last_modify")));
                         }
-                        throw new Exception("File not found");
+                        throw new FileDoesNotExistException("File not found");
                     }
                 }
             }
             catch 
             { 
-                throw new Exception("DB Error");
+                throw new DBErrorException("DB Error");
             }
         }
         public List<FileMetadata> getUserFilesMetadata(int userId)
@@ -190,8 +211,9 @@ namespace cloud_server.DB
             }
             catch
             {
-                throw new Exception("DB Error");
+                throw new DBErrorException("DB Error");
             }
+            
             return userFiles;
         }
     }
