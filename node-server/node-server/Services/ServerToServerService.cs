@@ -10,7 +10,7 @@ namespace NodeServer.Services
     public class ServerToServerService : ServerToServer.ServerToServerBase
     {
         private Raft _raft;
-        private static readonly object _lock = new object();
+      //  private static readonly object _lock = new object();
         
         public ServerToServerService(Raft raft)
         {
@@ -19,7 +19,7 @@ namespace NodeServer.Services
 
         public override Task<RequestVoteResponse> RequestVote(RequestVoteRequest request, ServerCallContext context)
         {
-            lock (_lock) 
+        //    lock (_lock) 
             {
                 bool vote = this._raft.OnReceiveVoteRequest(request);
 
@@ -36,7 +36,7 @@ namespace NodeServer.Services
 
         public override async Task<AppendEntriesResponse> AppendEntries(IAsyncStreamReader<AppendEntriesRequest> requestStream, ServerCallContext context)
         {
-            lock (_lock)
+           // lock (_lock)
             {
                 try
                 {

@@ -194,12 +194,12 @@ namespace NodeServer.Managers.RaftNameSpace.States
         }
 
         public async void AppendEntries(LogEntry entry, byte[] fileData)
-        {
+        {            
+            Console.WriteLine("leader append entry to the log");
             Console.WriteLine("------------------------AppendEntries------------------------");
             this._logger.AppendEntry(entry);
             this._lastLogEntry = entry;
 
-            Console.WriteLine("leader append entry to the log");
             this._settings.LastLogIndex += 1;
 
             foreach (string address in _followers.Keys.ToList())
@@ -260,6 +260,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         if(this._settings.CommitIndex < response.MatchIndex)
                         {
                             this._settings.CommitIndex++;
+                            Console.WriteLine(response.MatchIndex);
                             LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex);
                             Console.WriteLine($"leader commit index {this._settings.CommitIndex}");
                             
@@ -267,7 +268,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                             Action commitAction = new Action(entry.Operation + "AfterCommit", entry.OperationArgs);
                             if (await this._dynamicActions.NameToAction(commitAction))
                             {
-                                this._settings.CommitIndex = response.MatchIndex;
+                            //    this._settings.CommitIndex = response.MatchIndex;
                                 this._logger.CommitEntry(this._settings.CommitIndex);
                             }
                         }
@@ -313,7 +314,10 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     //install snapshot
                 }
                 else*/
-                if (response.MatchIndex < this._settings.LastLogIndex)
+                if (response.MatchIndex == this._followers[address].Request.PrevIndex + 1) {
+                    Console.WriteLine("follower have error in commit");
+                } 
+                else if (response.MatchIndex < this._followers[address].Request.PrevIndex + 1 || response.MatchIndex < this._settings.LastLogIndex)
                 {
                     LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
                     Console.WriteLine(entry.Timestamp);

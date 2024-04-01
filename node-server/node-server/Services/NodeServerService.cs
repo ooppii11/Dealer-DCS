@@ -6,6 +6,7 @@ using NodeServer.Managers.RaftNameSpace;
 using LogEntry = NodeServer.Managers.RaftNameSpace.LogEntry;
 using NodeServer.Utilities;
 using System.Diagnostics.CodeAnalysis;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace NodeServer.Services
 {
@@ -57,6 +58,7 @@ namespace NodeServer.Services
                 userId = chunk.UserId;
                 fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
             }
+
 
             if (OnMachineStorageActions.DoesFileExist(userId, fileId))
             {
@@ -117,7 +119,9 @@ namespace NodeServer.Services
                 fileData.Write(chunk.NewContent.ToArray(), 0, chunk.NewContent.Length);
             }
 
-            string type = this._fileVersionManager.GetFileType(fileId, userId);
+           
+            string type = this._fileVersionManager.GetFileType(fileId, userId); 
+
 
             if (!OnMachineStorageActions.DoesFileExist(userId, fileId))
             {
@@ -138,14 +142,21 @@ namespace NodeServer.Services
             try
             {
                 const string operationName = "UpdateFile";
+                Console.WriteLine("UpdateFile node service");
+               // Tuple<Status, string, MemoryStream> StatusArgsAndFileData = await UpdateOperationArgsToString(requestStream);
+                Console.WriteLine("get args");
+
                 Tuple<Status, string, MemoryStream> StatusArgsAndFileData = await ParseUpdateRequest(requestStream);
                 if (StatusArgsAndFileData.Item2 == null)
                 {
                     context.Status = StatusArgsAndFileData.Item1;
                     return new UpdateFileResponse { Status = false, Message = StatusArgsAndFileData.Item1.Detail };
                 }
+                Console.WriteLine("pass first");
 
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, StatusArgsAndFileData.Item2);
+                Console.WriteLine("UpdateFile node service create entry");
+
                 if (this._raft.appendEntry(entry, StatusArgsAndFileData.Item3.ToArray()))
                 {
                     return new UpdateFileResponse { Status = true, Message = "File uploaded successfully." };
@@ -215,7 +226,7 @@ namespace NodeServer.Services
         {
             try
             {
-                const string operationName = "DeleteFile";
+                const string operationName = "DeleteFile";                
                 string args = $"[{request.UserId},{request.FileId}]";
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
                 if (!this._raft.appendEntry(entry))
@@ -223,16 +234,21 @@ namespace NodeServer.Services
                     context.Status = new Status(StatusCode.PermissionDenied, "Can't get requests from cloud, this server is not the leader at the moment.");
                     return new DeleteFileResponse { Status = false, Message = "Can't get requests from cloud, this server is not the leader at the moment." }; ;
                 }
+                string folderPath = Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, request.UserId.ToString(), request.FileId);
+                Console.Write(folderPath);
 
-                string folderPath = Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, request.FileId);
                 if (!Directory.Exists(folderPath))
                 {
+                     Console.Write("BBBB\n");
+
                     context.Status = new Status(StatusCode.NotFound, "The Requested file doesn't exist");
                     return new DeleteFileResponse { Status = false, Message = "The Requested file doesn't exist" };
                 }
-
+                
                 Directory.Delete(folderPath, true);
+
                 this._fileVersionManager.RemoveAllFileVersions(request.FileId, request.UserId);
+
 
                 return new DeleteFileResponse { Status = true, Message = "File deleted successfully." };
             }

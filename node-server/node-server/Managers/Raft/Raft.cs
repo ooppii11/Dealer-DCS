@@ -194,6 +194,8 @@ namespace NodeServer.Managers.RaftNameSpace
                 // check for append new log line
                 if (totalLogEntries.Count() > 0 && (totalLogEntries[0].LogIndex == 1 + this._settings.LastLogIndex))//|| this._settings.LastLogIndex == 0))
                 {
+                    this._settings.LastLogIndex += 1;
+
                     Console.WriteLine("Append entries");
                     LogEntry entry = new LogEntry(
                                 totalLogEntries[0].LogIndex,
@@ -203,6 +205,7 @@ namespace NodeServer.Managers.RaftNameSpace
                                 totalLogEntries[0].OperationArgs,
                            false
                         );
+                    Console.WriteLine("create log entry");
                     
                     bool result = false;
                     if (fileData.Length > 0)
@@ -213,16 +216,18 @@ namespace NodeServer.Managers.RaftNameSpace
                     else 
                     {
                         Action commitAction = new Action(entry.Operation + "BeforeCommit", entry.OperationArgs);
+                        Console.WriteLine("creatr action");
                         result = await this._dynamicActions.NameToAction(commitAction);
                     }
 
                     if (result)
                     {
                         this._logger.AppendEntry(entry);
-                        this._settings.LastLogIndex += 1;
                     }
                     else 
                     {
+                        this._settings.LastLogIndex -= 1;
+
                         return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
                     }
                     
@@ -236,19 +241,22 @@ namespace NodeServer.Managers.RaftNameSpace
                     LogEntry entry = this._logger.GetLogAtPlaceN(totalCommitIndex);
                     Action commitAction = new Action(entry.Operation + "AfterCommit", entry.OperationArgs);
 
-                    // preform dynamic action after commit:
+                   
                     this._settings.CommitIndex++;
                     if (await this._dynamicActions.NameToAction(commitAction))
                     {
                         this._logger.CommitEntry(totalCommitIndex);
                         Console.WriteLine("good commit");
+
                     }
                     else
                     {
+                        Console.WriteLine("ERROR commit");
                         this._settings.CommitIndex--;
-                        //return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
-                        return new AppendEntriesResponse() { MatchIndex = totalCommitIndex, Success = false, Term = this._settings.CurrentTerm };
+                        Console.WriteLine(this._settings.LastLogIndex);
+                        return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
                     }
+
                 }
 
             }
