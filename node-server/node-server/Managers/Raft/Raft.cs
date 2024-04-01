@@ -127,8 +127,9 @@ namespace NodeServer.Managers.RaftNameSpace
         }
         public async Task<AppendEntriesResponse> OnReceiveAppendEntriesRequest(IAsyncStreamReader<AppendEntriesRequest> requests, string address)
         {
-            _cancellationTokenSource.Cancel();
             this._settings.IsAppendEnteriesReset = true;
+            _cancellationTokenSource.Cancel();
+            
             //Console.WriteLine("resetting timer");
             int totalTerm = 0;
             int totalPrevIndex = 0;
@@ -241,13 +242,12 @@ namespace NodeServer.Managers.RaftNameSpace
                     {
                         this._logger.CommitEntry(totalCommitIndex);
                         Console.WriteLine("good commit");
-
                     }
                     else
                     {
                         this._settings.CommitIndex--;
                         //return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
-                        return new AppendEntriesResponse() { MatchIndex = this._settings.CommitIndex, Success = false, Term = this._settings.CurrentTerm };
+                        return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
                     }
                 }
 

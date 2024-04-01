@@ -8,10 +8,8 @@ namespace NodeServer.Managers.RaftNameSpace.States
     public class Follower: State
     {
         private System.Timers.Timer _timer;
-        private CancellationToken _cancellationToken;
         private TaskCompletionSource<bool> _completionSource;
-        private readonly object _lockObject = new object();
-
+        private bool _isCompleted = false;
         public Follower(RaftSettings settings, Log logger) :
             base(settings, logger)
         {
@@ -58,17 +56,14 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         public async override Task<Raft.StatesCode> Start(CancellationToken cancellationToken)
         {
-            this._cancellationToken = cancellationToken;
             this._completionSource = new TaskCompletionSource<bool>();
 
-            this._cancellationToken.Register(() =>
+            cancellationToken.Register(() =>
             {
-                lock (_lockObject)
+                if (!_completionSource.Task.IsCompleted && !_isCompleted)
                 {
-                    if (!_completionSource.Task.IsCompleted) 
-                    {
-                        this._completionSource.SetResult(true);
-                    }
+                    _isCompleted = true;
+                    this._completionSource.SetResult(true);
                 }
             });
             StartTimer();
@@ -83,12 +78,11 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         private void OnHeartBeatTimerElapsed(object sender, ElapsedEventArgs e)
         {
-            lock (_lockObject)
+            if (!_completionSource.Task.IsCompleted && !_isCompleted)
             {
-                if (!_completionSource.Task.IsCompleted)
-                {
-                    this._completionSource.SetResult(true);
-                }
+                _isCompleted = true;
+                this._completionSource.SetResult(true);
+                this._timer.Stop();
             }
         }
     }

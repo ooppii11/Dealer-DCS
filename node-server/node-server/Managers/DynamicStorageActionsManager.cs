@@ -82,8 +82,6 @@ namespace NodeServer.Managers
 
         private void RemovePreviseVersions(int userId, string fileId, int version)
         {
-            this._fileVersionManager.RemovePreviousVersions(fileId, userId, version);
-
             string directoryPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, userId.ToString(), fileId);
             string[] previousVersionFiles = Directory.GetFiles(directoryPath, $"{fileId}_*");
 
@@ -102,7 +100,6 @@ namespace NodeServer.Managers
 
         private void RemoveCurrentVersion(int userId, string fileId, int version)
         {
-            this._fileVersionManager.RemoveVersion(fileId, userId, version);
             string filePath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, userId.ToString(), fileId, $"{fileId}_{version}");
             File.Delete(filePath);
         }
@@ -136,10 +133,6 @@ namespace NodeServer.Managers
                 int userId = Convert.ToInt32(strUserId);
                 int version = Convert.ToInt32(strVersion);
                 string type = this._fileVersionManager.GetFileType(fileId, userId);
-                if (type == null)
-                {
-                    return true;
-                }
                 byte[] data = GetFile(strUserId, fileId, version);
                 if (data == null)
                 {

@@ -125,6 +125,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
             {
                 this._completionSource.SetResult(true);
                 this._timer.Stop();
+                return;
             }
             await this.SendHeartbeatRequest();
         }
@@ -186,7 +187,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         public async void AppendEntries(LogEntry entry, byte[] fileData)
         {
-            this._timer.Stop();
+            Console.WriteLine("------------------------AppendEntries------------------------");
             this._logger.AppendEntry(entry);
             this._lastLogEntry = entry;
 
@@ -214,30 +215,8 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         
                     },
                     FileData = Google.Protobuf.ByteString.CopyFrom(fileData)
-                };
-
-                Console.WriteLine(this._followers[address].Request.ToString());
-                try
-                {
-                    ServerToServerClient s2s = new ServerToServerClient(address);
-                    AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
-                    Console.WriteLine($"sent new append entries to {address}");
-                    await this.OnReceiveAppendEntriesResponse(response, address);
-                }
-                catch (RpcException e)
-                {
-                    if (e.StatusCode == StatusCode.Unavailable)
-                    {
-                        continue;
-                        Console.WriteLine($"Server at {address} is Unavailable (down)");
-                    }
-                }
-                catch (Exception e) 
-                {
-                    Console.WriteLine($"error send append entries to {address}");
-                }
+                };                
             }
-            this._timer.Start();
         }
 
         private bool MajorityAgreeOnMatchIndex(int matchIndexToCheck)
@@ -318,23 +297,6 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     };
 
                 }
-                try
-                {
-                    await s2s.sendAppendEntriesRequest(this._followers[address].Request);
-                }
-                catch (RpcException e)
-                {
-                    if (e.StatusCode == StatusCode.Unavailable)
-                    {
-                        Console.WriteLine($"Server at {address} is Unavailable (down)");
-                    }
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"error send commit to {address}\n\n\n");
-                    Console.WriteLine(e.Message);
-                }
-
             }
             else
             {
