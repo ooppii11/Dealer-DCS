@@ -83,12 +83,12 @@ namespace NodeServer.Managers
             
         }
 
-        public void deleteFile(string filename)
+        public async Task deleteFile(string filename)
         {
             DeleteFileRequest request = new DeleteFileRequest { FileName = filename };
             try
             {
-                client.DeleteFile(request);
+                 client.DeleteFile(request);
             }
             catch (Exception ex)
             {

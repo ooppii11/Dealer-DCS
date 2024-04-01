@@ -185,7 +185,6 @@ class DriveServiceHelper:
             "parents": [upload_file.folder_id],
             "mimeType": upload_file.mimetype
         }
-
         try:
             # Create a request to create the file and upload its content:
             uploaded_file = drive_connection.files().create(
@@ -193,7 +192,11 @@ class DriveServiceHelper:
                 media_body=media,
             ).execute()
         except googleapiclient.errors.HttpError as e:
+            print("error", e)
             raise Exception(f"Error uploading file '{upload_file.filename}'. Please check if the file could be uploaded to the specified folder.")
+        except Exception as e:
+            print("error", e)
+
 
     
     @staticmethod
@@ -249,6 +252,10 @@ class DriveServiceHelper:
 
         """
         try:
+            print("try to delete")
             drive_connection.files().delete(fileId=file_id).execute() # Delete file by id
+            print("deleted")
         except googleapiclient.errors.HttpError as e:
             raise Exception(f"Error deleting file with ID '{file_id}'. Please ensure that the file exists and can be deleted from Google Drive.") 
+        except Exception as e:
+            print("error:", e)

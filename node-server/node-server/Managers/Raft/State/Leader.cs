@@ -186,11 +186,11 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
         public async void AppendEntries(LogEntry entry, byte[] fileData)
         {
-            this._timer.Stop();
+            
+            Console.WriteLine("leader append entry to the log");
             this._logger.AppendEntry(entry);
             this._lastLogEntry = entry;
 
-            Console.WriteLine("leader append entry to the log");
             this._settings.LastLogIndex += 1;
 
             foreach (string address in _followers.Keys.ToList())
@@ -219,10 +219,10 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 Console.WriteLine(this._followers[address].Request.ToString());
                 try
                 {
-                    ServerToServerClient s2s = new ServerToServerClient(address);
-                    AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
+                   // ServerToServerClient s2s = new ServerToServerClient(address);
+                   // AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
                     Console.WriteLine($"sent new append entries to {address}");
-                    this.OnReceiveAppendEntriesResponse(response, address);
+                    //this.OnReceiveAppendEntriesResponse(response, address);
                 }
                 catch (RpcException e)
                 {
@@ -237,7 +237,6 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     Console.WriteLine($"error send append entries to {address}");
                 }
             }
-            this._timer.Start();
         }
 
         private bool MajorityAgreeOnMatchIndex(int matchIndexToCheck)
@@ -273,6 +272,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         if(this._settings.CommitIndex < response.MatchIndex)
                         {
                             this._settings.CommitIndex++;
+                            Console.WriteLine(response.MatchIndex);
                             LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex);
                             Console.WriteLine($"leader commit index {this._settings.CommitIndex}");
                             
@@ -280,7 +280,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                             Action commitAction = new Action(entry.Operation + "AfterCommit", entry.OperationArgs);
                             if (await this._dynamicActions.NameToAction(commitAction))
                             {
-                                this._settings.CommitIndex = response.MatchIndex;
+                            //    this._settings.CommitIndex = response.MatchIndex;
                                 this._logger.CommitEntry(this._settings.CommitIndex);
                             }
                         }
@@ -340,7 +340,11 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 {
                     //install snapshot
                 }
-                else*/if (response.MatchIndex < this._followers[address].Request.PrevIndex + 1)
+                else*/
+                if (response.MatchIndex == this._followers[address].Request.PrevIndex + 1) {
+                    Console.WriteLine("follower have error in commit");
+                } // Error in commit
+                else if (response.MatchIndex < this._followers[address].Request.PrevIndex + 1)
                 {
                     LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
                     Console.WriteLine(entry.Timestamp);

@@ -39,7 +39,7 @@ namespace NodeServer.Managers
         {
             { "UploadFileAfterCommit", new Func<string, string, string, string, Task<bool>>(UploadFileAfterCommit) },
             { "UpdateFileAfterCommit", new Func<string, string, string, Task<bool>>(UpdateFileAfterCommit) },
-            { "DeleteFileAfterCommit", new Func<string, string, string, bool>(DeleteFileAfterCommit) },
+            { "DeleteFileAfterCommit", new Func<string, string, string, Task <bool>>(DeleteFileAfterCommit) },
 
             { "UploadFileBeforeCommit", new Func<string, string, string, string, byte[], bool>(UploadFileBeforeCommit) },
             { "UpdateFileBeforeCommit", new Func<string, string, string, byte[], bool>(UpdateFileBeforeCommit) },
@@ -145,7 +145,7 @@ namespace NodeServer.Managers
                 {
                     return true;
                 }
-                this._microservice.deleteFile(fileId);
+                await this._microservice.deleteFile(fileId);
                 await this._microservice.uploadFile(fileId, data, type);
                 RemovePreviseVersions(userId, fileId, version);
                 RemoveCurrentVersion(userId, fileId, version);
@@ -153,15 +153,16 @@ namespace NodeServer.Managers
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return false;
             }
         }
 
-        private bool DeleteFileAfterCommit(string userId, string fileId, string strVersion)
+        private async Task<bool> DeleteFileAfterCommit(string userId, string fileId, string strVersion)
         {
             try
             {
-                this._microservice.deleteFile(fileId);
+                await this._microservice.deleteFile(fileId);
                 return true;
             }
             catch (Exception ex)
@@ -197,8 +198,8 @@ namespace NodeServer.Managers
 
         private bool DeleteFileBeforeCommit(string strUserId, string fileId, string strVersion)
         {
-            int userId = Convert.ToInt32(strUserId);
-            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, fileId);
+           int userId = Convert.ToInt32(strUserId);
+            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, strUserId, fileId);
             if (!Directory.Exists(folderPath))
             {
                 return false;
@@ -207,6 +208,7 @@ namespace NodeServer.Managers
             Directory.Delete(folderPath, true);
             this._fileVersionManager.RemoveAllFileVersions(fileId, userId);
             return true;
+
         }
 
 

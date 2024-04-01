@@ -6,6 +6,7 @@ using NodeServer.Managers.RaftNameSpace;
 using LogEntry = NodeServer.Managers.RaftNameSpace.LogEntry;
 using NodeServer.Utilities;
 using System.Diagnostics.CodeAnalysis;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace NodeServer.Services
 {
@@ -57,6 +58,7 @@ namespace NodeServer.Services
                 userId = chunk.UserId;
                 fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
             }
+
 
             if (OnMachineStorageActions.DoesFileExist(userId, fileId))
             {
@@ -117,7 +119,10 @@ namespace NodeServer.Services
                 fileData.Write(chunk.NewContent.ToArray(), 0, chunk.NewContent.Length);
             }
 
-            string type = this._fileVersionManager.GetFileType(fileId, userId);
+           
+            string type = this._fileVersionManager.GetFileType(fileId, userId); // nogt work why?
+            type = "text/plain";
+
 
             if (!OnMachineStorageActions.DoesFileExist(userId, fileId))
             {
@@ -138,14 +143,20 @@ namespace NodeServer.Services
             try
             {
                 const string operationName = "UpdateFile";
+                Console.WriteLine("UpdateFile node service");
                 Tuple<Status, string, MemoryStream> StatusArgsAndFileData = await UpdateOperationArgsToString(requestStream);
+                Console.WriteLine("get args");
+
                 if (StatusArgsAndFileData.Item2 == null)
                 {
                     context.Status = StatusArgsAndFileData.Item1;
                     return new UpdateFileResponse { Status = false, Message = StatusArgsAndFileData.Item1.Detail };
                 }
+                Console.WriteLine("pass first");
 
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, StatusArgsAndFileData.Item2);
+                Console.WriteLine("UpdateFile node service create entry");
+
                 if (this._raft.appendEntry(entry, StatusArgsAndFileData.Item3.ToArray()))
                 {
                     return new UpdateFileResponse { Status = true, Message = "File uploaded successfully." };
@@ -225,11 +236,11 @@ namespace NodeServer.Services
                 }
 
                 string folderPath = Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, request.FileId);
-                if (!Directory.Exists(folderPath))
+              /*  if (!Directory.Exists(folderPath))
                 {
                     context.Status = new Status(StatusCode.NotFound, "The Requested file doesn't exist");
                     return new DeleteFileResponse { Status = false, Message = "The Requested file doesn't exist" };
-                }
+                }*/
 
                 Directory.Delete(folderPath, true);
                 this._fileVersionManager.RemoveAllFileVersions(request.FileId, request.UserId);
