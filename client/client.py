@@ -7,6 +7,7 @@ OPTIONS = {
     "upload": FilesActions.upload,
     "delete": FilesActions.delete,
     "download": FilesActions.download,
+    "update": FilesActions.update,
     "ls": FilesActions.ls,
     "file metadata": FilesActions.file_metadata
 }
