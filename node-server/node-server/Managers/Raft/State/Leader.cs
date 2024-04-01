@@ -1,22 +1,28 @@
 ﻿using System;
+using System.Collections;
 using System.Net;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Timers;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using GrpcServerToServer;
+using static Grpc.Core.Metadata;
+using NodeServer.Utilities;
+
 namespace NodeServer.Managers.RaftNameSpace.States
 {
     class Node
     {
-        private readonly string addres;
+        private readonly string _address;
         private int _matchIndex;
         private int _commitIndex;
         private AppendEntriesRequest _request;
+    
 
-        public Node(string addres)
+        public Node(string address)
         {
-            this.addres = addres;
+            this._address = address;
             this._matchIndex = -1;
             this._commitIndex = -1;
         }
@@ -39,42 +45,39 @@ namespace NodeServer.Managers.RaftNameSpace.States
             set => _request = value;
         }
     }
-        public class Leader : State
+    public class Leader : State
     {
         private Dictionary<string, Node> _followers;
         private System.Timers.Timer _timer;
         private LogEntry _lastLogEntry;
-        private bool _changeState;
         private CancellationToken _cancellationToken;
         private TaskCompletionSource<bool> _completionSource;
         private readonly string _cloudAddress = "127.0.0.1:50053";
-        public Leader(RaftSettings raftSettings, Log logger) :
+        private IDynamicActions _dynamicActions;
+        public Leader(RaftSettings raftSettings, Log logger, IDynamicActions dynamicActions) :
             base(raftSettings, logger)
         {
+            this._dynamicActions = dynamicActions;
             Console.WriteLine("leader");
-            this._changeState = false;
             this._lastLogEntry = this._logger.GetLastLogEntry();
             this._followers = new Dictionary<string, Node>();
             this.InitHeartbeatMessages();
-            LogEntry entry = new LogEntry(1, DateTime.UtcNow, this._settings.ServerAddress, "TEST APPEND ENTRIES", "null", false);
-            this.AppendEntries(entry);
         }
 
         private void InitHeartbeatMessages()
         {
-            for (int i = 0; i < this._settings.ServersAddresses.Count; i++)
+            foreach (string serverAddress in this._settings.ServersAddresses)
             {
-                if (this._settings.ServersAddresses[i] != this._settings.ServerAddress)
+                if (serverAddress != this._settings.ServerAddress)
                 {
-                    this._followers.Add(this._settings.ServersAddresses[i], new Node(this._settings.ServersAddresses[i]));
-                    this._followers[this._settings.ServersAddresses[i]].Request =  new AppendEntriesRequest()
+                    this._followers.Add(serverAddress, new Node(serverAddress));
+                    this._followers[serverAddress].Request = new AppendEntriesRequest()
                     {
                         Term = this._settings.CurrentTerm,
                         PrevTerm = this._settings.PreviousTerm,
                         PrevIndex = _lastLogEntry.Index,
                         CommitIndex = this._settings.CommitIndex
                     };
-                   
                 }
             }
         }
@@ -92,7 +95,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
         {
             this._cancellationToken = cancellationToken;
             this._completionSource = new TaskCompletionSource<bool>();
-
+            
 
             this._timer = new System.Timers.Timer();
             this._timer.Interval = this._settings.HeartbeatTimeout;
@@ -101,7 +104,12 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
             this._cancellationToken.Register(() =>
             {
-                this._completionSource.SetResult(true);
+                if (!this._completionSource.Task.IsCompleted)
+                {
+                    this._completionSource.SetResult(true);
+                    this._timer.Stop();
+                }
+                
             });
 
             this._timer.Start();
@@ -111,40 +119,54 @@ namespace NodeServer.Managers.RaftNameSpace.States
             return Raft.StatesCode.Follower;
         }
 
-        private void OnHeartBeatTimerElapsed(object sender, ElapsedEventArgs e)
+        private async void OnHeartBeatTimerElapsed(object sender, ElapsedEventArgs e)
         {
-            this.SendHeartbeatRequest();
+            if (!this._completionSource.Task.IsCompleted && this._cancellationToken.IsCancellationRequested)
+            {
+                this._completionSource.SetResult(true);
+                this._timer.Stop();
+                return;
+            }
+            await this.SendHeartbeatRequest();
         }
 
-        private async void SendHeartbeatRequest()
+        private async Task SendHeartbeatRequest()
         {
-            foreach (string address in this._settings.ServersAddresses)
+            foreach (string address in _followers.Keys.ToList())
             {
-                if (address != this._settings.ServerAddress)
+
+                try
                 {
-                    try
+                    ServerToServerClient s2s = new ServerToServerClient(address);
+                    AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
+                    /*
+                    AppendEntriesResponse response = new AppendEntriesResponse 
                     {
-                        ServerToServerClient s2s = new ServerToServerClient(address);
-                        AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
-                        this.OnReceiveAppendEntriesResponse(response, address);
-                    }
-                    catch (RpcException e)
+                        MatchIndex = this._settings.LastLogIndex,
+                        Success = true,
+                        Term = 1
+                    };
+                    */
+                    this.OnReceiveAppendEntriesResponse(response, address);
+                }
+                catch (RpcException e)
+                {
+                    if (e.StatusCode == StatusCode.Unavailable)
                     {
-                        if (e.StatusCode == StatusCode.Unavailable)
-                        {
-                            //Console.WriteLine($"Server at {address} is Unavailable (down)");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"error send to {address}");
+                        continue;
+                        Console.WriteLine($"Server at {address} is Unavailable (down)");
                     }
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"error send to {address}");
+                }
             }
-            sendLeaderToViewerHeartBeat();
+            await sendLeaderToViewerHeartBeat();
+            this._settings.LockLeaderFirstHeartBeat = false;
         }
 
-        private async void sendLeaderToViewerHeartBeat()
+        private async Task sendLeaderToViewerHeartBeat()
         {
             try 
             {
@@ -171,12 +193,13 @@ namespace NodeServer.Managers.RaftNameSpace.States
             }
         }
 
-        public async void AppendEntries(LogEntry entry)
-        {
+        public async void AppendEntries(LogEntry entry, byte[] fileData)
+        {            
+            Console.WriteLine("leader append entry to the log");
+            Console.WriteLine("------------------------AppendEntries------------------------");
             this._logger.AppendEntry(entry);
             this._lastLogEntry = entry;
 
-            Console.WriteLine("leader append entry to the log");
             this._settings.LastLogIndex += 1;
 
             foreach (string address in _followers.Keys.ToList())
@@ -192,28 +215,15 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     {
                         PrevTerm = this._settings.PreviousTerm,
                         Term = this._settings.CurrentTerm,
-                        PrevLogIndex = this._settings.LastLogIndex,//(_lastLogEntry.Index - 1 >= -1) ? _lastLogEntry.Index - 1 : -1,
+                        PrevLogIndex = this._settings.LastLogIndex, //(_lastLogEntry.Index - 1 >= -1) ? _lastLogEntry.Index - 1 : -1,
                         LogIndex = _lastLogEntry.Index,
                         Timestamp = Timestamp.FromDateTime(this._lastLogEntry.Timestamp),
                         Operation = _lastLogEntry.Operation,
-                        OperationData = _lastLogEntry.OperationArgs
-
+                        OperationArgs = _lastLogEntry.OperationArgs,
+                        
                     },
-                    Args = new operationArgs() { Args = this._lastLogEntry.OperationArgs }
-                };
-
-                Console.WriteLine(this._followers[address].Request.ToString());
-                try
-                {
-                    ServerToServerClient s2s = new ServerToServerClient(address);
-                    AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
-                    Console.WriteLine($"sent new append entries to {address}");
-                    this.OnReceiveAppendEntriesResponse(response, address);
-                }
-                catch (Exception e) 
-                {
-                    Console.WriteLine($"error send append entries to {address}");
-                }
+                    FileData = Google.Protobuf.ByteString.CopyFrom(fileData)
+                };                
             }
         }
 
@@ -238,7 +248,6 @@ namespace NodeServer.Managers.RaftNameSpace.States
         public async void OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
         {
             ServerToServerClient s2s = new ServerToServerClient(address);
-
             if (response.Success)
             {
                 this._followers[address].Request.LogEntry = null;
@@ -250,19 +259,31 @@ namespace NodeServer.Managers.RaftNameSpace.States
                     {
                         if(this._settings.CommitIndex < response.MatchIndex)
                         {
+                            this._settings.CommitIndex++;
                             Console.WriteLine(response.MatchIndex);
-                            this._settings.CommitIndex = response.MatchIndex;
+                            LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex);
                             Console.WriteLine($"leader commit index {this._settings.CommitIndex}");
-                            this._logger.CommitEntry(this._settings.CommitIndex);
+                            
+                            // preform dynamic action after commit:
+                            Action commitAction = new Action(entry.Operation + "AfterCommit", entry.OperationArgs);
+                            if (await this._dynamicActions.NameToAction(commitAction))
+                            {
+                            //    this._settings.CommitIndex = response.MatchIndex;
+                                this._logger.CommitEntry(this._settings.CommitIndex);
+                            }
                         }
                         this._followers[address].CommitIndex = response.MatchIndex;
                         this._followers[address].Request.CommitIndex = response.MatchIndex;
                     }
                 }
+                //
                 else if (response.MatchIndex < this._settings.LastLogIndex)
                 {
-                    LogEntry entry = this._logger.GetLogAtPlaceN((uint)response.MatchIndex + 1);
+                    LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
+                    Console.WriteLine($"MatchIndex: {response.MatchIndex}");
                     Console.WriteLine(entry.Timestamp);
+                    Console.WriteLine(this._followers[address].Request);
+
                     this._followers[address].Request = new AppendEntriesRequest()
                     {
                         Term = this._settings.CurrentTerm,
@@ -278,29 +299,29 @@ namespace NodeServer.Managers.RaftNameSpace.States
 
                             Timestamp = Timestamp.FromDateTime(entry.Timestamp.ToUniversalTime()),
                             Operation = entry.Operation,
-                            OperationData = entry.OperationArgs
+                            OperationArgs = entry.OperationArgs
 
                         },
-                        Args = new operationArgs() { Args = entry.OperationArgs }
+                        FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex || this._settings.CommitIndex == -1), this._dynamicActions.getActionMaker() as FileSaving))
                     };
-                }
-                try
-                {
-                    await s2s.sendAppendEntriesRequest(this._followers[address].Request);
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"error send commit to {address}\n\n\n");
-                    Console.WriteLine(e.Message);
-                }
 
+                }
             }
             else
             {
-                if (response.MatchIndex < this._followers[address].Request.LogEntry.LogIndex)
+                /*if (response.MatchIndex < this._settings.CommitIndex || more then n files behind)
                 {
-                    LogEntry entry = this._logger.GetLogAtPlaceN((uint)response.MatchIndex + 1);
+                    //install snapshot
+                }
+                else*/
+                if (response.MatchIndex == this._followers[address].Request.PrevIndex + 1) {
+                    Console.WriteLine("follower have error in commit");
+                } 
+                else if (response.MatchIndex < this._followers[address].Request.PrevIndex + 1 || response.MatchIndex < this._settings.LastLogIndex)
+                {
+                    LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
                     Console.WriteLine(entry.Timestamp);
+                    Console.WriteLine("MatchIndex: ", response.MatchIndex);
                     this._followers[address].Request = new AppendEntriesRequest()
                     {
                         Term = this._settings.CurrentTerm,
@@ -313,17 +334,18 @@ namespace NodeServer.Managers.RaftNameSpace.States
                             Term = this._settings.CurrentTerm,
                             PrevLogIndex = response.MatchIndex,
                             LogIndex = response.MatchIndex + 1,
-                            
+
                             Timestamp = Timestamp.FromDateTime(entry.Timestamp.ToUniversalTime()),
                             Operation = entry.Operation,
-                            OperationData = entry.OperationArgs
+                            OperationArgs = entry.OperationArgs
 
                         },
-                        Args = new operationArgs() { Args = entry.OperationArgs }
+                        FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex || this._settings.CommitIndex == -1), this._dynamicActions.getActionMaker() as FileSaving))
                     };
                 }
-                    Console.WriteLine("not sucss"); 
-                // send the previus message:
+
+                    Console.WriteLine("not successful"); 
+                // send the previous message:
                // await s2s.sendAppendEntriesRequest(this._followers[address].Request);
             }
 

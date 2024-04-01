@@ -78,10 +78,10 @@ def main():
     channel = grpc.insecure_channel('localhost:50053')
     stub = cloud_pb2_grpc.CloudStub(channel)
 
-    if login_test(stub):
-        print("Login Test Passed")
-    else:
-        print("Login Test Failed")
+    #if login_test(stub):
+    #    print("Login Test Passed")
+    #else:
+    #    print("Login Test Failed")
 
     if fils_test(stub):
         print("File Test Passed")

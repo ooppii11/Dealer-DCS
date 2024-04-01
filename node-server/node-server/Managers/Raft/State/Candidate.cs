@@ -65,7 +65,6 @@ namespace NodeServer.Managers.RaftNameSpace.States
             }
             Console.WriteLine($"my count {count}, num of servers = {this._settings.ServersAddresses.Count()}");
             Console.WriteLine(numOfDownServers > (this._settings.ServersAddresses.Count() / 2) ? "Most of the servers in my group/cluster are down so election can't work" : "Election has run smoothly"); //Is it possible to change the algorithm so that it works according to the live servers? Then a leader is chosen for the whole system by the servers that are online...
-            Task.Delay(1000).Wait();
 
             return this._settings.ServersAddresses.Count() / 2 < count;
         }

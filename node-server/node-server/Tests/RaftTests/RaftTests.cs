@@ -1,28 +1,38 @@
-﻿using NodeServer.Managers.RaftNameSpace;
+﻿using NodeServer.Managers;
+using NodeServer.Managers.RaftNameSpace;
 using NodeServer.Services;
+using NodeServer.Utilities;
+using System.IO;
 using System.Net;
 using static Google.Protobuf.Compiler.CodeGeneratorResponse.Types;
-namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
+
+
+namespace Tests.RaftTests
 {
     public class GlobalVariables
     {
-        public static string args = "";
+        public static string port = "";
         public static string path = "";
     }
     public class Startup
     {
-        
+
         public void ConfigureServices(IServiceCollection services)
         {
             RaftSettings settings = new RaftSettings();
-            settings.ServersPort = int.Parse(GlobalVariables.args);
-            settings.ServerId = int.Parse(GlobalVariables.args);
+            settings.ServersPort = int.Parse(GlobalVariables.port);
+            settings.ServerId = int.Parse(GlobalVariables.port);
             settings.LogFilePath = GlobalVariables.path;
             settings.ServerAddress = $"127.0.0.1:{settings.ServersPort}";
-            settings.ServersAddresses= new List<string> { "127.0.0.1:1111", "127.0.0.1:2222", "127.0.0.1:3333" };
+            settings.ServersAddresses = new List<string> { "127.0.0.1:1111", "127.0.0.1:2222", "127.0.0.1:3333" };
 
-            services.AddSingleton<Raft>(new Raft(settings));
-            services.AddSingleton<FileSaving>(new FileSaving("127.0.0.1", 50051));
+            FileSaving micro = new FileSaving("127.0.0.1", 50051);
+            FileVersionManager db = new FileVersionManager($"{GlobalVariables.port}_FileManager.db");
+            OnMachineStorageActions._baseFolderName = $"{GlobalVariables.port}_BaseFolderName";
+            services.AddSingleton<FileSaving>(micro);
+            services.AddSingleton<FileVersionManager>(db);
+            services.AddSingleton<Raft>(new Raft(settings, micro, db, $"{GlobalVariables.port}_BaseFolderName"));
+
             services.AddGrpc();
 
         }
@@ -44,7 +54,7 @@ namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
         public static void Main(string[] args)
         {
             Console.WriteLine(args[0]);
-            GlobalVariables.args = args[0];
+            GlobalVariables.port = args[0];
             GlobalVariables.path = args[1];
             CreateHostBuilder(new string[0], args[0]).Build().Run();
         }
@@ -55,6 +65,7 @@ namespace NodeServer.Managers.RaftNameSpace.RaftTestsNameSpace
                 {
                     webBuilder.UseStartup<Startup>();
                     webBuilder.UseUrls($"http://0.0.0.0:{address}");
+                    //webBuilder.UseUrls($"http://127.0.0.1:{address}");
 
                 });
     }

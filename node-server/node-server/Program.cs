@@ -6,10 +6,14 @@ public class Startup
 {
     public void ConfigureServices(IServiceCollection services)
     {
-        services.AddSingleton<FileSaving>(new FileSaving("127.0.0.1", 50051));
-        services.AddSingleton<NodeSystemParse>(new NodeSystemParse());
-        services.AddSingleton<RaftSettings>(new RaftSettings());
-        services.AddSingleton<Log>(new Log(""));
+        RaftSettings raftSettings = new RaftSettings();
+        FileSaving micro = new FileSaving("127.0.0.1", 50051);
+        FileVersionManager db = new FileVersionManager("FileManager.db");
+
+        services.AddSingleton<FileSaving>(micro);
+        services.AddSingleton<FileVersionManager>(db);
+        services.AddSingleton<Raft>(new Raft(raftSettings, micro, db));
+
         services.AddGrpc(options =>
         {
             options.Interceptors.Add<ConnectionLoggerInterceptor>();

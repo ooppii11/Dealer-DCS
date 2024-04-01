@@ -3,7 +3,7 @@ using GrpcFileCloudAccessClient;
 
 namespace NodeServer.Managers
 {
-    public class FileSaving : IDisposable
+    public class FileSaving : ActionMaker
     {
         private Grpc.Core.Channel channel;
         private FileCloudAccess.FileCloudAccessClient client;
@@ -78,18 +78,17 @@ namespace NodeServer.Managers
             }
             catch (Exception ex)
             {
-
                 throw new Exception("Error occurred while uploading this file");
             }
             
         }
 
-        public void deleteFile(string filename)
+        public async Task deleteFile(string filename)
         {
             DeleteFileRequest request = new DeleteFileRequest { FileName = filename };
             try
             {
-                client.DeleteFile(request);
+                 client.DeleteFile(request);
             }
             catch (Exception ex)
             {

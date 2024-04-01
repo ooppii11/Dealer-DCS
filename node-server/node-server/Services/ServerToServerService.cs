@@ -10,89 +10,46 @@ namespace NodeServer.Services
     public class ServerToServerService : ServerToServer.ServerToServerBase
     {
         private Raft _raft;
-        //private FileSaving _microservice;
-        //private NodeSystemParse _system;
-        private readonly string _serverIP = Environment.GetEnvironmentVariable("NODE_SERVER_IP");
-    
+      //  private static readonly object _lock = new object();
+        
         public ServerToServerService(Raft raft)
         {
             this._raft = raft;
         }
 
-        /*
-        public override async Task<PassFileResponse> PassFile(IAsyncStreamReader<PassFileRequest> requestStream, ServerCallContext context)
-        {
-            try
-            {
-                //consensus + S2S
-                string fileName = "";
-                string type = "";
-                List<string> otherNodeServersAddresses = new List<string>();
-                MemoryStream fileData = new MemoryStream();
-
-                
-                await foreach (var chunk in requestStream.ReadAllAsync())
-                {
-                    fileName = chunk.FileId;
-                    type = chunk.Type;
-                    fileData.Write(chunk.FileContent.ToArray(), 0, chunk.FileContent.Length);
-                    foreach (var serverAddress in chunk.ServersAddressesWhereSaved)
-                    {
-                        otherNodeServersAddresses.Add(serverAddress);
-                    }
-                }
-
-                if (!this._system.filExists(fileName))
-                {
-
-                    await this._microservice.uploadFile(fileName, fileData.ToArray(), type);
-                    this._system.addFile(fileName, otherNodeServersAddresses);
-                }
-                else
-                {
-                    context.Status = new Status(StatusCode.AlreadyExists, $"File already exists on the machine - {this._serverIP}");
-                    return new PassFileResponse { Status = false, Message = $"Unable to update file: File already exists on the machine - {this._serverIP}"};
-                }
-                return new PassFileResponse { Status = true, Message = "File uploaded successfully." };
-            }
-            catch (Exception ex)
-            {
-                context.Status = new Status(StatusCode.Internal, $"Error uploading file: {ex.Message}");
-                return new PassFileResponse { Status = false, Message = $"Error uploading file: {ex.Message}" };
-            }
-        }
-        */
-
         public override Task<RequestVoteResponse> RequestVote(RequestVoteRequest request, ServerCallContext context)
         {
-         //   Console.WriteLine("Voting");
-            bool vote = this._raft.OnReceiveVoteRequest(request);
-           
-            RequestVoteResponse response = new RequestVoteResponse()
+        //    lock (_lock) 
             {
-                Term = this._raft.Settings.CurrentTerm,
-                Vote = vote
-            };
+                bool vote = this._raft.OnReceiveVoteRequest(request);
 
-            return Task.FromResult(response);
+
+                RequestVoteResponse response = new RequestVoteResponse()
+                {
+                    Term = this._raft.Settings.CurrentTerm,
+                    Vote = vote
+                };
+                return Task.FromResult(response);
+            }
+            
         }
 
-        public async override Task<AppendEntriesResponse> AppendEntries(IAsyncStreamReader<AppendEntriesRequest> requestStream, ServerCallContext context)
+        public override async Task<AppendEntriesResponse> AppendEntries(IAsyncStreamReader<AppendEntriesRequest> requestStream, ServerCallContext context)
         {
-            AppendEntriesResponse response;
-
-            try
+           // lock (_lock)
             {
-                response = await this._raft.OnReceiveAppendEntriesRequest(requestStream, context.Peer);
-            }
-            catch
-            {
-                var status = new Status(StatusCode.Unknown, "An error occurred while processing the request");
+                try
+                {
+                    AppendEntriesResponse response = this._raft.OnReceiveAppendEntriesRequest(requestStream, context.Peer).Result;
+                    return response;
+                }
+                catch
+                {
+                    var status = new Status(StatusCode.Unknown, "An error occurred while processing the request");
 
-                throw new RpcException(status);
+                    throw new RpcException(status);
+                }
             }
-            return response;
-
         }
 
         public async override Task<InstallSnapshotResponse> InstallSnapshot(IAsyncStreamReader<InstallSnapshotRequest> requestStream, ServerCallContext context)

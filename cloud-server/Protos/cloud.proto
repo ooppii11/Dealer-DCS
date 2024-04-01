@@ -60,6 +60,17 @@ message UploadFileResponse {
 	string message = 2;
 }
 
+message UpdateFileRequest {
+	string sessionId = 1;
+    string fileName = 2;
+    bytes fileData = 3;
+}
+
+message UpdateFileResponse {
+	Status status = 1;
+	string message = 2;
+}
+
 message DownloadFileRequest {
 	string sessionId = 1;
 	string fileName = 2;
@@ -130,6 +141,7 @@ service Cloud {
 	rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse);
     rpc DownloadFile(DownloadFileRequest) returns (stream DownloadFileResponse);
     rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+	rpc UpdateFile(stream UpdateFileRequest) returns (UpdateFileResponse);
 
 	//Raft:
 	rpc GetOrUpdateSystemLeader(LeaderToViewerHeartBeatRequest) returns (LeaderToViewerHeartBeatResponse);

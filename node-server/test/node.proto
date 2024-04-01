@@ -7,18 +7,18 @@ message UploadFileRequest {
 	string file_id = 1;
 	string type = 2;
 	bytes file_content = 3;
-	repeated string servers_addresses_where_saved = 4;
+	int32 user_id = 4;
 }
 
 message UploadFileResponse {
 	bool status = 1;
 	string message = 2;
-	repeated string unreachable_servers = 3;
 }
 
 message UpdateFileRequest {
 	string file_id = 1;
-	bytes new_content = 2;
+	bytes new_content = 3;
+	int32 user_id = 4;
 }
 
 message UpdateFileResponse {
@@ -28,6 +28,7 @@ message UpdateFileResponse {
 
 message DownloadFileRequest {
 	string file_id = 1;
+	int32 user_id = 4;
 }
 
 message DownloadFileResponse {
@@ -38,6 +39,7 @@ message DownloadFileResponse {
 
 message DeleteFileRequest {
 	string file_id = 1;
+	int32 user_id = 4;
 }
 
 message DeleteFileResponse {

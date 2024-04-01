@@ -12,7 +12,7 @@ message LeaderToViewerHeartBeatRequest
 {
 	int32 term = 1;
 	int32 systemLastIndex = 2;
-	string LeaderAddress = 3;
+	string LeaderAddress = 3; //or leader id
 }
 
 message LeaderToViewerHeartBeatResponse
