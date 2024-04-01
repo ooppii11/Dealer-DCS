@@ -38,11 +38,11 @@ namespace NodeServer.Managers
             Dictionary<string, Delegate> functionsWrapper = new Dictionary<string, Delegate>
         {
             { "UploadFileAfterCommit", new Func<string, string, string, string, Task<bool>>(UploadFileAfterCommit) },
-            { "UpdateFileAfterCommit", new Func<string, string, string, Task<bool>>(UpdateFileAfterCommit) },
+            { "UpdateFileAfterCommit", new Func<string, string, string, string, Task<bool>>(UpdateFileAfterCommit) },
             { "DeleteFileAfterCommit", new Func<string, string, Task <bool>>(DeleteFileAfterCommit) },
 
             { "UploadFileBeforeCommit", new Func<string, string, string, string, byte[], bool>(UploadFileBeforeCommit) },
-            { "UpdateFileBeforeCommit", new Func<string, string, string, byte[], bool>(UpdateFileBeforeCommit) },
+            { "UpdateFileBeforeCommit", new Func<string, string, string, string, byte[], bool>(UpdateFileBeforeCommit) },
             { "DeleteFileBeforeCommit", new Func< string, string, bool >(DeleteFileBeforeCommit) },
         };
 
@@ -127,13 +127,12 @@ namespace NodeServer.Managers
             }
         }
 
-        private async Task<bool> UpdateFileAfterCommit(string strUserId, string fileId, string strVersion)
+        private async Task<bool> UpdateFileAfterCommit(string strUserId, string fileId, string strVersion, string type)
         {
             try
             {
                 int userId = Convert.ToInt32(strUserId);
                 int version = Convert.ToInt32(strVersion);
-                string type = this._fileVersionManager.GetFileType(fileId, userId);
                 byte[] data = GetFile(strUserId, fileId, version);
                 if (data == null)
                 {
@@ -167,7 +166,7 @@ namespace NodeServer.Managers
             }
         }
 
-        private bool UploadFileBeforeCommit(string strUserId, string fileId, string type, string strVersion, byte[] fileData)
+        private bool UploadFileBeforeCommit(string strUserId, string fileId, string strVersion, string type, byte[] fileData)
         {
             int userId = Convert.ToInt32(strUserId);
             if (!OnMachineStorageActions.SaveFile(fileId, userId, type, new MemoryStream(fileData), this._fileVersionManager))
@@ -177,10 +176,9 @@ namespace NodeServer.Managers
             return true;
         }
 
-        private bool UpdateFileBeforeCommit(string strUserId, string fileId, string strVersion, byte[] fileData)
+        private bool UpdateFileBeforeCommit(string strUserId, string fileId, string strVersion, string type, byte[] fileData)
         {
             int userId = Convert.ToInt32(strUserId);
-            string type = this._fileVersionManager.GetFileType(fileId, userId);
             if (type == null)
             {
                 return true;

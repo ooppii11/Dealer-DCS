@@ -121,7 +121,7 @@ namespace NodeServer.Services
 
            
             string type = this._fileVersionManager.GetFileType(fileId, userId); 
-
+            
 
             if (!OnMachineStorageActions.DoesFileExist(userId, fileId))
             {
@@ -133,7 +133,7 @@ namespace NodeServer.Services
                 return new Tuple<Status, string, MemoryStream>(new Status(StatusCode.ResourceExhausted, "Can't upload the file. Either the file is too big or the user has used up all their memory."), null, null);
             }
 
-            return new Tuple<Status, string, MemoryStream>(new Status(), $"[{userId},{fileId},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)}]", fileData);
+            return new Tuple<Status, string, MemoryStream>(new Status(), $"[{userId},{fileId},{this._fileVersionManager.GetLatestFileVersion(fileId, userId)},{type}]", fileData);
         }
         
 
@@ -239,8 +239,6 @@ namespace NodeServer.Services
 
                 if (!Directory.Exists(folderPath))
                 {
-                     Console.Write("BBBB\n");
-
                     context.Status = new Status(StatusCode.NotFound, "The Requested file doesn't exist");
                     return new DeleteFileResponse { Status = false, Message = "The Requested file doesn't exist" };
                 }

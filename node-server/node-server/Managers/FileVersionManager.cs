@@ -255,6 +255,7 @@ namespace NodeServer.Managers
                     if (result != DBNull.Value && result != null)
                     {
                         fileType = result.ToString();
+                        Console.WriteLine(fileType);
                     }
                 }
             }
