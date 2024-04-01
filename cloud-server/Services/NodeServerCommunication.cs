@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using Grpc;
 using static Google.Protobuf.Reflection.SourceCodeInfo.Types;
+
 namespace cloud_server.Services
 {
     public class NodeServerCommunication
@@ -35,9 +36,9 @@ namespace cloud_server.Services
             this._channel.ShutdownAsync().Wait();
         }
 
-        public async Task<byte[]> DownloadFile(string fileId)
+        public async Task<byte[]> DownloadFile(int userId, string fileId)
         {
-            DownloadFileRequest request = new DownloadFileRequest { FileId = fileId };
+            DownloadFileRequest request = new DownloadFileRequest { UserId = userId, FileId = fileId };
             
             // Download the file:
             using (var call = this._client.DownloadFile(request))
@@ -55,15 +56,15 @@ namespace cloud_server.Services
             }
         }
 
-        public void deleteFile(string fileId)
+        public void deleteFile(int userId, string fileId)
         {
-            DeleteFileRequest request = new DeleteFileRequest { FileId = fileId };
+            DeleteFileRequest request = new DeleteFileRequest { UserId = userId, FileId = fileId };
             this._client.DeleteFile(request);
         }
 
-        public async Task<UploadFileResponse> uploadFile(string fileId, byte[] fileData, string type, cloud_server.DB.Location locations)
+        public async Task<UploadFileResponse> uploadFile(int userId, string fileId, byte[] fileData, string type, cloud_server.DB.Location locations)
         {
-            List<UploadFileRequest> requests = createUploadRequests(fileId, fileData, type, locations);
+            List<UploadFileRequest> requests = createUploadRequests(userId, fileId, fileData, type, locations);
             
             var call = this._client.UploadFile();
 
@@ -81,9 +82,9 @@ namespace cloud_server.Services
             return response;
         }
 
-        public async Task<UpdateFileResponse> updateFile(string fileId, byte[] fileData)
+        public async Task<UpdateFileResponse> updateFile(int userId, string fileId, byte[] fileData)
         {
-            List<UpdateFileRequest> requests = createUpdateRequests(fileId, fileData);
+            List<UpdateFileRequest> requests = createUpdateRequests(userId, fileId, fileData);
 
             var call = this._client.UpdateFile();
 
@@ -101,7 +102,7 @@ namespace cloud_server.Services
             return response;
         }
 
-        private List<UpdateFileRequest> createUpdateRequests(string fileId, byte[] fileData)
+        private List<UpdateFileRequest> createUpdateRequests(int userId, string fileId, byte[] fileData)
         {
             List<UpdateFileRequest> updateFileRequests = null;
             byte[] chunk = null;
@@ -130,7 +131,9 @@ namespace cloud_server.Services
                 request = new UpdateFileRequest()
                 {
                     FileId = fileId,
-                    NewContent = Google.Protobuf.ByteString.CopyFrom(chunk)
+                    UserId = userId,
+                    NewContent = Google.Protobuf.ByteString.CopyFrom(chunk),
+                    
                 };
 
                 // Append request to the stream
@@ -139,7 +142,7 @@ namespace cloud_server.Services
 
             return updateFileRequests;
         }
-        private List<UploadFileRequest> createUploadRequests(string fileId, byte[] fileData, string type, cloud_server.DB.Location location)
+        private List<UploadFileRequest> createUploadRequests(int userId, string fileId, byte[] fileData, string type, cloud_server.DB.Location location)
         {
             List<UploadFileRequest> uploadFileRequests = null;
             byte[] chunk = null;
@@ -167,11 +170,11 @@ namespace cloud_server.Services
                 request = new UploadFileRequest()
                 {
                     FileId = fileId,
+                    UserId = userId,
                     Type = type,
                     FileContent = Google.Protobuf.ByteString.CopyFrom(chunk)
                 };
-                request.ServersAddressesWhereSaved.Add(location.FirstBackupServer);
-                request.ServersAddressesWhereSaved.Add(location.SecondBackupServer);
+                
 
                 // Append request to the stream
                 uploadFileRequests.Add(request);

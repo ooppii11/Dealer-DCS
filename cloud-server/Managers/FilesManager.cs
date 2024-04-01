@@ -40,10 +40,10 @@ namespace cloud_server.Managers
 
             // save the file
             NodeServerCommunication client = new NodeServerCommunication(this._leaderAddress);
-            await client.uploadFile($"{fileId}", fileData, type, location);
+            await client.uploadFile(userid, $"{fileId}", fileData, type, location);
         }
 
-        public async Task updateFile(int userid, string filename, string type, long size, byte[] fileData)
+        public async Task updateFile(int userid, string filename, long size, byte[] fileData)
         {
             int fileId = 0;
             fileId = this._db.getFileId(filename, userid);
@@ -51,7 +51,7 @@ namespace cloud_server.Managers
             this._db.updateFileMetadata(userid, filename, size);
 
             NodeServerCommunication client = new NodeServerCommunication(this._leaderAddress);
-            await client.updateFile($"{fileId}", fileData);
+            await client.updateFile(userid, $"{fileId}", fileData);
         }
 
         public void deleteFile(int userId, string filename)
@@ -62,7 +62,7 @@ namespace cloud_server.Managers
             this._db.deleteFileMetadata(userId, filename);
 
             // Delete file from locations
-            (new NodeServerCommunication(this._leaderAddress)).deleteFile($"{fileId}");
+            (new NodeServerCommunication(this._leaderAddress)).deleteFile(userId, $"{fileId}");
         }
 
         public GrpcCloud.FileMetadata getFileMetadata(int userId, string filename)
@@ -80,7 +80,7 @@ namespace cloud_server.Managers
             int fileId = 0;
 
             fileId = this._db.getFileId(filename, userId);
-            return await (new NodeServerCommunication(this._leaderAddress)).DownloadFile($"{fileId}");
+            return await (new NodeServerCommunication(this._leaderAddress)).DownloadFile(userId, $"{fileId}");
         }
                  
 
