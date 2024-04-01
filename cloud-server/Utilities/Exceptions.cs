@@ -120,4 +120,14 @@
           System.Runtime.Serialization.SerializationInfo info,
           System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
     }
+
+    public class UserIsNotLoggedIn : AuthenticationException
+    {
+        public UserIsNotLoggedIn() { }
+        public UserIsNotLoggedIn(string message) : base(message) { }
+        public UserIsNotLoggedIn(string message, Exception inner) : base(message, inner) { }
+        protected UserIsNotLoggedIn(
+          System.Runtime.Serialization.SerializationInfo info,
+          System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
+    }
 }
