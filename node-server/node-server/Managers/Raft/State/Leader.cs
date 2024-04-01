@@ -139,7 +139,15 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 {
                     ServerToServerClient s2s = new ServerToServerClient(address);
                     AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
-                    await this.OnReceiveAppendEntriesResponse(response, address);
+                    /*
+                    AppendEntriesResponse response = new AppendEntriesResponse 
+                    {
+                        MatchIndex = this._settings.LastLogIndex,
+                        Success = true,
+                        Term = 1
+                    };
+                    */
+                    this.OnReceiveAppendEntriesResponse(response, address);
                 }
                 catch (RpcException e)
                 {
@@ -237,7 +245,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
             return agreeCount + 1 > nodesCount / 2;
         }
 
-        public async Task OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
+        public async void OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
         {
             ServerToServerClient s2s = new ServerToServerClient(address);
             if (response.Success)
@@ -271,7 +279,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 else if (response.MatchIndex < this._settings.LastLogIndex)
                 {
                     LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
-                    Console.WriteLine("MatchIndex: ", response.MatchIndex);
+                    Console.WriteLine($"MatchIndex: {response.MatchIndex}");
                     Console.WriteLine(entry.Timestamp);
                     Console.WriteLine(this._followers[address].Request);
 

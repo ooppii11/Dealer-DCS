@@ -15,7 +15,7 @@ def main():
     os.chdir(directory)
 
     configurations = [
-        {"port": "1111", "log": "1.log"},
+        #{"port": "1111", "log": "1.log"},
         {"port": "2222", "log": "2.log"},
         {"port": "3333", "log": "3.log"}
     ]

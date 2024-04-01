@@ -122,6 +122,7 @@ namespace NodeServer.Managers
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return false;
             }
         }
@@ -146,6 +147,7 @@ namespace NodeServer.Managers
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return false;
             }
         }
@@ -159,6 +161,7 @@ namespace NodeServer.Managers
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return false;
             }
         }

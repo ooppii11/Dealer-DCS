@@ -247,7 +247,7 @@ namespace NodeServer.Managers.RaftNameSpace
                     {
                         this._settings.CommitIndex--;
                         //return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
-                        return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
+                        return new AppendEntriesResponse() { MatchIndex = totalCommitIndex, Success = false, Term = this._settings.CurrentTerm };
                     }
                 }
 
