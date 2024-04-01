@@ -39,11 +39,11 @@ namespace NodeServer.Managers
         {
             { "UploadFileAfterCommit", new Func<string, string, string, string, Task<bool>>(UploadFileAfterCommit) },
             { "UpdateFileAfterCommit", new Func<string, string, string, Task<bool>>(UpdateFileAfterCommit) },
-            { "DeleteFileAfterCommit", new Func<string, string, string, Task <bool>>(DeleteFileAfterCommit) },
+            { "DeleteFileAfterCommit", new Func<string, string, Task <bool>>(DeleteFileAfterCommit) },
 
             { "UploadFileBeforeCommit", new Func<string, string, string, string, byte[], bool>(UploadFileBeforeCommit) },
             { "UpdateFileBeforeCommit", new Func<string, string, string, byte[], bool>(UpdateFileBeforeCommit) },
-            { "DeleteFileBeforeCommit", new Func< string, string, string, bool >(DeleteFileBeforeCommit) },
+            { "DeleteFileBeforeCommit", new Func< string, string, bool >(DeleteFileBeforeCommit) },
         };
 
             if (functionsWrapper.TryGetValue(ac.ActionName, out Delegate func))
@@ -82,8 +82,6 @@ namespace NodeServer.Managers
 
         private void RemovePreviseVersions(int userId, string fileId, int version)
         {
-            this._fileVersionManager.RemovePreviousVersions(fileId, userId, version);
-
             string directoryPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, userId.ToString(), fileId);
             string[] previousVersionFiles = Directory.GetFiles(directoryPath, $"{fileId}_*");
 
@@ -102,7 +100,6 @@ namespace NodeServer.Managers
 
         private void RemoveCurrentVersion(int userId, string fileId, int version)
         {
-            this._fileVersionManager.RemoveVersion(fileId, userId, version);
             string filePath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, userId.ToString(), fileId, $"{fileId}_{version}");
             File.Delete(filePath);
         }
@@ -125,6 +122,7 @@ namespace NodeServer.Managers
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return false;
             }
         }
@@ -136,11 +134,7 @@ namespace NodeServer.Managers
                 int userId = Convert.ToInt32(strUserId);
                 int version = Convert.ToInt32(strVersion);
                 string type = this._fileVersionManager.GetFileType(fileId, userId);
-                if (type == null)
-                {
-                    return true;
-                }
-                byte[] data = GetFile(strUserId,fileId, version);
+                byte[] data = GetFile(strUserId, fileId, version);
                 if (data == null)
                 {
                     return true;
@@ -158,7 +152,8 @@ namespace NodeServer.Managers
             }
         }
 
-        private async Task<bool> DeleteFileAfterCommit(string userId, string fileId, string strVersion)
+
+        private  async Task<bool> DeleteFileAfterCommit(string userId, string fileId)
         {
             try
             {
@@ -167,6 +162,7 @@ namespace NodeServer.Managers
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
                 return false;
             }
         }
@@ -196,9 +192,10 @@ namespace NodeServer.Managers
             return true;
         }
 
-        private bool DeleteFileBeforeCommit(string strUserId, string fileId, string strVersion)
+        private bool DeleteFileBeforeCommit(string strUserId, string fileId)
         {
            int userId = Convert.ToInt32(strUserId);
+
             string folderPath = Path.Combine(Directory.GetCurrentDirectory(), this._baseFolderName, strUserId, fileId);
             if (!Directory.Exists(folderPath))
             {

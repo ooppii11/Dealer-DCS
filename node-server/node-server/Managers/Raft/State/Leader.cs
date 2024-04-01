@@ -125,6 +125,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
             {
                 this._completionSource.SetResult(true);
                 this._timer.Stop();
+                return;
             }
             await this.SendHeartbeatRequest();
         }
@@ -138,6 +139,14 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 {
                     ServerToServerClient s2s = new ServerToServerClient(address);
                     AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
+                    /*
+                    AppendEntriesResponse response = new AppendEntriesResponse 
+                    {
+                        MatchIndex = this._settings.LastLogIndex,
+                        Success = true,
+                        Term = 1
+                    };
+                    */
                     this.OnReceiveAppendEntriesResponse(response, address);
                 }
                 catch (RpcException e)
@@ -185,9 +194,9 @@ namespace NodeServer.Managers.RaftNameSpace.States
         }
 
         public async void AppendEntries(LogEntry entry, byte[] fileData)
-        {
-            
+        {            
             Console.WriteLine("leader append entry to the log");
+            Console.WriteLine("------------------------AppendEntries------------------------");
             this._logger.AppendEntry(entry);
             this._lastLogEntry = entry;
 
@@ -214,28 +223,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         
                     },
                     FileData = Google.Protobuf.ByteString.CopyFrom(fileData)
-                };
-
-                Console.WriteLine(this._followers[address].Request.ToString());
-                try
-                {
-                   // ServerToServerClient s2s = new ServerToServerClient(address);
-                   // AppendEntriesResponse response = await s2s.sendAppendEntriesRequest(this._followers[address].Request);
-                    Console.WriteLine($"sent new append entries to {address}");
-                    //this.OnReceiveAppendEntriesResponse(response, address);
-                }
-                catch (RpcException e)
-                {
-                    if (e.StatusCode == StatusCode.Unavailable)
-                    {
-                        continue;
-                        Console.WriteLine($"Server at {address} is Unavailable (down)");
-                    }
-                }
-                catch (Exception e) 
-                {
-                    Console.WriteLine($"error send append entries to {address}");
-                }
+                };                
             }
         }
 
@@ -292,6 +280,8 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 else if (response.MatchIndex < this._settings.LastLogIndex)
                 {
                     LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
+                    Console.WriteLine($"MatchIndex: {response.MatchIndex}");
+                    Console.WriteLine(entry.Timestamp);
                     Console.WriteLine(this._followers[address].Request);
 
                     this._followers[address].Request = new AppendEntriesRequest()
@@ -312,27 +302,10 @@ namespace NodeServer.Managers.RaftNameSpace.States
                             OperationArgs = entry.OperationArgs
 
                         },
-                        FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex), this._dynamicActions.getActionMaker() as FileSaving))
+                        FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex || this._settings.CommitIndex == -1), this._dynamicActions.getActionMaker() as FileSaving))
                     };
 
                 }
-                try
-                {
-                    await s2s.sendAppendEntriesRequest(this._followers[address].Request);
-                }
-                catch (RpcException e)
-                {
-                    if (e.StatusCode == StatusCode.Unavailable)
-                    {
-                        Console.WriteLine($"Server at {address} is Unavailable (down)");
-                    }
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"error send commit to {address}\n\n\n");
-                    Console.WriteLine(e.Message);
-                }
-
             }
             else
             {
@@ -343,11 +316,12 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 else*/
                 if (response.MatchIndex == this._followers[address].Request.PrevIndex + 1) {
                     Console.WriteLine("follower have error in commit");
-                } // Error in commit
-                else if (response.MatchIndex < this._followers[address].Request.PrevIndex + 1)
+                } 
+                else if (response.MatchIndex < this._followers[address].Request.PrevIndex + 1 || response.MatchIndex < this._settings.LastLogIndex)
                 {
                     LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
                     Console.WriteLine(entry.Timestamp);
+                    Console.WriteLine("MatchIndex: ", response.MatchIndex);
                     this._followers[address].Request = new AppendEntriesRequest()
                     {
                         Term = this._settings.CurrentTerm,
@@ -366,9 +340,10 @@ namespace NodeServer.Managers.RaftNameSpace.States
                             OperationArgs = entry.OperationArgs
 
                         },
-                        FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex), this._dynamicActions.getActionMaker() as FileSaving))
+                        FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex || this._settings.CommitIndex == -1), this._dynamicActions.getActionMaker() as FileSaving))
                     };
                 }
+
                     Console.WriteLine("not successful"); 
                 // send the previous message:
                // await s2s.sendAppendEntriesRequest(this._followers[address].Request);

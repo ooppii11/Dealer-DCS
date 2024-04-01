@@ -40,11 +40,10 @@ def serve():
 
 def upload_file(stub):
     file_id = input("Enter file ID: ")
-    file_type = input("Enter file type: ")
     file_content = input("Enter file content: ").encode()
     user_id = int(input("Enter user ID: "))
 
-    upload_file_request = node_pb2.UploadFileRequest(file_id=file_id, file_content=file_content, type=file_type,user_id=user_id)
+    upload_file_request = node_pb2.UploadFileRequest(file_id=file_id, file_content=file_content, type="text/plain",user_id=user_id)
     upload_file_response = stub.UploadFile(iter([upload_file_request]))
     print(f'Upload File Response: {upload_file_response.message}')
 

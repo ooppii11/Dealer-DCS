@@ -8,12 +8,8 @@
         private int _size;
         private DateTime _creationDate;
         private DateTime _lastModified;
-        public FileMetadata(int creatorId,
-                            string name,
-                            string type,
-                            int size,
-                            DateTime creationDate = default(DateTime),
-                            DateTime lastModified = default(DateTime))
+
+        public FileMetadata(int creatorId, string name,  string type,  int size,  DateTime creationDate = default(DateTime), DateTime lastModified = default(DateTime))
         {
             this._creatorId = creatorId;
             this._name = name;

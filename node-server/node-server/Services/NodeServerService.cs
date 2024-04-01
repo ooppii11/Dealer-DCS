@@ -105,7 +105,7 @@ namespace NodeServer.Services
             }
         }
 
-        private async Task<Tuple<Status, string, MemoryStream>> UpdateOperationArgsToString(IAsyncStreamReader<UpdateFileRequest> requestStream)
+        private async Task<Tuple<Status, string, MemoryStream>> ParseUpdateRequest(IAsyncStreamReader<UpdateFileRequest> requestStream)
         {
             string fileId = "";
             int userId = 0;
@@ -120,8 +120,7 @@ namespace NodeServer.Services
             }
 
            
-            string type = this._fileVersionManager.GetFileType(fileId, userId); // nogt work why?
-            type = "text/plain";
+            string type = this._fileVersionManager.GetFileType(fileId, userId); 
 
 
             if (!OnMachineStorageActions.DoesFileExist(userId, fileId))
@@ -144,9 +143,10 @@ namespace NodeServer.Services
             {
                 const string operationName = "UpdateFile";
                 Console.WriteLine("UpdateFile node service");
-                Tuple<Status, string, MemoryStream> StatusArgsAndFileData = await UpdateOperationArgsToString(requestStream);
+               // Tuple<Status, string, MemoryStream> StatusArgsAndFileData = await UpdateOperationArgsToString(requestStream);
                 Console.WriteLine("get args");
 
+                Tuple<Status, string, MemoryStream> StatusArgsAndFileData = await ParseUpdateRequest(requestStream);
                 if (StatusArgsAndFileData.Item2 == null)
                 {
                     context.Status = StatusArgsAndFileData.Item1;
@@ -226,24 +226,29 @@ namespace NodeServer.Services
         {
             try
             {
-                const string operationName = "DeleteFile";
-                string args = $"[{request.UserId},{request.FileId},{this._fileVersionManager.GetLatestFileVersion(request.FileId, request.UserId)}]";
+                const string operationName = "DeleteFile";                
+                string args = $"[{request.UserId},{request.FileId}]";
                 LogEntry entry = new LogEntry(GetLastIndex() + 1, GetServerIP(), operationName, args);
                 if (!this._raft.appendEntry(entry))
                 {
                     context.Status = new Status(StatusCode.PermissionDenied, "Can't get requests from cloud, this server is not the leader at the moment.");
                     return new DeleteFileResponse { Status = false, Message = "Can't get requests from cloud, this server is not the leader at the moment." }; ;
                 }
+                string folderPath = Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, request.UserId.ToString(), request.FileId);
+                Console.Write(folderPath);
 
-                string folderPath = Path.Combine(Directory.GetCurrentDirectory(), OnMachineStorageActions._baseFolderName, request.FileId);
-              /*  if (!Directory.Exists(folderPath))
+                if (!Directory.Exists(folderPath))
                 {
+                     Console.Write("BBBB\n");
+
                     context.Status = new Status(StatusCode.NotFound, "The Requested file doesn't exist");
                     return new DeleteFileResponse { Status = false, Message = "The Requested file doesn't exist" };
-                }*/
-
+                }
+                
                 Directory.Delete(folderPath, true);
+
                 this._fileVersionManager.RemoveAllFileVersions(request.FileId, request.UserId);
+
 
                 return new DeleteFileResponse { Status = true, Message = "File deleted successfully." };
             }
