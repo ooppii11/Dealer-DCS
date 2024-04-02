@@ -4,6 +4,8 @@ import subprocess
 import asyncio
 from option_actions import *
 
+#python -m grpc_tools.protoc -I./protos --python_out=. --pyi_out=. --grpc_python_out=. ./protos/cloud.proto
+
 HOST = "localhost:50053"
 async def get_session_id(stub):
     while True:

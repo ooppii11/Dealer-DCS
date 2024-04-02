@@ -56,8 +56,8 @@ class CloudStub(object):
                 )
         self.UpdateFile = channel.stream_unary(
                 '/Cloud/UpdateFile',
-                request_serializer=cloud__pb2.UploadFileRequest.SerializeToString,
-                response_deserializer=cloud__pb2.UploadFileResponse.FromString,
+                request_serializer=cloud__pb2.UpdateFileRequest.SerializeToString,
+                response_deserializer=cloud__pb2.UpdateFileResponse.FromString,
                 )
         self.GetOrUpdateSystemLeader = channel.unary_unary(
                 '/Cloud/GetOrUpdateSystemLeader',
@@ -178,8 +178,8 @@ def add_CloudServicer_to_server(servicer, server):
             ),
             'UpdateFile': grpc.stream_unary_rpc_method_handler(
                     servicer.UpdateFile,
-                    request_deserializer=cloud__pb2.UploadFileRequest.FromString,
-                    response_serializer=cloud__pb2.UploadFileResponse.SerializeToString,
+                    request_deserializer=cloud__pb2.UpdateFileRequest.FromString,
+                    response_serializer=cloud__pb2.UpdateFileResponse.SerializeToString,
             ),
             'GetOrUpdateSystemLeader': grpc.unary_unary_rpc_method_handler(
                     servicer.GetOrUpdateSystemLeader,
@@ -344,8 +344,8 @@ class Cloud(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.stream_unary(request_iterator, target, '/Cloud/UpdateFile',
-            cloud__pb2.UploadFileRequest.SerializeToString,
-            cloud__pb2.UploadFileResponse.FromString,
+            cloud__pb2.UpdateFileRequest.SerializeToString,
+            cloud__pb2.UpdateFileResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

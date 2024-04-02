@@ -119,7 +119,7 @@ class FilesActions():
         except:
             raise Exception("File not exists")
         try:
-            request = cloud_pb2.UploadFileRequest(sessionId=session_id, fileName=filename, type="plain/text", fileData=file_data)
+            request = cloud_pb2.UpdateFileRequest(sessionId=session_id, fileName=filename, fileData=file_data)
             update_file_response = grpc_stub.UpdateFile(iter([request]))
         except grpc.RpcError as e:
             if e.code() == StatusCode.INTERNAL:

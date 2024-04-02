@@ -94,6 +94,24 @@ class UploadFileResponse(_message.Message):
     message: str
     def __init__(self, status: _Optional[_Union[Status, str]] = ..., message: _Optional[str] = ...) -> None: ...
 
+class UpdateFileRequest(_message.Message):
+    __slots__ = ("sessionId", "fileName", "fileData")
+    SESSIONID_FIELD_NUMBER: _ClassVar[int]
+    FILENAME_FIELD_NUMBER: _ClassVar[int]
+    FILEDATA_FIELD_NUMBER: _ClassVar[int]
+    sessionId: str
+    fileName: str
+    fileData: bytes
+    def __init__(self, sessionId: _Optional[str] = ..., fileName: _Optional[str] = ..., fileData: _Optional[bytes] = ...) -> None: ...
+
+class UpdateFileResponse(_message.Message):
+    __slots__ = ("status", "message")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    status: Status
+    message: str
+    def __init__(self, status: _Optional[_Union[Status, str]] = ..., message: _Optional[str] = ...) -> None: ...
+
 class DownloadFileRequest(_message.Message):
     __slots__ = ("sessionId", "fileName")
     SESSIONID_FIELD_NUMBER: _ClassVar[int]

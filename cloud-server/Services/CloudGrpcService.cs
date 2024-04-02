@@ -96,8 +96,11 @@ namespace cloud_server.Services
                 throw new UserIsNotLoggedIn("User is not logged in.");
             }
             var completionSource = new TaskCompletionSource<object>();
-            CloudGrpcService._usersRequestQueues[userSessionId].Enqueue((action, completionSource, parameters));
-            CloudGrpcService._usersQueueEvent[userSessionId].Set();
+            lock (CloudGrpcService._usersQueueLockObjects[userSessionId])
+            {
+                CloudGrpcService._usersRequestQueues[userSessionId].Enqueue((action, completionSource, parameters));
+                CloudGrpcService._usersQueueEvent[userSessionId].Set();
+            }
             return completionSource.Task;
         }
 
@@ -447,10 +450,23 @@ namespace cloud_server.Services
         {
             try
             {
-                List<UpdateFileRequest> requestStreamList = await GetStreamInfoAsList<UpdateFileRequest>(requestStream);
-                this._authManager.GetUser(requestStreamList[0].SessionId);
-                var task = await EnqueueRequestAsync(requestStreamList[0].SessionId, ProcessUpdateFile, requestStreamList, context);
-                return (UpdateFileResponse)task;
+                //List<UpdateFileRequest> requestStreamList = await GetStreamInfoAsList<UpdateFileRequest>(requestStream);
+                if (await requestStream.MoveNext())
+                {
+                    UpdateFileRequest firstRequest = requestStream.Current;
+                    string sessionId = firstRequest.SessionId;
+
+                    this._authManager.GetUser(sessionId);
+
+                    var task = await EnqueueRequestAsync(sessionId, ProcessUpdateFile, requestStream, firstRequest, context);
+
+                    return (UpdateFileResponse)task;
+                }
+                else
+                {
+                    context.Status = new Grpc.Core.Status(StatusCode.InvalidArgument, "Empty request stream");
+                    return new UpdateFileResponse { Message = "Empty request stream", Status = GrpcCloud.Status.Failure };
+                }
             }
             catch (AuthenticationException ex)
             {
@@ -479,10 +495,24 @@ namespace cloud_server.Services
         {
             try
             {
-                List<UploadFileRequest> requestStreamList = await GetStreamInfoAsList<UploadFileRequest>(requestStream);
-                this._authManager.GetUser(requestStreamList[0].SessionId);
-                var task = await EnqueueRequestAsync(requestStreamList[0].SessionId, ProcessUploadFile, requestStreamList, context);
-                return (UploadFileResponse)task;
+                //List<UploadFileRequest> requestStreamList = await GetStreamInfoAsList<UploadFileRequest>(requestStream);
+                if (await requestStream.MoveNext())
+                {
+                    UploadFileRequest firstRequest = requestStream.Current;
+                    string sessionId = firstRequest.SessionId;
+
+                    this._authManager.GetUser(sessionId);
+
+                    var task = await EnqueueRequestAsync(sessionId, ProcessUpdateFile, requestStream, firstRequest, context);
+
+                    return (UploadFileResponse)task;
+                }
+                else
+                {
+                    context.Status = new Grpc.Core.Status(StatusCode.InvalidArgument, "Empty request stream");
+                    return new UploadFileResponse { Message = "Empty request stream", Status = GrpcCloud.Status.Failure };
+                }
+                
             }
             catch (AuthenticationException ex)
             {
@@ -574,16 +604,16 @@ namespace cloud_server.Services
             }
         }
 
-        private async Task<UploadFileResponse> ProcessUploadFile(List<UploadFileRequest> requestStreamList, ServerCallContext context)
+        private async Task<UploadFileResponse> ProcessUploadFile(IAsyncStreamReader<UploadFileRequest> requestStream, UploadFileRequest fileRequest, ServerCallContext context)
         {
-            User user = this._authManager.GetUser(requestStreamList[0].SessionId);
+            User user = this._authManager.GetUser(fileRequest.SessionId);
 
-            string fileName = requestStreamList[0].FileName;
-            string type = requestStreamList[0].Type;
+            string fileName = fileRequest.FileName;
+            string type = fileRequest.Type;
 
             MemoryStream fileData = new MemoryStream();
 
-            foreach (var chunk in requestStreamList)
+            await foreach (var chunk in requestStream.ReadAllAsync())
             {
                 fileData.Write(chunk.FileData.ToArray(), 0, chunk.FileData.Length);
             }
@@ -597,15 +627,15 @@ namespace cloud_server.Services
             };
         }
 
-        private async Task<UpdateFileResponse> ProcessUpdateFile(List<UpdateFileRequest> requestStreamList, ServerCallContext context)
+        private async Task<UpdateFileResponse> ProcessUpdateFile(IAsyncStreamReader<UpdateFileRequest> requestStream, UpdateFileRequest fileRequest, ServerCallContext context)
         {
-            User user = this._authManager.GetUser(requestStreamList[0].SessionId);
+            User user = this._authManager.GetUser(fileRequest.SessionId);
 
-            string fileName = requestStreamList[0].FileName; 
+            string fileName = fileRequest.FileName; 
 
             MemoryStream fileData = new MemoryStream();
 
-            foreach (var chunk in requestStreamList)
+            await foreach (var chunk in requestStream.ReadAllAsync())
             {
                 fileData.Write(chunk.FileData.ToArray(), 0, chunk.FileData.Length);
             }
