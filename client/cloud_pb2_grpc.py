@@ -54,6 +54,16 @@ class CloudStub(object):
                 request_serializer=cloud__pb2.DeleteFileRequest.SerializeToString,
                 response_deserializer=cloud__pb2.DeleteFileResponse.FromString,
                 )
+        self.UpdateFile = channel.stream_unary(
+                '/Cloud/UpdateFile',
+                request_serializer=cloud__pb2.UploadFileRequest.SerializeToString,
+                response_deserializer=cloud__pb2.UploadFileResponse.FromString,
+                )
+        self.GetOrUpdateSystemLeader = channel.unary_unary(
+                '/Cloud/GetOrUpdateSystemLeader',
+                request_serializer=cloud__pb2.LeaderToViewerHeartBeatRequest.SerializeToString,
+                response_deserializer=cloud__pb2.LeaderToViewerHeartBeatResponse.FromString,
+                )
 
 
 class CloudServicer(object):
@@ -110,6 +120,19 @@ class CloudServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def UpdateFile(self, request_iterator, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetOrUpdateSystemLeader(self, request, context):
+        """Raft:
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CloudServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -152,6 +175,16 @@ def add_CloudServicer_to_server(servicer, server):
                     servicer.DeleteFile,
                     request_deserializer=cloud__pb2.DeleteFileRequest.FromString,
                     response_serializer=cloud__pb2.DeleteFileResponse.SerializeToString,
+            ),
+            'UpdateFile': grpc.stream_unary_rpc_method_handler(
+                    servicer.UpdateFile,
+                    request_deserializer=cloud__pb2.UploadFileRequest.FromString,
+                    response_serializer=cloud__pb2.UploadFileResponse.SerializeToString,
+            ),
+            'GetOrUpdateSystemLeader': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetOrUpdateSystemLeader,
+                    request_deserializer=cloud__pb2.LeaderToViewerHeartBeatRequest.FromString,
+                    response_serializer=cloud__pb2.LeaderToViewerHeartBeatResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -296,5 +329,39 @@ class Cloud(object):
         return grpc.experimental.unary_unary(request, target, '/Cloud/DeleteFile',
             cloud__pb2.DeleteFileRequest.SerializeToString,
             cloud__pb2.DeleteFileResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def UpdateFile(request_iterator,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.stream_unary(request_iterator, target, '/Cloud/UpdateFile',
+            cloud__pb2.UploadFileRequest.SerializeToString,
+            cloud__pb2.UploadFileResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetOrUpdateSystemLeader(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/Cloud/GetOrUpdateSystemLeader',
+            cloud__pb2.LeaderToViewerHeartBeatRequest.SerializeToString,
+            cloud__pb2.LeaderToViewerHeartBeatResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

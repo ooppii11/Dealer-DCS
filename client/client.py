@@ -1,16 +1,10 @@
-import multiprocessing
+import sys
+import os
+import subprocess
 import asyncio
 from option_actions import *
 
 HOST = "localhost:50053"
-OPTIONS = {
-    "upload": FilesActions.upload,
-    "delete": FilesActions.delete,
-    "download": FilesActions.download,
-    "ls": FilesActions.ls,
-    "file metadata": FilesActions.file_metadata
-}
-
 async def get_session_id(stub):
     while True:
         try:
@@ -20,30 +14,10 @@ async def get_session_id(stub):
         except Exception as e:
             print("Error:", e)
 
-async def execute_command(stub, session_id, user_input):
-    user_option, *user_args = user_input.split()
-    try:
-        await OPTIONS[user_option](stub, session_id, *user_args)
-    except KeyError:
-        print("\nInvalid command. Available commands are:", list(OPTIONS.keys()))
-        return
-    except TypeError or ValueError as e:
-        print("\nAn error occurred while executing the command:", user_option)
-        return
-    except Exception as e:
-        print("Error:", e)
-        return
-
-    
-
 def get_stub():
     channel = grpc.insecure_channel(HOST)
     stub = cloud_pb2_grpc.CloudStub(channel)    
     return stub
-
-def start_task(user_input, session_id):
-    stub = get_stub()
-    asyncio.run(execute_command(stub, session_id, user_input))
 
 
 def main():
@@ -58,12 +32,12 @@ def main():
             exit()
 
         if previous_process is not None:
-            previous_process.join()
+            previous_process.wait()
 
-        process = multiprocessing.Process(target=start_task, args=(user_input, session_id))
-        process.start()
+        
+        command = ['.venv\Scripts\python.exe', 'command_executor.py', user_input, str(session_id)]
+        process =  subprocess.Popen(command, creationflags=subprocess.CREATE_NEW_CONSOLE)
         previous_process = process
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
