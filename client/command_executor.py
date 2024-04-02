@@ -1,5 +1,6 @@
 import sys
 import asyncio
+import time
 from option_actions import *
 
 HOST = "localhost:50053"
@@ -37,8 +38,12 @@ def main():
     user_input = sys.argv[1]
     session_id = sys.argv[2]
     stub = get_stub()
-    output = asyncio.run(execute_command(stub, session_id, user_input))
-    print(output)
+    try:
+        output = asyncio.run(execute_command(stub, session_id, user_input))
+        print(output)
+    except ValueError as e:
+        print("Missing values to prforme the action")
+
 
 if __name__ == "__main__":
     main()

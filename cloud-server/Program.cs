@@ -12,8 +12,8 @@ public class Startup
     public void ConfigureServices(IServiceCollection services)
     {
 
-        services.AddSingleton<Authentication>(new Authentication(new AuthDB("DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres")));
-        services.AddSingleton<FileMetadataDB>(new FileMetadataDB("DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres"));
+        //services.AddSingleton<Authentication>(new Authentication(new AuthDB("DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres")));
+        //services.AddSingleton<FileMetadataDB>(new FileMetadataDB("DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres"));
 
       /*services.AddSingleton<FilesManager>(new FilesManager(
           new cloud_server.DB.FileMetadataDB("DB/tables.sql", "localhost", "postgres", "5432", "123456", "postgres"),
@@ -24,9 +24,9 @@ public class Startup
       services.AddSingleton<FilesManager>(new FilesManager( new FileMetadataDB("DB/tables.sql", "172.18.0.2", "DBserver", "5432", "123AvIt456", "mydatabase")));
       services.AddGrpc();
       */
-      /*  
+       
         services.AddSingleton<Authentication>(new Authentication(new AuthDB("DB/tables.sql", "127.0.0.1", "DBserver", "5432", "123AvIt456", "mydatabase")));
-        services.AddSingleton<FileMetadataDB>(new FileMetadataDB("DB/tables.sql", "127.0.0.1", "DBserver", "5432", "123AvIt456", "mydatabase"));*/
+        services.AddSingleton<FileMetadataDB>(new FileMetadataDB("DB/tables.sql", "127.0.0.1", "DBserver", "5432", "123AvIt456", "mydatabase"));
       services.AddSingleton<RaftViewerLogger>(new RaftViewerLogger("LeaderLog.log"));
         services.AddGrpc();
     }

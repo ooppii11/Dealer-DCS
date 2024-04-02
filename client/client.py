@@ -13,6 +13,10 @@ async def get_session_id(stub):
             session_id = await AuthActions.get_user_credentials(stub)
             if session_id is not None:
                 return session_id
+        except grpc.RpcError as e:
+            if e.code() == StatusCode.UNAVAILABLE:
+                    stub = get_stub()
+                    print("Connection refused error occurred.")
         except Exception as e:
             print("Error:", e)
 
@@ -30,15 +34,23 @@ def main():
     while True:
         user_input = input(">> ")
         if "logout" in user_input.lower():
-            AuthActions.logout(stub, session_id)
-            exit()
+            try:
+                AuthActions.logout(stub, session_id)
+                
+            except Exception as e:
+                print(e)
 
-        if previous_process is not None:
-            previous_process.wait()
+            finally:
+                exit()
 
-        
-        command = ['.venv\Scripts\python.exe', 'command_executor.py', user_input, str(session_id)]
-        process =  subprocess.Popen(command, creationflags=subprocess.CREATE_NEW_CONSOLE)
+        #if previous_process is not None:
+            
+            #previous_process.wait()
+
+        #command = ['.venv\Scripts\python.exe', 'command_executor.py', user_input, str(session_id)]
+        command = ['cmd.exe', '/k', '.venv\\Scripts\\python.exe', 'command_executor.py', user_input, str(session_id)]
+        #| subprocess.CREATE_NEW_PROCESS_GROUP
+        process =  subprocess.Popen(command, creationflags=subprocess.CREATE_NEW_CONSOLE )
         previous_process = process
 
 if __name__ == '__main__':

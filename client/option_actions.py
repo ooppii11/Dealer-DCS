@@ -74,7 +74,7 @@ class AuthActions():
 
 class FilesActions():
     @staticmethod
-    async def upload(grpc_stub, session_id, filename,file_path): 
+    async def upload(grpc_stub, session_id, filename, file_path): 
         file_data = None
         try:
             with open(file_path, 'rb') as file:

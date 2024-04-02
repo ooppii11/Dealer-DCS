@@ -8,6 +8,7 @@ using cloud_server.DB;
 using System.Threading.Tasks;
 using System.Net;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 //using GrpcNodeServer;
 
 namespace cloud_server.Services
@@ -15,7 +16,7 @@ namespace cloud_server.Services
     public class CloudGrpcService: Cloud.CloudBase
     {
         private Authentication _authManager;
-        private FilesManager _filesManager;
+        static private FilesManager _filesManager;
 
         private readonly RaftViewerLogger _raftLogger;
         private static readonly object _fileLock = new object();
@@ -38,11 +39,11 @@ namespace cloud_server.Services
             _raftLogger = raftLogger;
             try
             {
-                this._filesManager = new FilesManager(filesManagerDB, this._raftLogger.getCurrLeaderAddress());
+                CloudGrpcService._filesManager = new FilesManager(filesManagerDB, this._raftLogger.getCurrLeaderAddress());
             }
             catch (NoLeaderException ex)
             {
-                this._filesManager = new FilesManager(filesManagerDB);
+                CloudGrpcService._filesManager = new FilesManager(filesManagerDB);
             }
             this._logger = logger;
             this._authManager = auth;
@@ -128,26 +129,57 @@ namespace cloud_server.Services
                             {
                                 if (taskResult.IsCompleted)
                                 {
-                                    requestPair.Completion.TrySetResult(taskResult.GetType().GetProperty("Result")?.GetValue(taskResult));
+                                    if (taskResult.IsFaulted && taskResult.Exception.InnerException is RpcException)
+                                    {
+                                        //Console.WriteLine(taskResult.Exception.InnerException);
+                                        stopProcessingQueueNow = true;
+                                        lock (CloudGrpcService._fileLock)
+                                        {
+                                            this._raftLogger.insertInvalidLeader();
+                                        }
+                                    }
+                                    else if (taskResult.IsFaulted)
+                                    {
+                                        requestPair.Completion.TrySetException(taskResult.Exception.InnerException);
+                                    }
+                                    else
+                                    {
+                                        requestPair.Completion.TrySetResult(taskResult.GetType().GetProperty("Result")?.GetValue(taskResult));
+                                    }
                                 }
-                                
                                 else
                                 {
+                                    var continuationFinishedEvent = new ManualResetEvent(false);
+
                                     taskResult.ContinueWith(t =>
                                     {
-                                        if (t.IsFaulted && t.Exception.InnerException is RpcException)
+                                        try
                                         {
-                                            stopProcessingQueueNow = true;
-                                            lock (CloudGrpcService._fileLock)
+                                            if (t.IsFaulted && t.Exception.InnerException is RpcException)
                                             {
-                                                this._raftLogger.insertInvalidLeader();
+                                                //Console.WriteLine(t.Exception.InnerException);
+                                                stopProcessingQueueNow = true;
+                                                lock (CloudGrpcService._fileLock)
+                                                {
+                                                    this._raftLogger.insertInvalidLeader();
+                                                }
+                                            }
+                                            else if (t.IsFaulted)
+                                            {
+                                                requestPair.Completion.TrySetException(t.Exception.InnerException);
+                                            }
+                                            else
+                                            {
+                                                requestPair.Completion.TrySetResult(t.GetType().GetProperty("Result")?.GetValue(t));
                                             }
                                         }
-                                        else
+                                        finally
                                         {
-                                            requestPair.Completion.TrySetResult(t.GetType().GetProperty("Result")?.GetValue(t));
-                                        }   
+                                            continuationFinishedEvent.Set();
+                                        }
                                     }, TaskScheduler.Default);
+
+                                    continuationFinishedEvent.WaitOne();
                                 }
                             }
                             else
@@ -193,23 +225,19 @@ namespace cloud_server.Services
                 try
                 {
                     bool isNewLeader = request.LeaderAddress != this._raftLogger.getCurrLeaderAddress();
-                    //bool isValidTerm = CloudGrpcService._raftLogger.getLastEntry().Term <= request.Term;
-                    bool isValidIndex = this._raftLogger.getLastEntry().SystemLastIndex <= request.SystemLastIndex;
-                    if (isNewLeader
-                        //&& isValidTerm
-                        && isValidIndex)
+                    if (isNewLeader)
                     {
                         this._raftLogger.insertEntry(request);
+                        CloudGrpcService._filesManager._leaderAddress = request.LeaderAddress;
                         this.setAllUsersEvents();
-                        this._filesManager.LeaderAddress = request.LeaderAddress;
                         return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = true });
                     }
                 }
                 catch (NoLeaderException ex)
                 {
                     this._raftLogger.insertEntry(request);
+                    CloudGrpcService._filesManager._leaderAddress = request.LeaderAddress;
                     this.setAllUsersEvents();
-                    this._filesManager.LeaderAddress = request.LeaderAddress;
                     return Task.FromResult(new LeaderToViewerHeartBeatResponse { Status = true });
                 }
 
@@ -293,7 +321,7 @@ namespace cloud_server.Services
                 existingSessionId = oldSessionIdAndNew.Item2;
                 if (!_usersCancellationTokens.ContainsKey(newSessionId))
                 {
-                    if (!_usersCancellationTokens.ContainsKey(existingSessionId))
+                    if (existingSessionId == null || !_usersCancellationTokens.ContainsKey(existingSessionId))
                     {
                         StartProcessQueueForUser(newSessionId);
                     }
@@ -307,6 +335,11 @@ namespace cloud_server.Services
                 CloudGrpcService._usersLoggedInStatus[newSessionId] = true;
                 return Task.FromResult(new LoginResponse { SessionId = newSessionId, Status = GrpcCloud.Status.Success });
 
+            }
+            catch (AuthenticationException ex)
+            {
+                context.Status = new Grpc.Core.Status(StatusCode.PermissionDenied, ex.Message);
+                return Task.FromResult(new LoginResponse { SessionId = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure });
             }
             catch (Exception ex)
             {
@@ -429,7 +462,7 @@ namespace cloud_server.Services
             try
             {
                 this._authManager.CheckSessionId(request.SessionId);
-                var task = EnqueueRequestAsync(request.SessionId, ProcessDownloadFile, request, responseStream, context);
+                var task = await EnqueueRequestAsync(request.SessionId, ProcessDownloadFile, request, responseStream, context);
                 return;
             }
             catch (AuthenticationException ex)
@@ -438,6 +471,7 @@ namespace cloud_server.Services
                 await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Error: {ex.Message}", FileData = ByteString.Empty });
                 return;
             }
+            //catch
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
@@ -503,7 +537,7 @@ namespace cloud_server.Services
 
                     this._authManager.GetUser(sessionId);
 
-                    var task = await EnqueueRequestAsync(sessionId, ProcessUpdateFile, requestStream, firstRequest, context);
+                    var task = await EnqueueRequestAsync(sessionId, ProcessUploadFile, requestStream, firstRequest, context);
 
                     return (UploadFileResponse)task;
                 }
@@ -551,7 +585,7 @@ namespace cloud_server.Services
         {
             GetListOfFilesResponse response = new GetListOfFilesResponse();
             User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
-            List<GrpcCloud.FileMetadata> fileMetadata = this._filesManager.getFilesMetadata(user.Id); // Get the metadata
+            List<GrpcCloud.FileMetadata> fileMetadata = CloudGrpcService._filesManager.getFilesMetadata(user.Id); // Get the metadata
 
             // Init response:
             response.Message = "";
@@ -568,14 +602,14 @@ namespace cloud_server.Services
 
             response.Message = "";
             response.Status = GrpcCloud.Status.Success;
-            response.File = this._filesManager.getFileMetadata(user.Id, request.FileName);
+            response.File = CloudGrpcService._filesManager.getFileMetadata(user.Id, request.FileName);
             return Task.FromResult(response);
         }
         private Task<DeleteFileResponse> ProcessDeleteFile(DeleteFileRequest request, ServerCallContext context)
         {
             User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
 
-            this._filesManager.deleteFile(user.Id, request.FileName);
+            CloudGrpcService._filesManager.deleteFile(user.Id, request.FileName);
             return Task.FromResult(new DeleteFileResponse
             {
                 Status = GrpcCloud.Status.Success,
@@ -587,7 +621,7 @@ namespace cloud_server.Services
         {
             User user = this._authManager.GetUser(request.SessionId); // Check if the user conncted
 
-            byte[] file = await this._filesManager.downloadFile(user.Id, request.FileName);
+            byte[] file = await CloudGrpcService._filesManager.downloadFile(user.Id, request.FileName);
             int offset = 0;
             int chunkSize = 64000;
             if (file != null)
@@ -612,13 +646,13 @@ namespace cloud_server.Services
             string type = fileRequest.Type;
 
             MemoryStream fileData = new MemoryStream();
+            fileData.Write(fileRequest.FileData.ToByteArray(), 0, fileRequest.FileData.Length);
 
             await foreach (var chunk in requestStream.ReadAllAsync())
             {
                 fileData.Write(chunk.FileData.ToArray(), 0, chunk.FileData.Length);
             }
-
-            await this._filesManager.uploadFile(user.Id, fileName, type, fileData.Length, fileData.ToArray());
+            await CloudGrpcService._filesManager.uploadFile(user.Id, fileName, type, fileData.Length, fileData.ToArray());
 
             return new UploadFileResponse()
             {
@@ -634,13 +668,13 @@ namespace cloud_server.Services
             string fileName = fileRequest.FileName; 
 
             MemoryStream fileData = new MemoryStream();
-
+            fileData.Write(fileRequest.FileData.ToByteArray(), 0, fileRequest.FileData.Length);
             await foreach (var chunk in requestStream.ReadAllAsync())
             {
                 fileData.Write(chunk.FileData.ToArray(), 0, chunk.FileData.Length);
             }
 
-            await this._filesManager.updateFile(user.Id, fileName, fileData.Length, fileData.ToArray());
+            await CloudGrpcService._filesManager.updateFile(user.Id, fileName, fileData.Length, fileData.ToArray());
 
             return new UpdateFileResponse()
             {
