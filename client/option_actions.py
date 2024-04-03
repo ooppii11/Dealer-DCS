@@ -74,7 +74,7 @@ class AuthActions():
 
 class FilesActions():
     @staticmethod
-    async def upload(grpc_stub, session_id, filename,file_path): 
+    async def upload(grpc_stub, session_id, filename, file_path): 
         file_data = None
         try:
             with open(file_path, 'rb') as file:
@@ -103,13 +103,38 @@ class FilesActions():
                     raise Exception(e.details())
             elif e.code() == StatusCode.UNAVAILABLE:
                     raise Exception("Connection refused error occurred.")
-            
-        file_data = None
+
+
+        """
+        file_data = ""
         for response in download_file_reply:
             file_data += response.fileData.decode()
         with open(output_path, 'wb') as file:
-             file.write(file_data)
+             file.write(file_data.encode())
 
+        """    
+        with open(output_path, 'wb') as file:
+            for response in download_file_reply:
+                file.write(response.fileData)
+
+                
+    @staticmethod
+    async def update(grpc_stub, session_id, filename, file_path):
+        file_data = None
+        try:
+            with open(file_path, 'rb') as file:
+                file_data = file.read()
+        except:
+            raise Exception("File not exists")
+        try:
+            request = cloud_pb2.UpdateFileRequest(sessionId=session_id, fileName=filename, fileData=file_data)
+            update_file_response = grpc_stub.UpdateFile(iter([request]))
+        except grpc.RpcError as e:
+            if e.code() == StatusCode.INTERNAL:
+                    raise Exception(e.details())
+            elif e.code() == StatusCode.UNAVAILABLE:
+                    raise Exception("Connection refused error occurred.")
+            
     @staticmethod
     async def delete(grpc_stub, session_id, filename):
         try:

@@ -63,6 +63,7 @@ class FileCloudAccessServicer(file_saving_microservice_pb2_grpc.FileCloudAccessS
             DownloadFileResponse: The response containing the file data.
         """
         try:
+            print("download")
             # Download the file from the file storage manager
             file_data = self._file_storage_manager.download_file(request.file_name)
 

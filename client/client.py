@@ -1,69 +1,56 @@
-import multiprocessing
+import sys
+import os
+import subprocess
 import asyncio
 from option_actions import *
 
-HOST = "localhost:50053"
-OPTIONS = {
-    "upload": FilesActions.upload,
-    "delete": FilesActions.delete,
-    "download": FilesActions.download,
-    "ls": FilesActions.ls,
-    "file metadata": FilesActions.file_metadata
-}
+#python -m grpc_tools.protoc -I./protos --python_out=. --pyi_out=. --grpc_python_out=. ./protos/cloud.proto
 
+HOST = "localhost:50053"
 async def get_session_id(stub):
     while True:
         try:
             session_id = await AuthActions.get_user_credentials(stub)
             if session_id is not None:
-                return session_id
+                return session_id            
         except Exception as e:
             print("Error:", e)
-
-async def execute_command(stub, session_id, user_input):
-    user_option, *user_args = user_input.split()
-    try:
-        await OPTIONS[user_option](stub, session_id, *user_args)
-    except KeyError:
-        print("\nInvalid command. Available commands are:", list(OPTIONS.keys()))
-        return
-    except TypeError or ValueError as e:
-        print("\nAn error occurred while executing the command:", user_option)
-        return
-    except Exception as e:
-        print("Error:", e)
-        return
-
-    
 
 def get_stub():
     channel = grpc.insecure_channel(HOST)
     stub = cloud_pb2_grpc.CloudStub(channel)    
     return stub
 
-def start_task(user_input, session_id):
-    stub = get_stub()
-    asyncio.run(execute_command(stub, session_id, user_input))
-
 
 def main():
+    #stub = get_stub()
+    #session_id = asyncio.run(get_session_id(stub))
+    #previous_process = None
     stub = get_stub()
     session_id = asyncio.run(get_session_id(stub))
-    previous_process = None
     
     while True:
+        
         user_input = input(">> ")
         if "logout" in user_input.lower():
-            AuthActions.logout(stub, session_id)
-            exit()
+            try:
+                AuthActions.logout(stub, session_id)
+                
+            except Exception as e:
+                print(e)
 
-        if previous_process is not None:
-            previous_process.join()
+            finally:
+                exit()
 
-        process = multiprocessing.Process(target=start_task, args=(user_input, session_id))
-        process.start()
+        #if previous_process is not None:
+            
+            #previous_process.wait()
+
+        #command = ['.venv\Scripts\python.exe', 'command_executor.py', user_input, str(session_id)]
+        command = ['cmd.exe', '/k', '.venv\\Scripts\\python.exe', 'command_executor.py', user_input, str(session_id)]
+        #| subprocess.CREATE_NEW_PROCESS_GROUP
+        process =  subprocess.Popen(command, creationflags=subprocess.CREATE_NEW_CONSOLE )
         previous_process = process
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
