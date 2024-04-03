@@ -285,19 +285,21 @@ namespace cloud_server.Services
                     _usersQueueLockObjects.Remove(oldSessionId);
                     _usersQueueLockObjects[newSessionId] = oldLockObject;
                 }
-
-                if (_usersQueueEvent.TryGetValue(oldSessionId, out var oldQueueEvent))
-                {
-                    _usersQueueEvent.Remove(oldSessionId);
-                    _usersQueueEvent[newSessionId] = oldQueueEvent;
-                }
-
                 if (_usersCancellationTokens.TryGetValue(oldSessionId, out var oldCancellationToken))
                 {
                     _usersCancellationTokens[oldSessionId].Cancel();
                     _usersCancellationTokens.Remove(oldSessionId);
                     _usersCancellationTokens[newSessionId] = oldCancellationToken;
                 }
+
+                if (_usersQueueEvent.TryGetValue(oldSessionId, out var oldQueueEvent))
+                {
+                    _usersQueueEvent[oldSessionId].Set();
+                    _usersQueueEvent.Remove(oldSessionId);
+                    _usersQueueEvent[newSessionId] = oldQueueEvent;
+                }
+
+                
 
                 if (_usersLoggedInStatus.TryGetValue(oldSessionId, out var isLoggedIn))
                 {
