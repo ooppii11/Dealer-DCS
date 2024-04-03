@@ -12,11 +12,7 @@ async def get_session_id(stub):
         try:
             session_id = await AuthActions.get_user_credentials(stub)
             if session_id is not None:
-                return session_id
-        except grpc.RpcError as e:
-            if e.code() == StatusCode.UNAVAILABLE:
-                    stub = get_stub()
-                    print("Connection refused error occurred.")
+                return session_id            
         except Exception as e:
             print("Error:", e)
 
@@ -27,11 +23,14 @@ def get_stub():
 
 
 def main():
+    #stub = get_stub()
+    #session_id = asyncio.run(get_session_id(stub))
+    #previous_process = None
     stub = get_stub()
     session_id = asyncio.run(get_session_id(stub))
-    previous_process = None
     
     while True:
+        
         user_input = input(">> ")
         if "logout" in user_input.lower():
             try:

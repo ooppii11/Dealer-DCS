@@ -546,7 +546,7 @@ namespace cloud_server.Services
                     context.Status = new Grpc.Core.Status(StatusCode.InvalidArgument, "Empty request stream");
                     return new UploadFileResponse { Message = "Empty request stream", Status = GrpcCloud.Status.Failure };
                 }
-                
+
             }
             catch (AuthenticationException ex)
             {
@@ -558,6 +558,11 @@ namespace cloud_server.Services
                 Console.WriteLine(ex.Message);
                 context.Status = new Grpc.Core.Status(StatusCode.Aborted, "Error: connection failed");
                 return new UploadFileResponse { Message = $"Error: connection failed", Status = GrpcCloud.Status.Failure };
+            }
+            catch (Npgsql.PostgresException ex)
+            {
+                context.Status = new Grpc.Core.Status(StatusCode.AlreadyExists, "File with this name already exist for the user.");
+                return new UploadFileResponse { Message = "File with this name already exist for the user.", Status = GrpcCloud.Status.Failure };
             }
             catch (Exception ex)
             {
