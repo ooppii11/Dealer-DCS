@@ -44,7 +44,7 @@ namespace cloud_server.Managers
             catch (RpcException ex)
             {
                 this._db.deleteFileMetadata(userid, filename);
-                Console.WriteLine(ex);
+                //Console.WriteLine(ex);
                 throw ex;
             }
             
@@ -94,7 +94,12 @@ namespace cloud_server.Managers
             // decide where to save the file
             // Not implomented
             //return new Location("172.18.0.4", "172.18.0.5", "172.18.0.6");
-            return new cloud_server.DB.Location("127.0.0.1::1111", "127.0.0.1::2222", "127.0.0.1::3333");
+            var addresses = (Environment.GetEnvironmentVariable("NODES_IPS"))?.Split(",")?.ToList();
+            while (addresses.Count < 3)
+            {
+                addresses.Add("");
+            }
+            return new cloud_server.DB.Location(addresses[0], addresses[1], addresses[2]);
         }
     }
 }

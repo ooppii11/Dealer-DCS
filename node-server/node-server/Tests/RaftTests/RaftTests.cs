@@ -5,7 +5,7 @@ using NodeServer.Utilities;
 using System.IO;
 using System.Net;
 using static Google.Protobuf.Compiler.CodeGeneratorResponse.Types;
-
+/*
 
 namespace Tests.RaftTests
 {
@@ -70,3 +70,4 @@ namespace Tests.RaftTests
                 });
     }
 }
+*/

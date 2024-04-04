@@ -7,8 +7,8 @@ import file_saving_microservice_pb2
 import file_saving_microservice_pb2_grpc 
 
 
-#REGION_ID = os.getenv('REGION_ID')
-REGION_ID = "X"
+REGION_ID = os.getenv('REGION_ID')
+#REGION_ID = "X"
 CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "dealer-dcs-150291856e98.json")
 
 

@@ -289,7 +289,37 @@ namespace NodeServer.Managers.RaftNameSpace
                 return false;
             }
         }
+        /*
+        public bool OnReceiveVoteRequest(RequestVoteRequest request)
+        {
+            if (!this._settings.LockLeaderFirstHeartBeat)
+            {
+                Console.WriteLine($"Voting");
+                Console.WriteLine($"My Term: {this._settings.CurrentTerm}, Request Term: {request.Term}");
 
+                if(this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+                    _cancellationTokenSource.Cancel();
+
+                //Console.WriteLine("resetting timer");
+                if (this._logger.GetLastLogEntry().Index < request.LastLogIndex)
+                {
+                    this._settings.PreviousTerm = this._settings.CurrentTerm;
+                    this._settings.CurrentTerm = request.Term;
+                    return true;
+                }
+                else if (this._logger.GetLastLogEntry().Index == request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+                {
+                    this._settings.PreviousTerm = this._settings.CurrentTerm;
+                    this._settings.CurrentTerm = request.Term;
+                    this._settings.VotedFor = request.CandidateId;
+                    return true;
+                }
+            }
+
+            Console.WriteLine("REJECT");
+            return false;
+        }
+        */
         public bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
             if (!this._settings.LockLeaderFirstHeartBeat)
@@ -305,15 +335,11 @@ namespace NodeServer.Managers.RaftNameSpace
                     this._settings.VotedFor = request.CandidateId;
                     return true;
                 }
-
-                
             }
-
             Console.WriteLine("REJECT");
             return false;
         }
-
-        public Task<InstallSnapshotResponse> OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
+            public Task<InstallSnapshotResponse> OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
         {
             return Task.FromResult(new InstallSnapshotResponse());
         }
