@@ -129,7 +129,7 @@ namespace cloud_server.Services
                             {
                                 if (taskResult.IsCompleted)
                                 {
-                                    if (taskResult.IsFaulted && taskResult.Exception.InnerException is RpcException)
+                                    if (taskResult.IsFaulted && taskResult.Exception.InnerException is RpcException rpcException && (rpcException.Status.StatusCode == StatusCode.Unavailable || rpcException.Status.StatusCode == StatusCode.PermissionDenied))
                                     {
                                         //Console.WriteLine(taskResult.Exception.InnerException);
                                         stopProcessingQueueNow = true;
