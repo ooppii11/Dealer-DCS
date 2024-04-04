@@ -509,6 +509,11 @@ namespace cloud_server.Services
                 context.Status = new Grpc.Core.Status(StatusCode.PermissionDenied, ex.Message);
                 return new UpdateFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
             }
+            catch (FileDoesNotExistException ex)
+            {
+                context.Status = new Grpc.Core.Status(StatusCode.NotFound, ex.Message);
+                return new UpdateFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
+            }
             catch (RpcException ex)
             {
                 Console.WriteLine(ex.Message);
@@ -553,6 +558,11 @@ namespace cloud_server.Services
             catch (AuthenticationException ex)
             {
                 context.Status = new Grpc.Core.Status(StatusCode.PermissionDenied, ex.Message);
+                return new UploadFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
+            }
+            catch (FileAlreadyExistException ex)
+            {
+                context.Status = new Grpc.Core.Status(StatusCode.AlreadyExists, ex.Message);
                 return new UploadFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
             }
             catch (RpcException ex)
@@ -686,7 +696,7 @@ namespace cloud_server.Services
             return new UpdateFileResponse()
             {
                 Status = GrpcCloud.Status.Success,
-                Message = "File uploaded successfully."
+                Message = "File updated successfully."
             };
         }
 
