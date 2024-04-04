@@ -5,24 +5,7 @@ networks:
             driver: default
             config:
                 - subnet: "172.18.0.0/16"
-services:
-    db_server:
-        image: postgres:latest
-        container_name: db_server-container
-        environment:
-        - POSTGRES_USER=DBserver
-        - POSTGRES_PASSWORD=123AvIt456
-        - POSTGRES_DB=mydatabase
-        ports:
-        - "5432:5432"
-        expose:
-        - "5432"
-        restart: always
-        networks:
-            system-net:
-                ipv4_address: "172.18.0.2"
-        command: ["postgres", "-c", "listen_addresses=*"]
-     
+services: 
     node_server:
         image: node_server:0.1
         container_name: node_server-container
@@ -74,22 +57,3 @@ services:
         networks:
             system-net:
                 ipv4_address: "172.18.0.6"
-
-    cloud_server:
-        image: cloud_server:0.1
-        container_name: cloud_server-container
-        ports:
-        - "50053:50053"
-        expose:
-        - "50053"
-        environment:
-        - NODES_IPS=172.18.0.4:50052,172.18.0.5:50052,172.18.0.6:50052
-        restart: always
-        depends_on:
-            - "db_server"
-            - "node_server"
-            - "node_server2"
-            - "node_server3"
-        networks:
-            system-net:
-                ipv4_address: "172.18.0.3"            

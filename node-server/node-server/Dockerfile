@@ -5,6 +5,8 @@ WORKDIR /app
 EXPOSE 80
 EXPOSE 443
 EXPOSE 50052
+ENV NODES_IPS=172.18.0.4:50052,172.18.0.5:50052,172.18.0.6:50052
+
 COPY ./file-saving-microservice/requirements.txt ./file-saving-microservice/requirements.txt
 RUN apt-get update
 RUN apt-get install -y python3 python3-pip

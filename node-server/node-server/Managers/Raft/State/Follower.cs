@@ -33,6 +33,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                         }
                     }
                 }
+                //this._settings.ServerAddress.GetHashCode();
                 this._settings.ElectionTimeout = (new Random().Next(300, 4001)) + addition;
             }
             this._settings.IsAppendEnteriesReset = false;

@@ -52,7 +52,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
         private LogEntry _lastLogEntry;
         private CancellationToken _cancellationToken;
         private TaskCompletionSource<bool> _completionSource;
-        private readonly string _cloudAddress = "127.0.0.1:50053";
+        private readonly string _cloudAddress = Environment.GetEnvironmentVariable("CLOUD_SERVER_ADDRESS");
         private IDynamicActions _dynamicActions;
         public Leader(RaftSettings raftSettings, Log logger, IDynamicActions dynamicActions) :
             base(raftSettings, logger)

@@ -1,7 +1,7 @@
 using NodeServer.Services;
 using NodeServer.Managers;
 using NodeServer.Managers.RaftNameSpace;
-/*
+
 public class Startup
 {
     public void ConfigureServices(IServiceCollection services)
@@ -9,15 +9,16 @@ public class Startup
         RaftSettings raftSettings = new RaftSettings();
         FileSaving micro = new FileSaving("127.0.0.1", 50051);
         FileVersionManager db = new FileVersionManager("FileManager.db");
-
+        Console.WriteLine($"ips:");
+        foreach (var ip in raftSettings.ServersAddresses) 
+        {
+            Console.WriteLine(ip);
+        }
         services.AddSingleton<FileSaving>(micro);
         services.AddSingleton<FileVersionManager>(db);
         services.AddSingleton<Raft>(new Raft(raftSettings, micro, db));
 
-        services.AddGrpc(options =>
-        {
-            options.Interceptors.Add<ConnectionLoggerInterceptor>();
-        });
+        services.AddGrpc();
     }
 
     public void Configure(IApplicationBuilder app)
@@ -60,7 +61,7 @@ public class Program
 
                     options.Listen(IPAddress.Parse(ipAddress), port);
                 });
-                *//*
+                */
             })
             .ConfigureLogging(logging =>
             {
@@ -68,4 +69,3 @@ public class Program
                 logging.AddConsole();
             });
 }
-*/
