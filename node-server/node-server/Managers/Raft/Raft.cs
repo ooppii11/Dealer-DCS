@@ -177,7 +177,7 @@ namespace NodeServer.Managers.RaftNameSpace
             try
             {
                 // sever was down, one or more logs are missing index
-                if (totalCommitIndex > this._settings.CommitIndex + 1 || totalPrevIndex > this._settings.LastLogIndex)
+                if (/ totalCommitIndex > this._settings.CommitIndex + 1 ||/ totalPrevIndex > this._settings.LastLogIndex)
                 {
                     /*Console.WriteLine("totalCommitIndex: " + totalCommitIndex);
                     Console.WriteLine("_settings.totalCommitIndex: " + this._settings.CommitIndex);
@@ -219,15 +219,13 @@ namespace NodeServer.Managers.RaftNameSpace
                 // commit
                 if (totalCommitIndex > this._settings.CommitIndex)
                 {
-                    // try to commit:
                     this._settings.CommitIndex++;
-                    if (!await this.commitLog(totalCommitIndex))
+                    if (!await this.commitLog(this._settings.CommitIndex))
                     {
                         // Error in commit:
                         this._settings.CommitIndex--;
                         return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
                     }
-
                 }
 
             }
@@ -242,7 +240,7 @@ namespace NodeServer.Managers.RaftNameSpace
                 Success = true,
                 Term = this._settings.CurrentTerm
             };
-            
+
         }
 
         private async Task<bool> appendLogEntry(LogEntry entry, MemoryStream fileData)
