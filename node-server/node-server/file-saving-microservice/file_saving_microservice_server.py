@@ -7,8 +7,8 @@ import file_saving_microservice_pb2
 import file_saving_microservice_pb2_grpc 
 
 
-#REGION_ID = os.getenv('REGION_ID')
-REGION_ID = "X"
+REGION_ID = os.getenv('REGION_ID')
+#REGION_ID = "X"
 CREDENTIALS_FILE = os.path.join(os.path.dirname(__file__), "dealer-dcs-150291856e98.json")
 
 
@@ -63,6 +63,7 @@ class FileCloudAccessServicer(file_saving_microservice_pb2_grpc.FileCloudAccessS
             DownloadFileResponse: The response containing the file data.
         """
         try:
+            print("download")
             # Download the file from the file storage manager
             file_data = self._file_storage_manager.download_file(request.file_name)
 

@@ -94,6 +94,24 @@ class UploadFileResponse(_message.Message):
     message: str
     def __init__(self, status: _Optional[_Union[Status, str]] = ..., message: _Optional[str] = ...) -> None: ...
 
+class UpdateFileRequest(_message.Message):
+    __slots__ = ("sessionId", "fileName", "fileData")
+    SESSIONID_FIELD_NUMBER: _ClassVar[int]
+    FILENAME_FIELD_NUMBER: _ClassVar[int]
+    FILEDATA_FIELD_NUMBER: _ClassVar[int]
+    sessionId: str
+    fileName: str
+    fileData: bytes
+    def __init__(self, sessionId: _Optional[str] = ..., fileName: _Optional[str] = ..., fileData: _Optional[bytes] = ...) -> None: ...
+
+class UpdateFileResponse(_message.Message):
+    __slots__ = ("status", "message")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    status: Status
+    message: str
+    def __init__(self, status: _Optional[_Union[Status, str]] = ..., message: _Optional[str] = ...) -> None: ...
+
 class DownloadFileRequest(_message.Message):
     __slots__ = ("sessionId", "fileName")
     SESSIONID_FIELD_NUMBER: _ClassVar[int]
@@ -161,3 +179,21 @@ class GetFileMetadataResponse(_message.Message):
     message: str
     file: FileMetadata
     def __init__(self, status: _Optional[_Union[Status, str]] = ..., message: _Optional[str] = ..., file: _Optional[_Union[FileMetadata, _Mapping]] = ...) -> None: ...
+
+class LeaderToViewerHeartBeatRequest(_message.Message):
+    __slots__ = ("term", "systemLastIndex", "LeaderAddress")
+    TERM_FIELD_NUMBER: _ClassVar[int]
+    SYSTEMLASTINDEX_FIELD_NUMBER: _ClassVar[int]
+    LEADERADDRESS_FIELD_NUMBER: _ClassVar[int]
+    term: int
+    systemLastIndex: int
+    LeaderAddress: str
+    def __init__(self, term: _Optional[int] = ..., systemLastIndex: _Optional[int] = ..., LeaderAddress: _Optional[str] = ...) -> None: ...
+
+class LeaderToViewerHeartBeatResponse(_message.Message):
+    __slots__ = ("status", "message")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    status: bool
+    message: str
+    def __init__(self, status: bool = ..., message: _Optional[str] = ...) -> None: ...

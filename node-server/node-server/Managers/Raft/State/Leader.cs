@@ -52,7 +52,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
         private LogEntry _lastLogEntry;
         private CancellationToken _cancellationToken;
         private TaskCompletionSource<bool> _completionSource;
-        private readonly string _cloudAddress = "127.0.0.1:50053";
+        private readonly string _cloudAddress = Environment.GetEnvironmentVariable("CLOUD_SERVER_ADDRESS");
         private IDynamicActions _dynamicActions;
         public Leader(RaftSettings raftSettings, Log logger, IDynamicActions dynamicActions) :
             base(raftSettings, logger)
@@ -245,6 +245,49 @@ namespace NodeServer.Managers.RaftNameSpace.States
             return agreeCount + 1 > nodesCount / 2;
         }
 
+        private async Task logCompletion(string follwerAddress, int matchIndex)
+        {
+
+            LogEntry entry = this._logger.GetLogAtPlaceN(matchIndex + 1);
+            try
+            {
+                var args = await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (matchIndex > this._settings.CommitIndex || this._settings.CommitIndex == -1), this._dynamicActions.getActionMaker() as FileSaving);
+                Console.WriteLine(args);
+                Google.Protobuf.ByteString FileData = Google.Protobuf.ByteString.CopyFrom(args);
+
+                GrpcServerToServer.LogEntry grpcEntry = new GrpcServerToServer.LogEntry()
+                {
+                    PrevTerm = this._settings.PreviousTerm,
+                    Term = this._settings.CurrentTerm,
+                    PrevLogIndex = matchIndex,
+                    LogIndex = entry.Index,
+
+                    Timestamp = Timestamp.FromDateTime(entry.Timestamp.ToUniversalTime()),
+                    Operation = entry.Operation,
+                    OperationArgs = entry.OperationArgs
+
+                };
+
+                AppendEntriesRequest request = new AppendEntriesRequest()
+                {
+                    Term = this._settings.CurrentTerm,
+                    PrevTerm = this._settings.PreviousTerm,
+                    PrevIndex = matchIndex,
+                    CommitIndex = Math.Min(this._settings.CommitIndex, entry.Index),
+                    LogEntry = grpcEntry,
+                    FileData = FileData
+                    
+                };
+                this._followers[follwerAddress].Request = request;
+
+            }
+            catch (Exception e)
+            {
+                // errors from micro, ignore those errors
+               // Console.WriteLine(e.Message);
+            }
+
+        }
         public async void OnReceiveAppendEntriesResponse(AppendEntriesResponse response, string address)
         {
             ServerToServerClient s2s = new ServerToServerClient(address);
@@ -268,7 +311,6 @@ namespace NodeServer.Managers.RaftNameSpace.States
                             Action commitAction = new Action(entry.Operation + "AfterCommit", entry.OperationArgs);
                             if (await this._dynamicActions.NameToAction(commitAction))
                             {
-                            //    this._settings.CommitIndex = response.MatchIndex;
                                 this._logger.CommitEntry(this._settings.CommitIndex);
                             }
                         }
@@ -279,32 +321,7 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 //
                 else if (response.MatchIndex < this._settings.LastLogIndex)
                 {
-                    LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
-                    Console.WriteLine($"MatchIndex: {response.MatchIndex}");
-                    Console.WriteLine(entry.Timestamp);
-                    Console.WriteLine(this._followers[address].Request);
-
-                    this._followers[address].Request = new AppendEntriesRequest()
-                    {
-                        Term = this._settings.CurrentTerm,
-                        PrevTerm = this._settings.PreviousTerm,
-                        PrevIndex = response.MatchIndex,
-                        CommitIndex = Math.Min(this._settings.CommitIndex, response.MatchIndex),
-                        LogEntry = new GrpcServerToServer.LogEntry()
-                        {
-                            PrevTerm = this._settings.PreviousTerm,
-                            Term = this._settings.CurrentTerm,
-                            PrevLogIndex = response.MatchIndex,
-                            LogIndex = response.MatchIndex + 1,
-
-                            Timestamp = Timestamp.FromDateTime(entry.Timestamp.ToUniversalTime()),
-                            Operation = entry.Operation,
-                            OperationArgs = entry.OperationArgs
-
-                        },
-                        FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex || this._settings.CommitIndex == -1), this._dynamicActions.getActionMaker() as FileSaving))
-                    };
-
+                    await logCompletion(address, response.MatchIndex);
                 }
             }
             else
@@ -319,29 +336,8 @@ namespace NodeServer.Managers.RaftNameSpace.States
                 } 
                 else if (response.MatchIndex < this._followers[address].Request.PrevIndex + 1 || response.MatchIndex < this._settings.LastLogIndex)
                 {
-                    LogEntry entry = this._logger.GetLogAtPlaceN(response.MatchIndex + 1);
-                    Console.WriteLine(entry.Timestamp);
-                    Console.WriteLine("MatchIndex: ", response.MatchIndex);
-                    this._followers[address].Request = new AppendEntriesRequest()
-                    {
-                        Term = this._settings.CurrentTerm,
-                        PrevTerm = this._settings.PreviousTerm,
-                        PrevIndex = response.MatchIndex,
-                        CommitIndex = Math.Min(this._settings.CommitIndex, response.MatchIndex),
-                        LogEntry = new GrpcServerToServer.LogEntry()
-                        {
-                            PrevTerm = this._settings.PreviousTerm,
-                            Term = this._settings.CurrentTerm,
-                            PrevLogIndex = response.MatchIndex,
-                            LogIndex = response.MatchIndex + 1,
-
-                            Timestamp = Timestamp.FromDateTime(entry.Timestamp.ToUniversalTime()),
-                            Operation = entry.Operation,
-                            OperationArgs = entry.OperationArgs
-
-                        },
-                        FileData = Google.Protobuf.ByteString.CopyFrom(await OnMachineStorageActions.GetFile(entry.Operation, entry.OperationArgs, (response.MatchIndex > this._settings.CommitIndex || this._settings.CommitIndex == -1), this._dynamicActions.getActionMaker() as FileSaving))
-                    };
+                    await logCompletion(address, response.MatchIndex);
+                    Console.Write("logCompletion");
                 }
 
                     Console.WriteLine("not successful"); 

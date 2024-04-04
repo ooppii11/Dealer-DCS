@@ -129,7 +129,7 @@ namespace NodeServer.Managers.RaftNameSpace
         {
             this._settings.IsAppendEnteriesReset = true;
             _cancellationTokenSource.Cancel();
-            
+
             //Console.WriteLine("resetting timer");
             int totalTerm = 0;
             int totalPrevIndex = 0;
@@ -139,11 +139,9 @@ namespace NodeServer.Managers.RaftNameSpace
             MemoryStream fileData = new MemoryStream();
 
 
-            /***
-             add args
-             ***/
+
             try
-            {               
+            {
                 await foreach (var request in requests.ReadAllAsync())
                 {
                     totalTerm = request.Term;
@@ -161,7 +159,7 @@ namespace NodeServer.Managers.RaftNameSpace
                 throw new Exception("Stream error");
             }
 
-            if (totalLogEntries.Count > 0)
+            /*if (totalLogEntries.Count > 0)
             {
                 Console.WriteLine("address: " + address);
                 Console.WriteLine("Total Term: " + totalTerm);
@@ -175,18 +173,25 @@ namespace NodeServer.Managers.RaftNameSpace
                 {
                     Console.WriteLine($"- Term: {logEntry.Term}, LogIndex: {logEntry.LogIndex}, Operation: {logEntry.Operation}, OperationArgs: {logEntry.OperationArgs}, Timestamp: {logEntry.Timestamp}");
                 }
-            }
+            }*/
             try
             {
                 // sever was down, one or more logs are missing index
                 if (totalCommitIndex > this._settings.CommitIndex + 1 || totalPrevIndex > this._settings.LastLogIndex)
                 {
-                    Console.WriteLine("totalCommitIndex: " + totalCommitIndex);
+                    /*Console.WriteLine("totalCommitIndex: " + totalCommitIndex);
                     Console.WriteLine("_settings.totalCommitIndex: " + this._settings.CommitIndex);
                     Console.WriteLine("totalPrevIndex: " + totalPrevIndex);
                     Console.WriteLine("this._settings.LastLogIndex: " + this._settings.LastLogIndex);
 
+                    Console.WriteLine($"1:{totalCommitIndex > this._settings.CommitIndex + 1}");
+                    Console.WriteLine($"2:{totalPrevIndex > this._settings.LastLogIndex}");
+
+
                     Console.WriteLine("ERROR to append Entries");
+                    Console.WriteLine("ERROR to append Entries");
+                    Console.WriteLine("ERROR to append Entries");
+                    Console.WriteLine("ERROR to append Entries");*/
                     return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
 
                 }
@@ -194,9 +199,7 @@ namespace NodeServer.Managers.RaftNameSpace
                 // check for append new log line
                 if (totalLogEntries.Count() > 0 && (totalLogEntries[0].LogIndex == 1 + this._settings.LastLogIndex))//|| this._settings.LastLogIndex == 0))
                 {
-                    this._settings.LastLogIndex += 1;
-
-                    Console.WriteLine("Append entries");
+                    this._settings.LastLogIndex++;
                     LogEntry entry = new LogEntry(
                                 totalLogEntries[0].LogIndex,
                                 totalLogEntries[0].Timestamp.ToDateTime(),
@@ -205,55 +208,23 @@ namespace NodeServer.Managers.RaftNameSpace
                                 totalLogEntries[0].OperationArgs,
                            false
                         );
-                    Console.WriteLine("create log entry");
-                    
-                    bool result = false;
-                    if (fileData.Length > 0)
+                    if (!await this.appendLogEntry(entry, fileData))
                     {
-                        Action commitAction = new Action(entry.Operation + "BeforeCommit", entry.OperationArgs, fileData.ToArray());
-                        result = await this._dynamicActions.NameToAction(commitAction);
-                    }
-                    else 
-                    {
-                        Action commitAction = new Action(entry.Operation + "BeforeCommit", entry.OperationArgs);
-                        Console.WriteLine("creatr action");
-                        result = await this._dynamicActions.NameToAction(commitAction);
-                    }
-
-                    if (result)
-                    {
-                        this._logger.AppendEntry(entry);
-                    }
-                    else 
-                    {
-                        this._settings.LastLogIndex -= 1;
-
+                        this._settings.LastLogIndex--;
                         return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
                     }
-                    
+
                 }
 
                 // commit
                 if (totalCommitIndex > this._settings.CommitIndex)
                 {
-                    Console.WriteLine("commit");
-                    Console.WriteLine(totalCommitIndex);
-                    LogEntry entry = this._logger.GetLogAtPlaceN(totalCommitIndex);
-                    Action commitAction = new Action(entry.Operation + "AfterCommit", entry.OperationArgs);
-
-                   
+                    // try to commit:
                     this._settings.CommitIndex++;
-                    if (await this._dynamicActions.NameToAction(commitAction))
+                    if (!await this.commitLog(totalCommitIndex))
                     {
-                        this._logger.CommitEntry(totalCommitIndex);
-                        Console.WriteLine("good commit");
-
-                    }
-                    else
-                    {
-                        Console.WriteLine("ERROR commit");
+                        // Error in commit:
                         this._settings.CommitIndex--;
-                        Console.WriteLine(this._settings.LastLogIndex);
                         return new AppendEntriesResponse() { MatchIndex = this._settings.LastLogIndex, Success = false, Term = this._settings.CurrentTerm };
                     }
 
@@ -274,6 +245,81 @@ namespace NodeServer.Managers.RaftNameSpace
             
         }
 
+        private async Task<bool> appendLogEntry(LogEntry entry, MemoryStream fileData)
+        {
+
+            bool result = false;
+            if (fileData.Length > 0)
+            {
+                Action commitAction = new Action(entry.Operation + "BeforeCommit", entry.OperationArgs, fileData.ToArray());
+                result = await this._dynamicActions.NameToAction(commitAction);
+            }
+            else
+            {
+                Action commitAction = new Action(entry.Operation + "BeforeCommit", entry.OperationArgs);
+                result = await this._dynamicActions.NameToAction(commitAction);
+            }
+
+            if (result)
+            {
+                this._logger.AppendEntry(entry);
+            }
+            return result;
+           
+        }
+        private async Task<bool> commitLog(int totalCommitIndex)
+        {
+            Console.WriteLine("commit");
+            Console.WriteLine(totalCommitIndex);
+            LogEntry entry = this._logger.GetLogAtPlaceN(totalCommitIndex);
+            Action commitAction = new Action(entry.Operation + "AfterCommit", entry.OperationArgs);
+
+
+            if (await this._dynamicActions.NameToAction(commitAction))
+            {
+                this._logger.CommitEntry(totalCommitIndex);
+                Console.WriteLine("good commit");
+                return true;
+
+            }
+            else
+            {
+                Console.WriteLine("ERROR commit");
+                Console.WriteLine(this._settings.LastLogIndex);
+                return false;
+            }
+        }
+        /*
+        public bool OnReceiveVoteRequest(RequestVoteRequest request)
+        {
+            if (!this._settings.LockLeaderFirstHeartBeat)
+            {
+                Console.WriteLine($"Voting");
+                Console.WriteLine($"My Term: {this._settings.CurrentTerm}, Request Term: {request.Term}");
+
+                if(this._logger.GetLastLogEntry().Index <= request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+                    _cancellationTokenSource.Cancel();
+
+                //Console.WriteLine("resetting timer");
+                if (this._logger.GetLastLogEntry().Index < request.LastLogIndex)
+                {
+                    this._settings.PreviousTerm = this._settings.CurrentTerm;
+                    this._settings.CurrentTerm = request.Term;
+                    return true;
+                }
+                else if (this._logger.GetLastLogEntry().Index == request.LastLogIndex && this._settings.CurrentTerm < request.Term)
+                {
+                    this._settings.PreviousTerm = this._settings.CurrentTerm;
+                    this._settings.CurrentTerm = request.Term;
+                    this._settings.VotedFor = request.CandidateId;
+                    return true;
+                }
+            }
+
+            Console.WriteLine("REJECT");
+            return false;
+        }
+        */
         public bool OnReceiveVoteRequest(RequestVoteRequest request)
         {
             if (!this._settings.LockLeaderFirstHeartBeat)
@@ -289,15 +335,11 @@ namespace NodeServer.Managers.RaftNameSpace
                     this._settings.VotedFor = request.CandidateId;
                     return true;
                 }
-
-                
             }
-
             Console.WriteLine("REJECT");
             return false;
         }
-
-        public Task<InstallSnapshotResponse> OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
+            public Task<InstallSnapshotResponse> OnReceiveInstallSnapshotRequest(IAsyncStreamReader<InstallSnapshotRequest> request)
         {
             return Task.FromResult(new InstallSnapshotResponse());
         }

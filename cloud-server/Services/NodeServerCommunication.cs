@@ -62,9 +62,9 @@ namespace cloud_server.Services
             this._client.DeleteFile(request);
         }
 
-        public async Task<UploadFileResponse> uploadFile(int userId, string fileId, byte[] fileData, string type, cloud_server.DB.Location locations)
+        public async Task<UploadFileResponse> uploadFile(int userId, string fileId, byte[] fileData, string type)
         {
-            List<UploadFileRequest> requests = createUploadRequests(userId, fileId, fileData, type, locations);
+            List<UploadFileRequest> requests = createUploadRequests(userId, fileId, fileData, type);
             
             var call = this._client.UploadFile();
 
@@ -142,7 +142,7 @@ namespace cloud_server.Services
 
             return updateFileRequests;
         }
-        private List<UploadFileRequest> createUploadRequests(int userId, string fileId, byte[] fileData, string type, cloud_server.DB.Location location)
+        private List<UploadFileRequest> createUploadRequests(int userId, string fileId, byte[] fileData, string type)
         {
             List<UploadFileRequest> uploadFileRequests = null;
             byte[] chunk = null;
