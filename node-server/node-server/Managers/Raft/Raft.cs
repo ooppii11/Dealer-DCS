@@ -177,7 +177,7 @@ namespace NodeServer.Managers.RaftNameSpace
             try
             {
                 // sever was down, one or more logs are missing index
-                if (/ totalCommitIndex > this._settings.CommitIndex + 1 ||/ totalPrevIndex > this._settings.LastLogIndex)
+                if (totalCommitIndex > this._settings.CommitIndex + 1 || totalPrevIndex > this._settings.LastLogIndex)
                 {
                     /*Console.WriteLine("totalCommitIndex: " + totalCommitIndex);
                     Console.WriteLine("_settings.totalCommitIndex: " + this._settings.CommitIndex);
