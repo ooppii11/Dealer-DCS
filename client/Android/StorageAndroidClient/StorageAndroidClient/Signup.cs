@@ -15,6 +15,7 @@ namespace StorageAndroidClient
         EditText usernameEditText;
         EditText emailEditText;
         EditText passwordEditText;
+        EditText phoneNumber;
         Button signupButton;
         TextView loginLink;
         private const string CloudStorageAddress = "172.18.0.3:50053";
@@ -38,6 +39,7 @@ namespace StorageAndroidClient
         private void InitializeUI()
         {
             usernameEditText = FindViewById<EditText>(Resource.Id.username);
+            phoneNumber = FindViewById<EditText>(Resource.Id.phone);
             emailEditText = FindViewById<EditText>(Resource.Id.email);
             passwordEditText = FindViewById<EditText>(Resource.Id.password);
             signupButton = FindViewById<Button>(Resource.Id.signupButton);
@@ -52,12 +54,13 @@ namespace StorageAndroidClient
             string username = usernameEditText.Text;
             string email = emailEditText.Text;
             string password = passwordEditText.Text;
+            string phone = phoneNumber.Text;
 
             if (IsValidInput(username, email, password))
             {
                 try 
                 {
-                    PerformSignupAsync(username, email, password);
+                    PerformSignupAsync(username, email, password, phone);
                     NavigateToLoginActivity(username, password);
                 }
                 catch (Exception ex)
@@ -81,11 +84,12 @@ namespace StorageAndroidClient
                    !string.IsNullOrWhiteSpace(password);
         }
 
-        private async Task PerformSignupAsync(string username, string email, string password)
+        private async Task PerformSignupAsync(string username, string email, string password, string phone)
         {
             try
             {
-                //grpc
+                GrpcClient client = new GrpcClient(CloudStorageAddress);
+                var response = await client.SignupAsync(username, email, password, phone);
             }
             catch (Exception ex)
             {

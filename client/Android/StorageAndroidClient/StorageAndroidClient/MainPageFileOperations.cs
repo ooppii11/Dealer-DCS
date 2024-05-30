@@ -131,7 +131,6 @@ namespace StorageAndroidClient
         }
         private void LoadFileMetadata()
         {
-            // Load file metadata (replace with actual implementation)
             GetListOfFilesResponse files = GetFileMetadata();
             filesContainer.RemoveAllViews();
 

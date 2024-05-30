@@ -31,10 +31,25 @@ namespace StorageAndroidClient
             var response = this._client.signup(request);
             return response;
         }
+
+        public async Task<SignupResponse> SignupAsync(string username, string email, string password, string phoneNumber)
+        {
+            var request = new SignupRequest { Username = username, Email = email, Password = password, PhoneNumber = phoneNumber };
+            var response = await this._client.signupAsync(request);
+            return response;
+        }
+
         public LoginResponse Login(string username, string password)
         {
             var request = new LoginRequest { Username = username, Password = password };
-            var response =  this._client.login(request);
+            var response = this._client.login(request);
+            return response;
+        }
+
+        public async Task<LoginResponse> loginAsync(string username, string password)
+        {
+            var request = new LoginRequest { Username = username, Password = password };
+            var response = await this._client.loginAsync(request);
             return response;
         }
 

@@ -87,7 +87,9 @@ namespace StorageAndroidClient
         {
             try
             {
-                return "dummy_session_id";
+                GrpcClient client = new GrpcClient(CloudStorageAddress);
+                var response = await client.loginAsync(username, password);
+                return response.SessionId;
             }
             catch (Exception ex)
             {

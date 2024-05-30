@@ -63,7 +63,7 @@
     <Compile Include="FileService.cs" />
     <Compile Include="GrpcClient.cs" />
     <Compile Include="Login.cs" />
-    <Compile Include="FileOperations.cs" />
+    <Compile Include="MainPageFileOperations.cs" />
     <Compile Include="Resources\Resource.designer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SharedPreferencesManager .cs" />
