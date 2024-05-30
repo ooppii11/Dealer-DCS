@@ -56,7 +56,7 @@ namespace StorageAndroidClient
             string password = passwordEditText.Text;
             string phone = phoneNumber.Text;
 
-            if (IsValidInput(username, email, password))
+            if (IsValidInput(username, email, password, phone))
             {
                 try 
                 {
@@ -77,11 +77,12 @@ namespace StorageAndroidClient
         }
 
 
-        private bool IsValidInput(string username, string email, string password)
+        private bool IsValidInput(string username, string email, string password, string phone)
         {
             return !string.IsNullOrWhiteSpace(username) &&
                    !string.IsNullOrWhiteSpace(email) &&
-                   !string.IsNullOrWhiteSpace(password);
+                   !string.IsNullOrWhiteSpace(password) &&
+                   !string.IsNullOrWhiteSpace(phone);
         }
 
         private async Task PerformSignupAsync(string username, string email, string password, string phone)
