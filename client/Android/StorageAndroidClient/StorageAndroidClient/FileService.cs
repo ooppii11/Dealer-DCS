@@ -142,7 +142,7 @@ namespace StorageAndroidClient
             taskCompleteIntent.PutExtra("message", "Update completed for file: " + fileName);
             SendBroadcast(taskCompleteIntent);
         }
-
+    
         public override void OnDestroy()
         {
             base.OnDestroy();
