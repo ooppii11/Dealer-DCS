@@ -14,6 +14,7 @@ namespace StorageAndroidClient
     {
         public const string ActionUpload = "StorageAndroidClient.action.UPLOAD";
         public const string ActionDownload = "StorageAndroidClient.action.DOWNLOAD";
+        public const string ActionUpdate = "StorageAndroidClient.action.UPDATE";
         private BlockingCollection<FileTask> taskQueue;
         private CancellationTokenSource cancellationTokenSource;
 
@@ -76,13 +77,20 @@ namespace StorageAndroidClient
                     case ActionDownload:
                         PerformDownload(task.SessionId, task.FileName);
                         break;
+                    case ActionUpdate:
+                        PerformUpdate(task.SessionId, task.FileName, task.FileData);
+                        break;
                 }
             }
         }
 
+        
         private void PerformUpload(string sessionId, string fileName, string type, byte[] data)
         {
             // Implement upload logic
+            Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
+            taskCompleteIntent.PutExtra("message", "Upload completed for file: " + fileName);
+            SendBroadcast(taskCompleteIntent);
         }
 
         private async void PerformDownload(string sessionId, string fileName)
@@ -91,9 +99,13 @@ namespace StorageAndroidClient
             {
                 byte[] fileData = await DownloadFileFromServer(fileName);
                 SaveFileToDownloadDirectory(fileData, fileName);
+                Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
+                taskCompleteIntent.PutExtra("message", "Download completed for file: " + fileName);
+                SendBroadcast(taskCompleteIntent);
             }
             catch (Exception ex)
             {
+                //notification
                 Console.WriteLine("Download failed: " + ex.Message);
             }
         }
@@ -122,6 +134,13 @@ namespace StorageAndroidClient
                 //notification
                 Console.WriteLine("Error saving file: " + ex.Message);
             }
+        }
+        private void PerformUpdate(string sessionId, string fileName, byte[] fileData)
+        {
+            // Implement update logic
+            Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
+            taskCompleteIntent.PutExtra("message", "Update completed for file: " + fileName);
+            SendBroadcast(taskCompleteIntent);
         }
 
         public override void OnDestroy()

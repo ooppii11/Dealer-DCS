@@ -6,11 +6,17 @@ using Android.Service.QuickSettings;
 using Android.Views;
 using Android.Widget;
 using AndroidX.AppCompat.App;
+using AndroidX.Lifecycle;
 using System;
 using System.Collections.Generic;
 
 namespace StorageAndroidClient
 {
+    enum FilePickerOperation
+    {
+        Upload = 1,
+        Update,
+    }
     [Activity(Label = "FileOperationsActivity")]
     public class MainPageFileOperationsActivity : AppCompatActivity
     {
@@ -47,10 +53,15 @@ namespace StorageAndroidClient
 
         private void UploadButton_Click(object sender, EventArgs e)
         {
+            StartFilePicker(FilePickerOperation.Upload);
+        }
+
+        private void StartFilePicker(FilePickerOperation code)
+        {
             Intent intent = new Intent(Intent.ActionOpenDocument);
             intent.AddCategory(Intent.CategoryOpenable);
             intent.SetType("*/*");
-            StartActivityForResult(intent, 1);
+            StartActivityForResult(Intent.CreateChooser(intent, "Select a file"), (int)code);
         }
 
         protected override void OnActivityResult(int requestCode, Result resultCode, Intent data)
@@ -59,17 +70,23 @@ namespace StorageAndroidClient
             if (requestCode == 1 && resultCode == Result.Ok && data != null)
             {
                 Android.Net.Uri uri = data.Data;
-                ReadFileData(uri);
+                StartUploadService(ReadFileData(uri), GetFileName(uri));
+            }
+            else if (requestCode == 2 && resultCode == Result.Ok && data != null)
+            {
+                Android.Net.Uri uri = data.Data;
+                StartUpdateService(ReadFileData(uri), GetFileName(uri));
             }
         }
 
-        private void ReadFileData(Android.Net.Uri uri)
+        private byte[] ReadFileData(Android.Net.Uri uri)
         {
+            byte[] fileData = null;
             using (var inputStream = ContentResolver.OpenInputStream(uri))
             {
-                byte[] fileData = ReadFully(inputStream);
-                StartUploadService(fileData, GetFileName(uri));
+                fileData = ReadFully(inputStream);
             }
+            return fileData;
         }
 
         private string GetFileName(Android.Net.Uri uri)
@@ -177,7 +194,17 @@ namespace StorageAndroidClient
 
         private void UpdateFile(string fileName)
         {
-            
+            StartFilePicker(FilePickerOperation.Update);
+        }
+
+        private void StartUpdateService(byte[] fileData, string name)
+        {
+            Intent intent = new Intent(this, typeof(FileService));
+            intent.SetAction(FileService.ActionUpdate);
+            intent.PutExtra("FileData", fileData);
+            intent.PutExtra("FileName", name);
+            intent.PutExtra("SessionId", SharedPreferencesManager.GetString("SessionId"));
+            StartService(intent);
         }
 
         private void NavigateToLoginActivity()
