@@ -19,6 +19,39 @@ namespace StorageAndroidClient
             this._client = new Cloud.CloudClient(this._channel);
         }
 
+        public GrpcClient(string address)
+        {
+            this._channel = new Channel(address, ChannelCredentials.Insecure);
+            this._client = new Cloud.CloudClient(this._channel);
+        }
+
+        public SignupResponse Signup(string username, string email, string password, string phoneNumber)
+        {
+            var request = new SignupRequest { Username = username, Email = email, Password = password, PhoneNumber = phoneNumber };
+            var response = this._client.signup(request);
+            return response;
+        }
+        public LoginResponse Login(string username, string password)
+        {
+            var request = new LoginRequest { Username = username, Password = password };
+            var response =  this._client.login(request);
+            return response;
+        }
+
+        public LogoutResponse Logout(string sessionId)
+        {
+            var request = new LogoutRequest { SessionId = sessionId };
+            var response = this._client.logout(request);
+            return response;
+        }
+
+        public GetListOfFilesResponse GetFiles(string sessionId)
+        {
+            var request = new GetListOfFilesRequest { SessionId = sessionId };
+            var response = this._client.getListOfFiles(request);
+            return response;
+        }
+
         public async Task<UploadFileResponse> UploadFile(string fileName, string sessionId, byte[] fileData, string fileType)
         {
             List<UploadFileRequest> requests = createUploadRequests(fileName, sessionId, fileData, fileType);
