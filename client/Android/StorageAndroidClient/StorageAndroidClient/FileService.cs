@@ -15,6 +15,7 @@ namespace StorageAndroidClient
         public const string ActionUpload = "StorageAndroidClient.action.UPLOAD";
         public const string ActionDownload = "StorageAndroidClient.action.DOWNLOAD";
         public const string ActionUpdate = "StorageAndroidClient.action.UPDATE";
+        public const string ActionDelete = "StorageAndroidClient.action.DELETE";
         private BlockingCollection<FileTask> taskQueue;
         private CancellationTokenSource cancellationTokenSource;
 
@@ -80,6 +81,9 @@ namespace StorageAndroidClient
                     case ActionUpdate:
                         PerformUpdate(task.SessionId, task.FileName, task.FileData);
                         break;
+                    case ActionDelete:
+                        PerformDelete(task.SessionId, task.FileName);
+                        break;
                 }
             }
         }
@@ -90,6 +94,7 @@ namespace StorageAndroidClient
             // Implement upload logic
             Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
             taskCompleteIntent.PutExtra("message", "Upload completed for file: " + fileName);
+            taskCompleteIntent.PutExtra("action", "upload");
             SendBroadcast(taskCompleteIntent);
         }
 
@@ -101,6 +106,7 @@ namespace StorageAndroidClient
                 SaveFileToDownloadDirectory(fileData, fileName);
                 Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
                 taskCompleteIntent.PutExtra("message", "Download completed for file: " + fileName);
+                taskCompleteIntent.PutExtra("action", "download");
                 SendBroadcast(taskCompleteIntent);
             }
             catch (Exception ex)
@@ -140,9 +146,20 @@ namespace StorageAndroidClient
             // Implement update logic
             Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
             taskCompleteIntent.PutExtra("message", "Update completed for file: " + fileName);
+            taskCompleteIntent.PutExtra("action", "update");
             SendBroadcast(taskCompleteIntent);
         }
-    
+
+        private void PerformDelete(string sessionId, string fileName)
+        {
+            // Implement delete logic
+
+            Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
+            taskCompleteIntent.PutExtra("message", "Delete completed for file: " + fileName);
+            taskCompleteIntent.PutExtra("action", "delete");
+            SendBroadcast(taskCompleteIntent);
+        }
+
         public override void OnDestroy()
         {
             base.OnDestroy();

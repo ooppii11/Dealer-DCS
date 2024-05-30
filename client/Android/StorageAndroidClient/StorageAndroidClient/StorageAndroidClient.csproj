@@ -68,7 +68,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SharedPreferencesManager .cs" />
     <Compile Include="Signup.cs" />
-    <Compile Include="TaskCompleteReceiver.cs" />
   </ItemGroup>
   <ItemGroup>
     <Protobuf Include="Protos\cloud.proto" />

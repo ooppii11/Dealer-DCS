@@ -30,7 +30,7 @@ namespace StorageAndroidClient
         {
             base.OnCreate(savedInstanceState);
             SetContentView(Resource.Layout.file_operations);
-            taskCompleteReceiver = new TaskCompleteReceiver();
+            taskCompleteReceiver = new TaskCompleteReceiver(this);
             InitializeUI();
             LoadFileMetadata();
         }
@@ -189,7 +189,11 @@ namespace StorageAndroidClient
         }
         private void DeleteFile(string fileName)
         {
-            
+            Intent deleteIntent = new Intent(this, typeof(FileService));
+            deleteIntent.SetAction(FileService.ActionDelete);
+            deleteIntent.PutExtra("FileName", fileName);
+            deleteIntent.PutExtra("SessionId", SharedPreferencesManager.GetString("SessionId"));
+            StartService(deleteIntent);
         }
 
         private void UpdateFile(string fileName)
@@ -225,5 +229,26 @@ namespace StorageAndroidClient
             UnregisterReceiver(taskCompleteReceiver);
         }
 
+        public class TaskCompleteReceiver : BroadcastReceiver
+        {
+            private readonly MainPageFileOperationsActivity activity;
+
+            public TaskCompleteReceiver(MainPageFileOperationsActivity activity)
+            {
+                this.activity = activity;
+            }
+
+            public override void OnReceive(Context context, Intent intent)
+            {
+                string message = intent.GetStringExtra("message");
+                string action = intent.GetStringExtra("action");
+                Toast.MakeText(context, message, ToastLength.Short).Show();
+
+                if (action != null && action != "download")
+                {
+                    activity.LoadFileMetadata();
+                }
+            }
+        }
     }
 }
