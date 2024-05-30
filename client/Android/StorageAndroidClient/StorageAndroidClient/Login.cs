@@ -8,7 +8,7 @@ using System;
 
 namespace StorageAndroidClient
 {
-    [Activity(Label = "LoginActivity", Theme = "@style/AppTheme", MainLauncher = true)]
+    [Activity(Theme = "@style/AppTheme", MainLauncher = true)]
     public class LoginPageActivity : AppCompatActivity
     {
         EditText usernameEditText;

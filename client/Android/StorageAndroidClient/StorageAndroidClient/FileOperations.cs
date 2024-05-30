@@ -17,7 +17,7 @@ namespace StorageAndroidClient
         Upload = 1,
         Update,
     }
-    [Activity(Label = "FileOperationsActivity")]
+    [Activity(Label = "Main")]
     public class MainPageFileOperationsActivity : AppCompatActivity
     {
         Button logoutButton;

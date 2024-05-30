@@ -9,7 +9,7 @@ using System;
 
 namespace StorageAndroidClient
 {
-    [Activity(Label = "SignupActivity")]
+    [Activity(Label = "Signup")]
     public class SignupPageActivity : AppCompatActivity
     {
         EditText usernameEditText;
