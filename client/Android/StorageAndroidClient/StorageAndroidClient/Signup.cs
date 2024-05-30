@@ -17,6 +17,8 @@ namespace StorageAndroidClient
         EditText passwordEditText;
         Button signupButton;
         TextView loginLink;
+        private const string CloudStorageAddress = "172.18.0.3:50053";
+
 
         protected override void OnCreate(Bundle savedInstanceState)
         {

@@ -7,6 +7,7 @@ using Android.Views;
 using Android.Widget;
 using AndroidX.AppCompat.App;
 using AndroidX.Lifecycle;
+using GrpcCloud;
 using System;
 using System.Collections.Generic;
 
@@ -17,6 +18,7 @@ namespace StorageAndroidClient
         Upload = 1,
         Update,
     }
+
     [Activity(Label = "Main")]
     public class MainPageFileOperationsActivity : AppCompatActivity
     {
@@ -24,6 +26,7 @@ namespace StorageAndroidClient
         Button uploadButton;
         LinearLayout filesContainer;
         private TaskCompleteReceiver taskCompleteReceiver;
+        private const string CloudStorageAddress = "172.18.0.3:50053";
 
 
         protected override void OnCreate(Bundle savedInstanceState)
@@ -47,7 +50,8 @@ namespace StorageAndroidClient
 
         private void LogoutButton_Click(object sender, EventArgs e)
         {
-            //Grpc logout
+            GrpcClient grpcClient = new GrpcClient(CloudStorageAddress);
+            grpcClient.Logout(SharedPreferencesManager.GetString("SessionId"));
             SharedPreferencesManager.SaveString("SessionId", null);
             NavigateToLoginActivity();
         }
@@ -128,56 +132,94 @@ namespace StorageAndroidClient
         private void LoadFileMetadata()
         {
             // Load file metadata (replace with actual implementation)
-            List<string> files = GetFileMetadata();
+            GetListOfFilesResponse files = GetFileMetadata();
             filesContainer.RemoveAllViews();
 
-            foreach (var file in files)
+            foreach (var file in files.Files)
             {
                 AddFileButton(file);
             }
         }
 
-        private List<string> GetFileMetadata()
+        private GetListOfFilesResponse GetFileMetadata()
         {
-            //grpc
-            return new List<string> { "test_1.txt", "test_2.txt", "test3.txt" };
+            return new GrpcClient(CloudStorageAddress).GetFiles(SharedPreferencesManager.GetString("SessionId"));
         }
 
-        private void AddFileButton(string fileName)
+        private void AddFileButton(FileMetadata metadata)
         {
             Button fileButton = new Button(this)
             {
-                Text = fileName,
+                Text = metadata.Filename,
                 LayoutParameters = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent)
             };
-            fileButton.Click += (sender, e) => ShowFileOptionsDialog(fileName);
+            fileButton.Click += (sender, e) => ShowFileOptionsDialog(metadata);
             filesContainer.AddView(fileButton);
         }
 
-        private void ShowFileOptionsDialog(string fileName)
+        private void ShowFileOptionsDialog(FileMetadata metadata)
         {
-            AndroidX.AppCompat.App.AlertDialog.Builder dialog = new AndroidX.AppCompat.App.AlertDialog.Builder(this);
-            dialog.SetTitle(fileName);
-            dialog.SetItems(new[] { "Download", "Delete", "Update" }, (sender, args) =>
+            LinearLayout layout = new LinearLayout(this);
+            layout.Orientation = Orientation.Vertical;
+            layout.SetPadding(50, 40, 50, 10);
+
+            TableLayout tableLayout = new TableLayout(this);
+            tableLayout.LayoutParameters = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+
+            AddTableRow(tableLayout, "Filename", metadata.Filename);
+            AddTableRow(tableLayout, "Creation Date", metadata.CreationDate.ToString());
+            AddTableRow(tableLayout, "Last Modified", metadata.LastModified.ToString());
+            AddTableRow(tableLayout, "Size", metadata.Size.ToString());
+
+            layout.AddView(tableLayout);
+
+
+            string[] options = { "Download", "Delete", "Update" };
+            ArrayAdapter<string> adapter = new ArrayAdapter<string>(this, Android.Resource.Layout.SimpleListItem1, options);
+            ListView listView = new ListView(this) { Adapter = adapter };
+            listView.ItemClick += (sender, args) =>
             {
-                switch (args.Which)
+                switch (args.Position)
                 {
                     case 0:
-                        // Start download
-                        DownloadFile(fileName);
+                        DownloadFile(metadata.Filename);
                         break;
                     case 1:
-                        // Delete file
-                        DeleteFile(fileName);
+                        DeleteFile(metadata.Filename);
                         break;
                     case 2:
-                        // Update file
-                        UpdateFile(fileName);
+                        UpdateFile(metadata.Filename);
                         break;
                 }
-            });
+            };
+            layout.AddView(listView);
+
+            AndroidX.AppCompat.App.AlertDialog.Builder dialog = new AndroidX.AppCompat.App.AlertDialog.Builder(this);
+            dialog.SetTitle("File Options");
+            dialog.SetView(layout);
+            dialog.SetNegativeButton("Close", (s, e) => { });
             dialog.Show();
+        }
+        private void AddTableRow(TableLayout table, string key, string value)
+        {
+            TableRow row = new TableRow(this);
+            TextView keyView = new TextView(this)
+            {
+                Text = key,
+                LayoutParameters = new TableRow.LayoutParams(
+                    ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent)
+            };
+            TextView valueView = new TextView(this)
+            {
+                Text = value,
+                LayoutParameters = new TableRow.LayoutParams(
+                    ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent)
+            };
+            row.AddView(keyView);
+            row.AddView(valueView);
+            table.AddView(row);
         }
 
         private void DownloadFile(string fileName)

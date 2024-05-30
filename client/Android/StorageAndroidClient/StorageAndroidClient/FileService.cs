@@ -18,6 +18,7 @@ namespace StorageAndroidClient
         public const string ActionDelete = "StorageAndroidClient.action.DELETE";
         private BlockingCollection<FileTask> taskQueue;
         private CancellationTokenSource cancellationTokenSource;
+        private const string CloudStorageAddress = "172.18.0.3:50053";
 
         public override void OnCreate()
         {
