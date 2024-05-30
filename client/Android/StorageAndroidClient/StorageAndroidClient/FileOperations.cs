@@ -47,6 +47,7 @@ namespace StorageAndroidClient
 
         private void LogoutButton_Click(object sender, EventArgs e)
         {
+            //Grpc logout
             SharedPreferencesManager.SaveString("SessionId", null);
             NavigateToLoginActivity();
         }
@@ -139,7 +140,7 @@ namespace StorageAndroidClient
         private List<string> GetFileMetadata()
         {
             //grpc
-            return new List<string> { };
+            return new List<string> { "test_1.txt", "test_2.txt", "test3.txt" };
         }
 
         private void AddFileButton(string fileName)
