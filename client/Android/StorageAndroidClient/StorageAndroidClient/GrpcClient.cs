@@ -139,7 +139,7 @@ namespace StorageAndroidClient
             }
         }
 
-        public async Task<UpdateFileResponse> updateFile(string fileName, string sessionId, byte[] fileData)
+        public async Task<UpdateFileResponse> UpdateFile(string fileName, string sessionId, byte[] fileData)
         {
             List<UpdateFileRequest> requests = createUpdateRequests(fileName, sessionId, fileData);
 
@@ -194,6 +194,13 @@ namespace StorageAndroidClient
             }
 
             return updateFileRequests;
+        }
+
+        public DeleteFileResponse DeleteFile(string fileName, string sessionId)
+        {
+            var request = new DeleteFileRequest { FileName = fileName, SessionId = sessionId };
+            var response = this._client.DeleteFile(request);
+            return response;
         }
     }
 }

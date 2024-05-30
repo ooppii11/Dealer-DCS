@@ -2,8 +2,10 @@
 using Android.Content;
 using Android.OS;
 using AndroidX.Core.App;
+using AndroidX.Lifecycle;
 using System;
 using System.Collections.Concurrent;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -90,9 +92,10 @@ namespace StorageAndroidClient
         }
 
         
-        private void PerformUpload(string sessionId, string fileName, string type, byte[] data)
+        private async void PerformUpload(string sessionId, string fileName, string type, byte[] fileData)
         {
-            // Implement upload logic
+            GrpcClient client = new GrpcClient(CloudStorageAddress);
+            await client.UploadFile(fileName, sessionId, fileData, type);
             Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
             taskCompleteIntent.PutExtra("message", "Upload completed for file: " + fileName);
             taskCompleteIntent.PutExtra("action", "upload");
@@ -103,7 +106,7 @@ namespace StorageAndroidClient
         {
             try
             {
-                byte[] fileData = await DownloadFileFromServer(fileName);
+                byte[] fileData = await DownloadFileFromServer(sessionId, fileName);
                 SaveFileToDownloadDirectory(fileData, fileName);
                 Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
                 taskCompleteIntent.PutExtra("message", "Download completed for file: " + fileName);
@@ -117,11 +120,10 @@ namespace StorageAndroidClient
             }
         }
 
-        private async Task<byte[]> DownloadFileFromServer(string fileName)
+        private async Task<byte[]> DownloadFileFromServer(string sessionId, string fileName)
         {
-            //grpc
-            return new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05 };
-            
+            GrpcClient client = new GrpcClient(CloudStorageAddress);
+            return await client.DownloadFile(fileName, sessionId);
         }
 
         private void SaveFileToDownloadDirectory(byte[] fileData, string fileName)
@@ -142,9 +144,10 @@ namespace StorageAndroidClient
                 Console.WriteLine("Error saving file: " + ex.Message);
             }
         }
-        private void PerformUpdate(string sessionId, string fileName, byte[] fileData)
+        private async void PerformUpdate(string sessionId, string fileName, byte[] fileData)
         {
-            // Implement update logic
+            GrpcClient client = new GrpcClient(CloudStorageAddress);
+            await client.UpdateFile(fileName, sessionId, fileData);
             Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
             taskCompleteIntent.PutExtra("message", "Update completed for file: " + fileName);
             taskCompleteIntent.PutExtra("action", "update");
@@ -153,8 +156,8 @@ namespace StorageAndroidClient
 
         private void PerformDelete(string sessionId, string fileName)
         {
-            // Implement delete logic
-
+            GrpcClient client = new GrpcClient(CloudStorageAddress);
+            client.DeleteFile(fileName, sessionId);
             Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
             taskCompleteIntent.PutExtra("message", "Delete completed for file: " + fileName);
             taskCompleteIntent.PutExtra("action", "delete");
