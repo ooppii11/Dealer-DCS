@@ -70,7 +70,7 @@
     <Compile Include="Signup.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Protobuf Include="Protos\cloud.proto" />
+    <Protobuf Include="Protos\cloud.proto" GrpcServices="Client" />
     <None Include="Resources\AboutResources.txt" />
     <None Include="Properties\AndroidManifest.xml" />
     <None Include="Assets\AboutAssets.txt" />
