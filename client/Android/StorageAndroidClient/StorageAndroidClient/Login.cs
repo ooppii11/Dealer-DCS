@@ -15,7 +15,7 @@ namespace StorageAndroidClient
         EditText passwordEditText;
         Button loginButton;
         TextView signupLink;
-        private const string CloudStorageAddress = "172.18.0.3:50053";
+        private const string CloudStorageAddress = "10.10.0.35:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
 
         protected override async void OnCreate(Bundle savedInstanceState)
         {
