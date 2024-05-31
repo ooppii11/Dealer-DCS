@@ -94,7 +94,7 @@ namespace StorageAndroidClient
             catch (Exception ex)
             {
                 Console.WriteLine($"Login failed: {ex.Message}");
-                throw;
+                throw ex;
             }
         }
 

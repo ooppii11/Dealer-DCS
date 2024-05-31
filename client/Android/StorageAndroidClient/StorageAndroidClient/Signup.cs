@@ -60,12 +60,12 @@ namespace StorageAndroidClient
             {
                 try 
                 {
-                    PerformSignupAsync(username, email, password, phone);
+                    await PerformSignupAsync(username, email, password, phone);
                     NavigateToLoginActivity(username, password);
                 }
                 catch (Exception ex)
                 {
-                    //be more specific with the error message
+                    //need to be more specific with the error message
                     ShowErrorMessage("Signup failed. Please try again.");
                 }
                 
@@ -95,7 +95,7 @@ namespace StorageAndroidClient
             catch (Exception ex)
             {
                 Console.WriteLine($"Signup failed: {ex.Message}");
-                throw;
+                throw ex;
             }
         }
 
