@@ -4,6 +4,8 @@ using GrpcCloud;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.IO;
+using Google.Protobuf;
+using System;
 
 namespace StorageAndroidClient
 {
@@ -24,6 +26,16 @@ namespace StorageAndroidClient
             this._channel = new Channel(address, ChannelCredentials.Insecure);
             this._client = new Cloud.CloudClient(this._channel);
         }
+
+        ~GrpcClient()
+        {
+            _channel.ShutdownAsync().Wait();
+        }
+        public async Task ShutdownAsync()
+        {
+            await _channel.ShutdownAsync();
+        }
+
 
         public SignupResponse Signup(string username, string email, string password, string phoneNumber)
         {
@@ -69,7 +81,7 @@ namespace StorageAndroidClient
 
         public async Task<UploadFileResponse> UploadFile(string fileName, string sessionId, byte[] fileData, string fileType)
         {
-            List<UploadFileRequest> requests = createUploadRequests(fileName, sessionId, fileData, fileType);
+            List<UploadFileRequest> requests = CreateRequests<UploadFileRequest>(fileName, sessionId, fileData, fileType);
 
             var call = this._client.UploadFile();
 
@@ -82,41 +94,6 @@ namespace StorageAndroidClient
 
             var response = await call.ResponseAsync;
             return response;
-        }
-
-        private List<UploadFileRequest> createUploadRequests(string name, string sessionId, byte[] fileData, string type)
-        {
-            List<UploadFileRequest> uploadFileRequests = null;
-            byte[] chunk = null;
-            UploadFileRequest request = null;
-            int numberOfChunks = 0;
-            int chunkSize = GrpcClient.MaxFileChunckLength;
-            int i, j = 0;
-
-            uploadFileRequests = new List<UploadFileRequest>();
-            numberOfChunks = fileData.Length / chunkSize + ((fileData.Length % chunkSize == 0) ? 0 : 1);
-
-            for (i = 0; i < numberOfChunks; i++)
-            {
-                if ((i + 1) * chunkSize < fileData.Length) { chunk = new byte[chunkSize]; }
-                else { chunk = new byte[fileData.Length % ((i + 1) * chunkSize)]; }
-
-                for (j = 0; j < chunkSize && j + i * chunkSize < fileData.Length; j++)
-                {
-                    chunk[j] = fileData[i * chunkSize + j];
-                }
-
-                request = new UploadFileRequest()
-                {
-                    FileName = name,
-                    SessionId = sessionId,
-                    Type = type,
-                    FileData = Google.Protobuf.ByteString.CopyFrom(chunk)
-                };
-                uploadFileRequests.Add(request);
-            }
-
-            return uploadFileRequests;
         }
 
         public async Task<byte[]> DownloadFile(string fileName, string sessionId)
@@ -141,7 +118,7 @@ namespace StorageAndroidClient
 
         public async Task<UpdateFileResponse> UpdateFile(string fileName, string sessionId, byte[] fileData)
         {
-            List<UpdateFileRequest> requests = createUpdateRequests(fileName, sessionId, fileData);
+            List<UpdateFileRequest> requests = CreateRequests<UpdateFileRequest>(fileName, sessionId, fileData);
 
             var call = this._client.UpdateFile();
 
@@ -159,41 +136,37 @@ namespace StorageAndroidClient
             return response;
         }
 
-        private List<UpdateFileRequest> createUpdateRequests(string fileName, string sessionId, byte[] fileData)
+        private List<T> CreateRequests<T>(string fileName, string sessionId, byte[] fileData, string type = null) where T : IMessage<T>, new()
         {
-            List<UpdateFileRequest> updateFileRequests = null;
-            byte[] chunk = null;
-            UpdateFileRequest request = null;
-            int numberOfChunks = 0;
+            var requests = new List<T>();
             int chunkSize = GrpcClient.MaxFileChunckLength;
-            int i, j = 0;
+            int numberOfChunks = fileData.Length / chunkSize + (fileData.Length % chunkSize == 0 ? 0 : 1);
 
-            updateFileRequests = new List<UpdateFileRequest>();
-            numberOfChunks = fileData.Length / chunkSize + ((fileData.Length % chunkSize == 0) ? 0 : 1);
-
-            for (i = 0; i < numberOfChunks; i++)
+            for (int i = 0; i < numberOfChunks; i++)
             {
-                if ((i + 1) * chunkSize < fileData.Length) { chunk = new byte[chunkSize]; }
-                else { chunk = new byte[fileData.Length % ((i + 1) * chunkSize)]; }
+                int currentChunkSize = Math.Min(chunkSize, fileData.Length - i * chunkSize);
+                byte[] chunk = new byte[currentChunkSize];
+                Array.Copy(fileData, i * chunkSize, chunk, 0, currentChunkSize);
 
-                for (j = 0; j < chunkSize && j + i * chunkSize < fileData.Length; j++)
+                var request = new T();
+                if (request is UploadFileRequest uploadRequest)
                 {
-                    chunk[j] = fileData[i * chunkSize + j];
+                    uploadRequest.FileName = fileName;
+                    uploadRequest.SessionId = sessionId;
+                    uploadRequest.FileData = Google.Protobuf.ByteString.CopyFrom(chunk);
+                    uploadRequest.Type = type;
+                    requests.Add((T)(IMessage)uploadRequest);
                 }
-
-
-                request = new UpdateFileRequest()
+                else if (request is UpdateFileRequest updateRequest)
                 {
-                    FileName = fileName,
-                    SessionId = sessionId,
-                    FileData = Google.Protobuf.ByteString.CopyFrom(chunk),
-
-                };
-
-                updateFileRequests.Add(request);
+                    updateRequest.FileName = fileName;
+                    updateRequest.SessionId = sessionId;
+                    updateRequest.FileData = Google.Protobuf.ByteString.CopyFrom(chunk);
+                    requests.Add((T)(IMessage)updateRequest);
+                }
             }
 
-            return updateFileRequests;
+            return requests;
         }
 
         public DeleteFileResponse DeleteFile(string fileName, string sessionId)
