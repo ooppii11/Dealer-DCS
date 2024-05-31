@@ -125,7 +125,7 @@ namespace NodeServer.Services
 
             if (!OnMachineStorageActions.DoesFileExist(userId, fileId))
             {
-                return new Tuple<Status, string, MemoryStream>(new Status(StatusCode.AlreadyExists, "Can't update the file. The file doesn't exist int the system"), null, null);
+                return new Tuple<Status, string, MemoryStream>(new Status(StatusCode.NotFound, "Can't update the file. The file doesn't exist int the system"), null, null);
             }
 
             if (!OnMachineStorageActions.SaveFile(fileId, userId, type, fileData, this._fileVersionManager))

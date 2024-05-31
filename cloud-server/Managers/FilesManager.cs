@@ -54,6 +54,7 @@ namespace cloud_server.Managers
         {
             int fileId = 0;
             fileId = this._db.getFileId(filename, userid);
+
             NodeServerCommunication client = new NodeServerCommunication(this._leaderAddress);
             await client.updateFile(userid, $"{fileId}", fileData);
             this._db.updateFileMetadata(userid, filename, size);
