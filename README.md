@@ -1,6 +1,6 @@
 # Dealer DCS: Distributed Cloud Storage System
 
-Dealer DCS is a distributed cloud storage system that leverages gRPC and Docker to provide scalable and reliable cloud storage solutions. This project includes a variety of components, including a Python CLI client, a central cloud server, and multiple node servers to handle data storage and synchronization. It employs the Raft consensus algorithm for data consistency and dynamic leader election, introducing an enhanced Viewer mode to efficiently track the current leader.
+Dealer DCS is a distributed cloud storage system that leverages gRPC and Docker to provide scalable and reliable cloud storage solutions. This project includes a variety of components, including a Python CLI client and an Android client, a central cloud server, and multiple node servers to handle data storage and synchronization. It employs the Raft consensus algorithm for data consistency and dynamic leader election, introducing an enhanced Viewer mode to efficiently track the current leader.
 
 ## Project Structure
 
