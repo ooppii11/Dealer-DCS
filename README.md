@@ -73,7 +73,7 @@ Dealer DCS is a distributed cloud storage system that leverages gRPC and Docker 
    cd node-server/node-server
    docker build -t node-server .
    ```
-4. **Run the system in docker using compose
+4. Run the system in docker using compose
    ```sh
    cd docker/system_docker_compose
    docker compose up -d
