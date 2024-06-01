@@ -60,8 +60,9 @@ namespace StorageAndroidClient
             {
                 try 
                 {
-                    await PerformSignupAsync(username, email, password, phone);
-                    NavigateToLoginActivity(username, password);
+                    string sessionId = await PerformSignupAsync(username, email, password, phone);
+                    SharedPreferencesManager.SaveString("SessionId", sessionId);
+                    NavigateToMainActivity();
                 }
                 catch (Exception ex)
                 {
@@ -85,12 +86,14 @@ namespace StorageAndroidClient
                    !string.IsNullOrWhiteSpace(phone);
         }
 
-        private async Task PerformSignupAsync(string username, string email, string password, string phone)
+        private async Task<string> PerformSignupAsync(string username, string email, string password, string phone)
         {
             try
             {
                 GrpcClient client = new GrpcClient(CloudStorageAddress);
-                var response = await client.SignupAsync(username, email, password, phone);
+                await client.SignupAsync(username, email, password, phone);
+                var response = await client.loginAsync(username, password);
+                return response.SessionId;
             }
             catch (Exception ex)
             {

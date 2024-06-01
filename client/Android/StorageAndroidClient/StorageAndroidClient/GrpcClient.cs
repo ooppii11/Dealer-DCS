@@ -100,12 +100,10 @@ namespace StorageAndroidClient
         {
             DownloadFileRequest request = new DownloadFileRequest { SessionId = sessionId, FileName = fileName };
 
-            // Download the file:
             using (var call = this._client.DownloadFile(request))
             {
                 using (var memoryStream = new MemoryStream())
                 {
-                    // append chuncks to memoryStream
                     while (await call.ResponseStream.MoveNext())
                     {
                         var chunk = call.ResponseStream.Current.FileData;
@@ -122,16 +120,13 @@ namespace StorageAndroidClient
 
             var call = this._client.UpdateFile();
 
-            // For evry chunk of file call to upload 
             foreach (var request in requests)
             {
                 await call.RequestStream.WriteAsync(request);
             }
 
-            // Wait until all request are send
             await call.RequestStream.CompleteAsync();
 
-            // Wait for response
             var response = await call.ResponseAsync;
             return response;
         }
@@ -148,17 +143,18 @@ namespace StorageAndroidClient
                 byte[] chunk = new byte[currentChunkSize];
                 Array.Copy(fileData, i * chunkSize, chunk, 0, currentChunkSize);
 
-                var request = new T();
-                if (request is UploadFileRequest uploadRequest)
+                if (typeof(T) == typeof(UploadFileRequest))
                 {
+                    var uploadRequest = new UploadFileRequest();
                     uploadRequest.FileName = fileName;
                     uploadRequest.SessionId = sessionId;
                     uploadRequest.FileData = Google.Protobuf.ByteString.CopyFrom(chunk);
                     uploadRequest.Type = type;
                     requests.Add((T)(IMessage)uploadRequest);
                 }
-                else if (request is UpdateFileRequest updateRequest)
+                else if (typeof(T) == typeof(UpdateFileRequest))
                 {
+                    var updateRequest = new UpdateFileRequest();
                     updateRequest.FileName = fileName;
                     updateRequest.SessionId = sessionId;
                     updateRequest.FileData = Google.Protobuf.ByteString.CopyFrom(chunk);

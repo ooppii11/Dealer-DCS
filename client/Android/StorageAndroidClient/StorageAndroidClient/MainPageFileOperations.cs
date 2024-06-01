@@ -6,6 +6,7 @@ using Android.Service.QuickSettings;
 using Android.Views;
 using Android.Widget;
 using AndroidX.AppCompat.App;
+using AndroidX.Core.Content;
 using AndroidX.Lifecycle;
 using GrpcCloud;
 using System;
@@ -50,10 +51,19 @@ namespace StorageAndroidClient
 
         private void LogoutButton_Click(object sender, EventArgs e)
         {
-            GrpcClient grpcClient = new GrpcClient(CloudStorageAddress);
-            grpcClient.Logout(SharedPreferencesManager.GetString("SessionId"));
-            SharedPreferencesManager.SaveString("SessionId", null);
-            NavigateToLoginActivity();
+            try
+            {
+                GrpcClient grpcClient = new GrpcClient(CloudStorageAddress);
+                grpcClient.Logout(SharedPreferencesManager.GetString("SessionId"));
+                SharedPreferencesManager.SaveString("SessionId", null);
+                NavigateToLoginActivity();
+            }
+            catch
+            {
+                SharedPreferencesManager.SaveString("SessionId", null);
+                NavigateToLoginActivity();
+            }
+            
         }
 
         private void UploadButton_Click(object sender, EventArgs e)
@@ -115,6 +125,7 @@ namespace StorageAndroidClient
         {
             Intent intent = new Intent(this, typeof(FileService));
             intent.SetAction(FileService.ActionUpload);
+            intent.PutExtra("FileName", name);
             intent.PutExtra("FileData", fileData);
             intent.PutExtra("FileType", "plain/text");
             intent.PutExtra("SessionId", SharedPreferencesManager.GetString("SessionId"));
@@ -131,13 +142,32 @@ namespace StorageAndroidClient
         }
         private void LoadFileMetadata()
         {
-            GetListOfFilesResponse files = GetFileMetadata();
-            filesContainer.RemoveAllViews();
-
-            foreach (var file in files.Files)
+            try
             {
-                AddFileButton(file);
+                GetListOfFilesResponse files = GetFileMetadata();
+                filesContainer.RemoveAllViews();
+
+                foreach (var file in files.Files)
+                {
+                    AddFileButton(file);
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Filed to load metadata");
+                //toast filed to load metadata
+                //if server unavialble: reset cache memory and go to login page:
+                /*
+                SharedPreferencesManager.SaveString("SessionId", null);
+                NavigateToLoginActivity();
+                */
+                //else 
+                /*
+                try periodcly load metadata intill it loads
+                */
+
+            }
+
         }
 
         private GetListOfFilesResponse GetFileMetadata()
@@ -159,6 +189,8 @@ namespace StorageAndroidClient
 
         private void ShowFileOptionsDialog(FileMetadata metadata)
         {
+            AndroidX.AppCompat.App.AlertDialog dialog = null;
+            AndroidX.AppCompat.App.AlertDialog.Builder builder = new AndroidX.AppCompat.App.AlertDialog.Builder(this);
             LinearLayout layout = new LinearLayout(this);
             layout.Orientation = Orientation.Vertical;
             layout.SetPadding(50, 40, 50, 10);
@@ -166,6 +198,8 @@ namespace StorageAndroidClient
             TableLayout tableLayout = new TableLayout(this);
             tableLayout.LayoutParameters = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+
+            tableLayout.SetDividerDrawable(ContextCompat.GetDrawable(this, Android.Resource.Drawable.DividerHorizontalBright));
 
             AddTableRow(tableLayout, "Filename", metadata.Filename);
             AddTableRow(tableLayout, "Creation Date", metadata.CreationDate.ToString());
@@ -187,6 +221,7 @@ namespace StorageAndroidClient
                         break;
                     case 1:
                         DeleteFile(metadata.Filename);
+                        dialog?.Dismiss();
                         break;
                     case 2:
                         UpdateFile(metadata.Filename);
@@ -195,11 +230,14 @@ namespace StorageAndroidClient
             };
             layout.AddView(listView);
 
-            AndroidX.AppCompat.App.AlertDialog.Builder dialog = new AndroidX.AppCompat.App.AlertDialog.Builder(this);
-            dialog.SetTitle("File Options");
-            dialog.SetView(layout);
-            dialog.SetNegativeButton("Close", (s, e) => { });
+
+            builder.SetTitle("File Options");
+            builder.SetView(layout);
+            builder.SetNegativeButton("Close", (s, e) => { });
+            dialog = builder.Create();
+
             dialog.Show();
+
         }
         private void AddTableRow(TableLayout table, string key, string value)
         {
@@ -210,14 +248,23 @@ namespace StorageAndroidClient
                 LayoutParameters = new TableRow.LayoutParams(
                     ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent)
             };
+            keyView.SetPadding(0, 0, 10, 0);
             TextView valueView = new TextView(this)
             {
                 Text = value,
                 LayoutParameters = new TableRow.LayoutParams(
                     ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent)
             };
-            row.AddView(keyView);
-            row.AddView(valueView);
+            if (Resources.Configuration.LayoutDirection == Android.Views.LayoutDirection.Rtl)
+            {
+                row.AddView(valueView);
+                row.AddView(keyView);
+            }
+            else
+            {
+                row.AddView(keyView);
+                row.AddView(valueView);
+            }
             table.AddView(row);
         }
 
