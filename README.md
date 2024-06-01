@@ -59,7 +59,7 @@ Dealer DCS is a distributed cloud storage system that leverages gRPC and Docker 
 1. **Clone the Repository**
    ```sh
    git clone https://github.com/ooppii11/Dealer-DCS.git
-   cd dealer-dcs
+   cd Dealer-DCS
    ```
 
 2. **Build and Run the Cloud Server**
