@@ -68,16 +68,13 @@ namespace cloud_server.Services
             
             var call = this._client.UploadFile();
 
-            // For evry chunk of file call to upload 
             foreach (var request in requests)
             {
                 await call.RequestStream.WriteAsync(request);
             }
 
-            // Wait until all request are send
             await call.RequestStream.CompleteAsync();
 
-            // Wait for response
             var response = await call.ResponseAsync;
             return response;
         }
@@ -88,16 +85,13 @@ namespace cloud_server.Services
 
             var call = this._client.UpdateFile();
 
-            // For evry chunk of file call to upload 
             foreach (var request in requests)
             {
                 await call.RequestStream.WriteAsync(request);
             }
 
-            // Wait until all request are send
             await call.RequestStream.CompleteAsync();
 
-            // Wait for response
             var response = await call.ResponseAsync;
             return response;
         }
@@ -116,17 +110,14 @@ namespace cloud_server.Services
 
             for (i = 0; i < numberOfChunks; i++)
             {
-                // Check for the size of the new chunck of bytes:
                 if ((i + 1) * chunkSize < fileData.Length) { chunk = new byte[chunkSize]; }
                 else { chunk = new byte[fileData.Length % ((i + 1) * chunkSize)]; }
 
-                // Set data inside the Chunck 
                 for (j = 0; j < chunkSize && j + i * chunkSize < fileData.Length; j++)
                 {
                     chunk[j] = fileData[i * chunkSize + j];
                 }
 
-                // Create new request:
              
                 request = new UpdateFileRequest()
                 {
@@ -136,7 +127,6 @@ namespace cloud_server.Services
                     
                 };
 
-                // Append request to the stream
                 updateFileRequests.Add(request);
             }
 
@@ -156,17 +146,14 @@ namespace cloud_server.Services
 
             for (i = 0; i < numberOfChunks; i++)
             {
-                // Check for the size of the new chunck of bytes:
                 if ((i + 1) * chunkSize < fileData.Length) { chunk = new byte[chunkSize]; }
                 else { chunk = new byte[fileData.Length % ((i + 1) * chunkSize)]; }
 
-                // Set data inside the Chunck 
                 for (j = 0; j < chunkSize && j + i* chunkSize < fileData.Length; j++)
                 {
                     chunk[j] = fileData[i * chunkSize + j];
                 }
 
-                // Create new request:
                 request = new UploadFileRequest()
                 {
                     FileId = fileId,
@@ -176,7 +163,6 @@ namespace cloud_server.Services
                 };
                 
 
-                // Append request to the stream
                 uploadFileRequests.Add(request);
             }
 

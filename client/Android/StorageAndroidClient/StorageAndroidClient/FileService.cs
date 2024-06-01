@@ -20,6 +20,7 @@ namespace StorageAndroidClient
         public const string ActionDelete = "StorageAndroidClient.action.DELETE";
         private BlockingCollection<FileTask> taskQueue;
         private CancellationTokenSource cancellationTokenSource;
+        private ManualResetEventSlim manualResetEventSlim = new ManualResetEventSlim(false);
         private const string CloudStorageAddress = "10.10.0.35:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
 
         public override void OnCreate()
@@ -54,6 +55,15 @@ namespace StorageAndroidClient
                 {
                     EnqueueTask(new FileTask { FileName = fileName, Action = ActionDownload, SessionId = sessionId });
                 }
+                else if (action == ActionUpdate)
+                {
+                    EnqueueTask(new FileTask { FileName = fileName, Action = ActionUpdate, SessionId = sessionId, FileData = fileData });
+                }
+                else if (action == ActionDelete)
+                {
+                    EnqueueTask(new FileTask { FileName = fileName, Action = ActionDelete, SessionId = sessionId });
+                }
+
             }
 
             return StartCommandResult.Sticky;
@@ -62,31 +72,46 @@ namespace StorageAndroidClient
         private void EnqueueTask(FileTask task)
         {
             taskQueue.Add(task);
+            manualResetEventSlim.Set();
         }
 
         private void ProcessTasks(CancellationToken token)
         {
-            foreach (var task in taskQueue.GetConsumingEnumerable(token))
+            while (!token.IsCancellationRequested)
             {
-                if (token.IsCancellationRequested)
+                manualResetEventSlim.Wait();
+                try
                 {
-                    break;
-                }
+                    foreach (var task in taskQueue.GetConsumingEnumerable(token))
+                    {
+                        if (token.IsCancellationRequested)
+                        {
+                            break;
+                        }
 
-                switch (task.Action)
+                        switch (task.Action)
+                        {
+                            case ActionUpload:
+                                PerformUpload(task.SessionId, task.FileName, task.FileType, task.FileData);
+                                break;
+                            case ActionDownload:
+                                PerformDownload(task.SessionId, task.FileName);
+                                break;
+                            case ActionUpdate:
+                                PerformUpdate(task.SessionId, task.FileName, task.FileData);
+                                break;
+                            case ActionDelete:
+                                PerformDelete(task.SessionId, task.FileName);
+                                break;
+                            default:
+                                Console.WriteLine("Invalid action");
+                                break;
+                        }
+                    }
+                }
+                finally
                 {
-                    case ActionUpload:
-                        PerformUpload(task.SessionId, task.FileName, task.FileType, task.FileData);
-                        break;
-                    case ActionDownload:
-                        PerformDownload(task.SessionId, task.FileName);
-                        break;
-                    case ActionUpdate:
-                        PerformUpdate(task.SessionId, task.FileName, task.FileData);
-                        break;
-                    case ActionDelete:
-                        PerformDelete(task.SessionId, task.FileName);
-                        break;
+                    manualResetEventSlim.Reset();
                 }
             }
         }
@@ -94,12 +119,20 @@ namespace StorageAndroidClient
         
         private async void PerformUpload(string sessionId, string fileName, string type, byte[] fileData)
         {
-            GrpcClient client = new GrpcClient(CloudStorageAddress);
-            await client.UploadFile(fileName, sessionId, fileData, type);
-            Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
-            taskCompleteIntent.PutExtra("message", "Upload completed for file: " + fileName);
-            taskCompleteIntent.PutExtra("action", "upload");
-            SendBroadcast(taskCompleteIntent);
+            try
+            {
+                GrpcClient client = new GrpcClient(CloudStorageAddress);
+                await client.UploadFile(fileName, sessionId, fileData, type);
+                Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
+                taskCompleteIntent.PutExtra("message", "Upload completed for file: " + fileName);
+                taskCompleteIntent.PutExtra("action", "upload");
+                SendBroadcast(taskCompleteIntent);
+            }
+            catch (Exception ex)
+            {
+                //notification
+                Console.WriteLine("Upload failed: " + ex.Message);
+            }
         }
 
         private async void PerformDownload(string sessionId, string fileName)
@@ -146,22 +179,38 @@ namespace StorageAndroidClient
         }
         private async void PerformUpdate(string sessionId, string fileName, byte[] fileData)
         {
-            GrpcClient client = new GrpcClient(CloudStorageAddress);
-            await client.UpdateFile(fileName, sessionId, fileData);
-            Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
-            taskCompleteIntent.PutExtra("message", "Update completed for file: " + fileName);
-            taskCompleteIntent.PutExtra("action", "update");
-            SendBroadcast(taskCompleteIntent);
+            try
+            {
+                GrpcClient client = new GrpcClient(CloudStorageAddress);
+                await client.UpdateFile(fileName, sessionId, fileData);
+                Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
+                taskCompleteIntent.PutExtra("message", "Update completed for file: " + fileName);
+                taskCompleteIntent.PutExtra("action", "update");
+                SendBroadcast(taskCompleteIntent);
+            }
+            catch (Exception ex)
+            {
+                //notification
+                Console.WriteLine("Update failed: " + ex.Message);
+            }
         }
 
         private void PerformDelete(string sessionId, string fileName)
         {
-            GrpcClient client = new GrpcClient(CloudStorageAddress);
-            client.DeleteFile(fileName, sessionId);
-            Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
-            taskCompleteIntent.PutExtra("message", "Delete completed for file: " + fileName);
-            taskCompleteIntent.PutExtra("action", "delete");
-            SendBroadcast(taskCompleteIntent);
+            try
+            {
+                GrpcClient client = new GrpcClient(CloudStorageAddress);
+                client.DeleteFile(fileName, sessionId);
+                Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
+                taskCompleteIntent.PutExtra("message", "Delete completed for file: " + fileName);
+                taskCompleteIntent.PutExtra("action", "delete");
+                SendBroadcast(taskCompleteIntent);
+            }
+            catch (Exception ex)
+            {
+                //notification
+                Console.WriteLine("Delete failed: " + ex.Message);
+            }
         }
 
         public override void OnDestroy()

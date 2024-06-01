@@ -21,13 +21,6 @@ namespace StorageAndroidClient
         {
             base.OnCreate(savedInstanceState);
 
-            string username = Intent.GetStringExtra("username");
-            string password = Intent.GetStringExtra("password");
-            if (!string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
-            {
-                await AttemptLogin(username, password);
-            }
-
             SetContentView(Resource.Layout.login);
 
             if (SharedPreferencesManager.GetString("SessionId") == null)
