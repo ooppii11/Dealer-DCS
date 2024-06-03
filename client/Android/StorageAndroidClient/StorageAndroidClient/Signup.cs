@@ -64,10 +64,29 @@ namespace StorageAndroidClient
                     SharedPreferencesManager.SaveString("SessionId", sessionId);
                     NavigateToMainActivity();
                 }
+                catch (Grpc.Core.RpcException ex)
+                {
+                    if (ex.StatusCode == Grpc.Core.StatusCode.Unavailable)
+                    {
+                        ShowErrorMessage("Error connecting to the server. Try signing up again.");
+                    }
+                    else if (ex.StatusCode == Grpc.Core.StatusCode.AlreadyExists)
+                    {
+                        ShowErrorMessage("User name or eamil already in use by another user");
+                    }
+                    else if (ex.StatusCode == Grpc.Core.StatusCode.Internal)
+                    {
+                        ShowErrorMessage("Internal server error. Please try again.");
+                    }
+                    else
+                    {
+                        ShowErrorMessage("An error occurred");
+                    }
+                    throw ex;
+                }
                 catch (Exception ex)
                 {
-                    //need to be more specific with the error message
-                    ShowErrorMessage("Signup failed. Please try again.");
+                    ShowErrorMessage($"Signup failed: Client internal");
                 }
                 
             }

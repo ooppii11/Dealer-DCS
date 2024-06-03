@@ -11,6 +11,9 @@ using AndroidX.Lifecycle;
 using GrpcCloud;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using Grpc;
+using Grpc.Core;
 
 namespace StorageAndroidClient
 {
@@ -140,35 +143,47 @@ namespace StorageAndroidClient
                 return ms.ToArray();
             }
         }
-        private void LoadFileMetadata()
+        private async void LoadFileMetadata()
         {
-            try
+            const int retryDelay = 5000;
+            while (true)
             {
-                GetListOfFilesResponse files = GetFileMetadata();
-                filesContainer.RemoveAllViews();
-
-                foreach (var file in files.Files)
+                try
                 {
-                    AddFileButton(file);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Filed to load metadata");
-                //toast filed to load metadata
-                //if server unavialble: reset cache memory and go to login page:
-                /*
-                SharedPreferencesManager.SaveString("SessionId", null);
-                NavigateToLoginActivity();
-                */
-                //else 
-                /*
-                try periodcly load metadata intill it loads
-                */
+                    GetListOfFilesResponse files = GetFileMetadata();
+                    filesContainer.RemoveAllViews();
 
+                    foreach (var file in files.Files)
+                    {
+                        AddFileButton(file);
+                    }
+                    break;
+                }
+                catch (RpcException ex)
+                {
+                    Console.WriteLine("Filed to load metadata");
+                    if (ex.StatusCode == StatusCode.Unavailable)
+                    {
+                        Toast.MakeText(this, "Error connecting to the server. Try loging in again.", ToastLength.Short).Show();
+                        SharedPreferencesManager.SaveString("SessionId", null);
+                        NavigateToLoginActivity();
+                    }
+                    else
+                    {
+                        Toast.MakeText(this, "Error loading metadata - communication erorr", ToastLength.Short).Show();
+                        await Task.Delay(retryDelay);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Filed to load metadata");
+                    Toast.MakeText(this, "Error loading metadata - internal erorr", ToastLength.Short).Show();
+                    await Task.Delay(retryDelay);
+                }
             }
 
         }
+
 
         private GetListOfFilesResponse GetFileMetadata()
         {

@@ -257,6 +257,16 @@ namespace cloud_server.Services
                 });
 
             }
+            catch (RegistrationException ex)
+            {
+                Console.WriteLine(ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.AlreadyExists, ex.Message);
+                return Task.FromResult(new SignupResponse
+                {
+                    Status = GrpcCloud.Status.Failure,
+                    Message = ex.Message
+                });
+            }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);

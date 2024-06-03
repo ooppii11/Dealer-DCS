@@ -5,6 +5,7 @@ using Android.Widget;
 using AndroidX.AppCompat.App;
 using System.Threading.Tasks;
 using System;
+using Grpc.Core;
 
 namespace StorageAndroidClient
 {
@@ -70,9 +71,28 @@ namespace StorageAndroidClient
                 SharedPreferencesManager.SaveString("SessionId", sessionId);
                 NavigateToMainActivity();
             }
+            catch (RpcException ex)
+            {
+                if (ex.StatusCode == StatusCode.Unavailable)
+                {
+                    ShowErrorMessage("Error connecting to the server. Try loging in again.");
+                }
+                else if (ex.StatusCode == StatusCode.PermissionDenied)
+                {
+                    ShowErrorMessage("Invalid username or password. Please try again.");
+                }
+                else if (ex.StatusCode == StatusCode.Internal)
+                {
+                    ShowErrorMessage("Internal server error. Please try again.");
+                }
+                else
+                {
+                    ShowErrorMessage("An error occurred");
+                }
+            }
             catch (Exception ex)
             {
-                ShowErrorMessage($"Login failed: {ex.Message}");
+                ShowErrorMessage($"Login failed: Client internal");
             }
         }
 

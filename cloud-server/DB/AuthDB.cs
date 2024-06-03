@@ -2,6 +2,7 @@
 using cloud_server.Managers;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using System.Runtime.CompilerServices;
+using cloud_server.Utilities;
 
 public class AuthDB
 {
@@ -61,7 +62,7 @@ public class AuthDB
             }
             catch
             {
-                throw new Exception("username or email already exists");
+                throw new RegistrationException("username or email already exists");
             }
         }
     }
