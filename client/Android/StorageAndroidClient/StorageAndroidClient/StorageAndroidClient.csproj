@@ -60,6 +60,7 @@
     <Reference Include="System.Numerics.Vectors" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Exceptions.cs" />
     <Compile Include="FileService.cs" />
     <Compile Include="GrpcClient.cs" />
     <Compile Include="Login.cs" />

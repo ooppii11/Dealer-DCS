@@ -2,24 +2,22 @@
 using Android.Content;
 using Android.Database;
 using Android.OS;
-using Android.Service.QuickSettings;
 using Android.Views;
 using Android.Widget;
 using AndroidX.AppCompat.App;
 using AndroidX.Core.Content;
-using AndroidX.Lifecycle;
 using GrpcCloud;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
-using Grpc;
 using Grpc.Core;
+using AndroidX.Core.App;
 
 namespace StorageAndroidClient
 {
-    enum FilePickerOperation
+    enum FilePickerOperationId
     {
-        Upload = 1,
+        RequestStoragePermission,
+        Upload,
         Update,
     }
 
@@ -31,7 +29,6 @@ namespace StorageAndroidClient
         LinearLayout filesContainer;
         private TaskCompleteReceiver taskCompleteReceiver;
         private const string CloudStorageAddress = "10.10.0.35:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
-
 
         protected override void OnCreate(Bundle savedInstanceState)
         {
@@ -51,7 +48,38 @@ namespace StorageAndroidClient
             logoutButton.Click += LogoutButton_Click;
             uploadButton.Click += UploadButton_Click;
         }
+        private void RequestStoragePermissions()
+        {
+            if (ContextCompat.CheckSelfPermission(this, Android.Manifest.Permission.ReadExternalStorage) != Android.Content.PM.Permission.Granted ||
+                ContextCompat.CheckSelfPermission(this, Android.Manifest.Permission.WriteExternalStorage) != Android.Content.PM.Permission.Granted)
+            {
+                ActivityCompat.RequestPermissions(this,
+                    new String[] { Android.Manifest.Permission.ReadExternalStorage, Android.Manifest.Permission.WriteExternalStorage },
+                    (int)FilePickerOperationId.RequestStoragePermission);
+            }
+            
+        }
+        public override void OnRequestPermissionsResult(int requestCode, string[] permissions, Android.Content.PM.Permission[] grantResults)
+        {
+            base.OnRequestPermissionsResult(requestCode, permissions, grantResults);
 
+            switch (requestCode)
+            {
+                case (int)FilePickerOperationId.RequestStoragePermission:
+                    {
+                        if (grantResults.Length > 0 && grantResults[0] == Android.Content.PM.Permission.Granted)
+                        {
+                            Toast.MakeText(this, "Storage permissions granted", ToastLength.Short).Show();
+                        }
+                        else
+                        {
+                            Toast.MakeText(this, "Storage permissions denied", ToastLength.Short).Show();
+                            throw new StoragePermissionsDenied("Storage permissions denied");
+                        }
+                        return;
+                    }
+            }
+        }
         private void LogoutButton_Click(object sender, EventArgs e)
         {
             try
@@ -71,10 +99,19 @@ namespace StorageAndroidClient
 
         private void UploadButton_Click(object sender, EventArgs e)
         {
-            StartFilePicker(FilePickerOperation.Upload);
+            try
+            {
+                RequestStoragePermissions();
+                StartFilePicker(FilePickerOperationId.Upload);
+            }
+            catch (StoragePermissionsDenied ex)
+            {
+                Toast.MakeText(this, "can't upload file without permissions", ToastLength.Short).Show();
+            }
+            
         }
 
-        private void StartFilePicker(FilePickerOperation code)
+        private void StartFilePicker(FilePickerOperationId code)
         {
             Intent intent = new Intent(Intent.ActionOpenDocument);
             intent.AddCategory(Intent.CategoryOpenable);
@@ -285,24 +322,48 @@ namespace StorageAndroidClient
 
         private void DownloadFile(string fileName)
         {
-            Intent downloadIntent = new Intent(this, typeof(FileService));
-            downloadIntent.SetAction(FileService.ActionDownload);
-            downloadIntent.PutExtra("FileName", fileName);
-            downloadIntent.PutExtra("SessionId", SharedPreferencesManager.GetString("SessionId"));
-            StartService(downloadIntent);
+            try
+            {
+                RequestStoragePermissions();
+                Intent downloadIntent = new Intent(this, typeof(FileService));
+                downloadIntent.SetAction(FileService.ActionDownload);
+                downloadIntent.PutExtra("FileName", fileName);
+                downloadIntent.PutExtra("SessionId", SharedPreferencesManager.GetString("SessionId"));
+                StartService(downloadIntent);
+            }
+            catch (StoragePermissionsDenied ex)
+            {
+                Toast.MakeText(this, "can't upload file without permissions", ToastLength.Short).Show();
+            }
         }
         private void DeleteFile(string fileName)
         {
-            Intent deleteIntent = new Intent(this, typeof(FileService));
-            deleteIntent.SetAction(FileService.ActionDelete);
-            deleteIntent.PutExtra("FileName", fileName);
-            deleteIntent.PutExtra("SessionId", SharedPreferencesManager.GetString("SessionId"));
-            StartService(deleteIntent);
+            try
+            {
+                RequestStoragePermissions();
+                Intent deleteIntent = new Intent(this, typeof(FileService));
+                deleteIntent.SetAction(FileService.ActionDelete);
+                deleteIntent.PutExtra("FileName", fileName);
+                deleteIntent.PutExtra("SessionId", SharedPreferencesManager.GetString("SessionId"));
+                StartService(deleteIntent);
+            }
+            catch (StoragePermissionsDenied ex)
+            {
+                Toast.MakeText(this, "can't upload file without permissions", ToastLength.Short).Show();
+            }
         }
 
         private void UpdateFile(string fileName)
         {
-            StartFilePicker(FilePickerOperation.Update);
+            try
+            {
+                RequestStoragePermissions();
+                StartFilePicker(FilePickerOperationId.Update);
+            }
+            catch (StoragePermissionsDenied ex)
+            {
+                Toast.MakeText(this, "can't upload file without permissions", ToastLength.Short).Show();
+            }
         }
 
         private void StartUpdateService(byte[] fileData, string name)
