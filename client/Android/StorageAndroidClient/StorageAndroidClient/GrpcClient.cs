@@ -37,49 +37,49 @@ namespace StorageAndroidClient
         }
 
 
-        public SignupResponse Signup(string username, string email, string password, string phoneNumber, int timeoutSeconds = 5)
+        public SignupResponse Signup(string username, string email, string password, string phoneNumber, int timeoutSeconds = 4)
         {
             var request = new SignupRequest { Username = username, Email = email, Password = password, PhoneNumber = phoneNumber };
             var response = this._client.signup(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
             return response;
         }
 
-        public async Task<SignupResponse> SignupAsync(string username, string email, string password, string phoneNumber, int timeoutSeconds = 5)
+        public async Task<SignupResponse> SignupAsync(string username, string email, string password, string phoneNumber, int timeoutSeconds = 4)
         {
             var request = new SignupRequest { Username = username, Email = email, Password = password, PhoneNumber = phoneNumber };
             var response = await this._client.signupAsync(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
             return response;
         }
 
-        public LoginResponse Login(string username, string password, int timeoutSeconds = 5)
+        public LoginResponse Login(string username, string password, int timeoutSeconds = 4)
         {
             var request = new LoginRequest { Username = username, Password = password };
             var response = this._client.login(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
             return response;
         }
 
-        public async Task<LoginResponse> loginAsync(string username, string password, int timeoutSeconds = 5)
+        public async Task<LoginResponse> loginAsync(string username, string password, int timeoutSeconds = 4)
         {
             var request = new LoginRequest { Username = username, Password = password };
             var response = await this._client.loginAsync(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
             return response;
         }
 
-        public LogoutResponse Logout(string sessionId, int timeoutSeconds = 5)
+        public LogoutResponse Logout(string sessionId, int timeoutSeconds = 4)
         {
             var request = new LogoutRequest { SessionId = sessionId };
             var response = this._client.logout(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
             return response;
         }
 
-        public GetListOfFilesResponse GetFiles(string sessionId, int timeoutSeconds = 5)
+        public GetListOfFilesResponse GetFiles(string sessionId, int timeoutSeconds = 4)
         {
             var request = new GetListOfFilesRequest { SessionId = sessionId };
             var response = this._client.getListOfFiles(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
             return response;
         }
 
-        public async Task<UploadFileResponse> UploadFile(string fileName, string sessionId, byte[] fileData, string fileType, int timeoutSeconds = 5)
+        public async Task<UploadFileResponse> UploadFile(string fileName, string sessionId, byte[] fileData, string fileType, int timeoutSeconds = 4)
         {
             List<UploadFileRequest> requests = CreateRequests<UploadFileRequest>(fileName, sessionId, fileData, fileType);
 
@@ -96,7 +96,7 @@ namespace StorageAndroidClient
             return response;
         }
 
-        public async Task<byte[]> DownloadFile(string fileName, string sessionId, int timeoutSeconds = 5)
+        public async Task<byte[]> DownloadFile(string fileName, string sessionId, int timeoutSeconds = 4)
         {
             DownloadFileRequest request = new DownloadFileRequest { SessionId = sessionId, FileName = fileName };
 
@@ -114,7 +114,7 @@ namespace StorageAndroidClient
             }
         }
 
-        public async Task<UpdateFileResponse> UpdateFile(string fileName, string sessionId, byte[] fileData, int timeoutSeconds = 5)
+        public async Task<UpdateFileResponse> UpdateFile(string fileName, string sessionId, byte[] fileData, int timeoutSeconds = 4)
         {
             List<UpdateFileRequest> requests = CreateRequests<UpdateFileRequest>(fileName, sessionId, fileData);
 
