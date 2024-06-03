@@ -66,7 +66,7 @@ namespace StorageAndroidClient
                 }
                 catch (Grpc.Core.RpcException ex)
                 {
-                    if (ex.StatusCode == Grpc.Core.StatusCode.Unavailable)
+                    if (ex.StatusCode == Grpc.Core.StatusCode.Unavailable || ex.StatusCode == Grpc.Core.StatusCode.DeadlineExceeded)
                     {
                         ShowErrorMessage("Error connecting to the server. Try signing up again.");
                     }
