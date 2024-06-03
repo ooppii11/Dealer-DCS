@@ -129,7 +129,7 @@ namespace cloud_server.Services
                             {
                                 if (taskResult.IsCompleted)
                                 {
-                                    if (taskResult.IsFaulted && taskResult.Exception.InnerException is RpcException)
+                                    if (taskResult.IsFaulted && taskResult.Exception.InnerException is RpcException rpcException && (rpcException.Status.StatusCode == StatusCode.Unavailable || rpcException.Status.StatusCode == StatusCode.PermissionDenied))
                                     {
                                         //Console.WriteLine(taskResult.Exception.InnerException);
                                         stopProcessingQueueNow = true;
@@ -256,6 +256,16 @@ namespace cloud_server.Services
                     Message = ""
                 });
 
+            }
+            catch (RegistrationException ex)
+            {
+                Console.WriteLine(ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.AlreadyExists, ex.Message);
+                return Task.FromResult(new SignupResponse
+                {
+                    Status = GrpcCloud.Status.Failure,
+                    Message = ex.Message
+                });
             }
             catch (Exception ex)
             {
@@ -419,7 +429,7 @@ namespace cloud_server.Services
             }
             catch (AuthenticationException ex)
             {
-                context.Status = new Grpc.Core.Status(StatusCode.PermissionDenied, ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Unauthenticated, ex.Message);
                 return new GetFileMetadataResponse { Message = $"Error: {ex.Message}" , Status = GrpcCloud.Status.Failure};
             }
             catch (Exception ex)
@@ -443,7 +453,7 @@ namespace cloud_server.Services
             }
             catch (AuthenticationException ex)
             {
-                context.Status = new Grpc.Core.Status(StatusCode.PermissionDenied, ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Unauthenticated, ex.Message);
                 return new DeleteFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
             }
             catch (Exception ex)
@@ -469,7 +479,7 @@ namespace cloud_server.Services
             }
             catch (AuthenticationException ex)
             {
-                context.Status = new Grpc.Core.Status(StatusCode.PermissionDenied, ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Unauthenticated, ex.Message);
                 await responseStream.WriteAsync(new DownloadFileResponse { Status = GrpcCloud.Status.Failure, Message = $"Error: {ex.Message}", FileData = ByteString.Empty });
                 return;
             }
@@ -506,7 +516,12 @@ namespace cloud_server.Services
             }
             catch (AuthenticationException ex)
             {
-                context.Status = new Grpc.Core.Status(StatusCode.PermissionDenied, ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Unauthenticated, ex.Message);
+                return new UpdateFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
+            }
+            catch (FileDoesNotExistException ex)
+            {
+                context.Status = new Grpc.Core.Status(StatusCode.NotFound, ex.Message);
                 return new UpdateFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
             }
             catch (RpcException ex)
@@ -552,7 +567,12 @@ namespace cloud_server.Services
             }
             catch (AuthenticationException ex)
             {
-                context.Status = new Grpc.Core.Status(StatusCode.PermissionDenied, ex.Message);
+                context.Status = new Grpc.Core.Status(StatusCode.Unauthenticated, ex.Message);
+                return new UploadFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
+            }
+            catch (FileAlreadyExistException ex)
+            {
+                context.Status = new Grpc.Core.Status(StatusCode.AlreadyExists, ex.Message);
                 return new UploadFileResponse { Message = $"Error: {ex.Message}", Status = GrpcCloud.Status.Failure };
             }
             catch (RpcException ex)
@@ -686,7 +706,7 @@ namespace cloud_server.Services
             return new UpdateFileResponse()
             {
                 Status = GrpcCloud.Status.Success,
-                Message = "File uploaded successfully."
+                Message = "File updated successfully."
             };
         }
 

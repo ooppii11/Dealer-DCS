@@ -65,9 +65,9 @@ class FileStorageManager:
             None
 
         """
-        self._drive = DriveServiceHelper.authenticate(self._credentials_file)
+        drive = DriveServiceHelper.authenticate(self._credentials_file)
         file = UploadFile(file_bytes, filename, mimetype, self._region_folder_id)
-        DriveServiceHelper.upload_file(self._drive, file)
+        DriveServiceHelper.upload_file(drive, file)
 
 
     def download_file(self, filename: str) -> bytes:

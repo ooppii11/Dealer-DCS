@@ -1,0 +1,175 @@
+﻿using Grpc.Core;
+using Grpc;
+using GrpcCloud;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.IO;
+using Google.Protobuf;
+using System;
+
+namespace StorageAndroidClient
+{
+    public class GrpcClient
+    {
+        private readonly Channel _channel;
+        private Cloud.CloudClient _client;
+        private const int _MaxFileChunckLength = 31457;
+
+        public GrpcClient(string host, int port)
+        {
+            this._channel = new Channel(host, port, ChannelCredentials.Insecure);
+            this._client = new Cloud.CloudClient(this._channel);
+        }
+
+        public GrpcClient(string address)
+        {
+            this._channel = new Channel(address, ChannelCredentials.Insecure);
+            this._client = new Cloud.CloudClient(this._channel);
+        }
+
+        ~GrpcClient()
+        {
+            _channel.ShutdownAsync().Wait();
+        }
+        public async Task ShutdownAsync()
+        {
+            await _channel.ShutdownAsync();
+        }
+
+
+        public SignupResponse Signup(string username, string email, string password, string phoneNumber, int timeoutSeconds = 5)
+        {
+            var request = new SignupRequest { Username = username, Email = email, Password = password, PhoneNumber = phoneNumber };
+            var response = this._client.signup(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+            return response;
+        }
+
+        public async Task<SignupResponse> SignupAsync(string username, string email, string password, string phoneNumber, int timeoutSeconds = 5)
+        {
+            var request = new SignupRequest { Username = username, Email = email, Password = password, PhoneNumber = phoneNumber };
+            var response = await this._client.signupAsync(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+            return response;
+        }
+
+        public LoginResponse Login(string username, string password, int timeoutSeconds = 5)
+        {
+            var request = new LoginRequest { Username = username, Password = password };
+            var response = this._client.login(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+            return response;
+        }
+
+        public async Task<LoginResponse> loginAsync(string username, string password, int timeoutSeconds = 5)
+        {
+            var request = new LoginRequest { Username = username, Password = password };
+            var response = await this._client.loginAsync(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+            return response;
+        }
+
+        public LogoutResponse Logout(string sessionId, int timeoutSeconds = 5)
+        {
+            var request = new LogoutRequest { SessionId = sessionId };
+            var response = this._client.logout(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+            return response;
+        }
+
+        public GetListOfFilesResponse GetFiles(string sessionId, int timeoutSeconds = 5)
+        {
+            var request = new GetListOfFilesRequest { SessionId = sessionId };
+            var response = this._client.getListOfFiles(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+            return response;
+        }
+
+        public async Task<UploadFileResponse> UploadFile(string fileName, string sessionId, byte[] fileData, string fileType, int timeoutSeconds = 5)
+        {
+            List<UploadFileRequest> requests = CreateRequests<UploadFileRequest>(fileName, sessionId, fileData, fileType);
+
+            var call = this._client.UploadFile(deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+
+            foreach (var request in requests)
+            {
+                await call.RequestStream.WriteAsync(request);
+            }
+
+            await call.RequestStream.CompleteAsync();
+
+            var response = await call.ResponseAsync;
+            return response;
+        }
+
+        public async Task<byte[]> DownloadFile(string fileName, string sessionId, int timeoutSeconds = 5)
+        {
+            DownloadFileRequest request = new DownloadFileRequest { SessionId = sessionId, FileName = fileName };
+
+            using (var call = this._client.DownloadFile(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds)))
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    while (await call.ResponseStream.MoveNext())
+                    {
+                        var chunk = call.ResponseStream.Current.FileData;
+                        await memoryStream.WriteAsync(chunk.ToByteArray(), 0, chunk.Length);
+                    }
+                    return memoryStream.ToArray();
+                }
+            }
+        }
+
+        public async Task<UpdateFileResponse> UpdateFile(string fileName, string sessionId, byte[] fileData, int timeoutSeconds = 5)
+        {
+            List<UpdateFileRequest> requests = CreateRequests<UpdateFileRequest>(fileName, sessionId, fileData);
+
+            var call = this._client.UpdateFile(deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+
+            foreach (var request in requests)
+            {
+                await call.RequestStream.WriteAsync(request);
+            }
+
+            await call.RequestStream.CompleteAsync();
+
+            var response = await call.ResponseAsync;
+            return response;
+        }
+
+        private List<T> CreateRequests<T>(string fileName, string sessionId, byte[] fileData, string type = null) where T : IMessage<T>, new()
+        {
+            var requests = new List<T>();
+            int chunkSize = GrpcClient._MaxFileChunckLength;
+            int numberOfChunks = fileData.Length / chunkSize + (fileData.Length % chunkSize == 0 ? 0 : 1);
+
+            for (int i = 0; i < numberOfChunks; i++)
+            {
+                int currentChunkSize = Math.Min(chunkSize, fileData.Length - i * chunkSize);
+                byte[] chunk = new byte[currentChunkSize];
+                Array.Copy(fileData, i * chunkSize, chunk, 0, currentChunkSize);
+
+                if (typeof(T) == typeof(UploadFileRequest))
+                {
+                    var uploadRequest = new UploadFileRequest();
+                    uploadRequest.FileName = fileName;
+                    uploadRequest.SessionId = sessionId;
+                    uploadRequest.FileData = Google.Protobuf.ByteString.CopyFrom(chunk);
+                    uploadRequest.Type = type;
+                    requests.Add((T)(IMessage)uploadRequest);
+                }
+                else if (typeof(T) == typeof(UpdateFileRequest))
+                {
+                    var updateRequest = new UpdateFileRequest();
+                    updateRequest.FileName = fileName;
+                    updateRequest.SessionId = sessionId;
+                    updateRequest.FileData = Google.Protobuf.ByteString.CopyFrom(chunk);
+                    requests.Add((T)(IMessage)updateRequest);
+                }
+            }
+
+            return requests;
+        }
+
+        public DeleteFileResponse DeleteFile(string fileName, string sessionId)
+        {
+            var request = new DeleteFileRequest { FileName = fileName, SessionId = sessionId };
+            var response = this._client.DeleteFile(request);
+            return response;
+        }
+    }
+}
