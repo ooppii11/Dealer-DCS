@@ -72,7 +72,7 @@ namespace StorageAndroidClient
                     }
                     else if (ex.StatusCode == Grpc.Core.StatusCode.AlreadyExists)
                     {
-                        ShowErrorMessage("User name or eamil already in use by another user");
+                        ShowErrorMessage("Username or Eamil already in use by another user");
                     }
                     else if (ex.StatusCode == Grpc.Core.StatusCode.Internal)
                     {
@@ -82,7 +82,6 @@ namespace StorageAndroidClient
                     {
                         ShowErrorMessage("An error occurred");
                     }
-                    throw ex;
                 }
                 catch (Exception ex)
                 {

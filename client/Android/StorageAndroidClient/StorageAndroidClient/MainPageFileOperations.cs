@@ -11,6 +11,7 @@ using System;
 using System.Threading.Tasks;
 using Grpc.Core;
 using AndroidX.Core.App;
+using System.Threading;
 
 namespace StorageAndroidClient
 {
@@ -29,7 +30,7 @@ namespace StorageAndroidClient
         LinearLayout filesContainer;
         private TaskCompleteReceiver taskCompleteReceiver;
         private const string CloudStorageAddress = "10.10.0.35:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
-
+        private bool permissionGranted = false;
         protected override void OnCreate(Bundle savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
@@ -37,6 +38,7 @@ namespace StorageAndroidClient
             taskCompleteReceiver = new TaskCompleteReceiver(this);
             InitializeUI();
             LoadFileMetadata();
+            RequestStoragePermissions();
         }
 
         private void InitializeUI()
@@ -57,6 +59,10 @@ namespace StorageAndroidClient
                     new String[] { Android.Manifest.Permission.ReadExternalStorage, Android.Manifest.Permission.WriteExternalStorage },
                     (int)FilePickerOperationId.RequestStoragePermission);
             }
+            else
+            {
+                permissionGranted = true;
+            }
             
         }
         public override void OnRequestPermissionsResult(int requestCode, string[] permissions, Android.Content.PM.Permission[] grantResults)
@@ -69,12 +75,11 @@ namespace StorageAndroidClient
                     {
                         if (grantResults.Length > 0 && grantResults[0] == Android.Content.PM.Permission.Granted)
                         {
-                            Toast.MakeText(this, "Storage permissions granted", ToastLength.Short).Show();
+                            permissionGranted = true;
                         }
                         else
                         {
-                            Toast.MakeText(this, "Storage permissions denied", ToastLength.Short).Show();
-                            throw new StoragePermissionsDenied("Storage permissions denied");
+                            permissionGranted = false;
                         }
                         return;
                     }
@@ -99,16 +104,15 @@ namespace StorageAndroidClient
 
         private void UploadButton_Click(object sender, EventArgs e)
         {
-            try
+            RequestStoragePermissions();
+            if (permissionGranted)
             {
-                RequestStoragePermissions();
                 StartFilePicker(FilePickerOperationId.Upload);
             }
-            catch (StoragePermissionsDenied ex)
+            else
             {
                 Toast.MakeText(this, "can't upload file without permissions", ToastLength.Short).Show();
             }
-            
         }
 
         private void StartFilePicker(FilePickerOperationId code)
@@ -201,9 +205,17 @@ namespace StorageAndroidClient
                     Console.WriteLine("Filed to load metadata");
                     if (ex.StatusCode == StatusCode.Unavailable)
                     {
-                        Toast.MakeText(this, "Error connecting to the server. Try loging in again.", ToastLength.Short).Show();
+                        Toast.MakeText(this, "Error connecting to the server.", ToastLength.Short).Show();
                         SharedPreferencesManager.SaveString("SessionId", null);
                         NavigateToLoginActivity();
+                        break;
+                    }
+                    else if (ex.StatusCode == StatusCode.PermissionDenied || ex.StatusCode == StatusCode.Unauthenticated)
+                    {
+                        Toast.MakeText(this, "Invalid session id", ToastLength.Short).Show();
+                        SharedPreferencesManager.SaveString("SessionId", null);
+                        NavigateToLoginActivity();
+                        break;
                     }
                     else
                     {
@@ -322,47 +334,41 @@ namespace StorageAndroidClient
 
         private void DownloadFile(string fileName)
         {
-            try
+            RequestStoragePermissions();
+            if (permissionGranted)
             {
-                RequestStoragePermissions();
-                Intent downloadIntent = new Intent(this, typeof(FileService));
-                downloadIntent.SetAction(FileService.ActionDownload);
-                downloadIntent.PutExtra("FileName", fileName);
-                downloadIntent.PutExtra("SessionId", SharedPreferencesManager.GetString("SessionId"));
-                StartService(downloadIntent);
+                StartFilePicker(FilePickerOperationId.Upload);
             }
-            catch (StoragePermissionsDenied ex)
+            else
             {
-                Toast.MakeText(this, "can't upload file without permissions", ToastLength.Short).Show();
+                Toast.MakeText(this, "can't Download file without permissions", ToastLength.Short).Show();
             }
+            Intent downloadIntent = new Intent(this, typeof(FileService));
+            downloadIntent.SetAction(FileService.ActionDownload);
+            downloadIntent.PutExtra("FileName", fileName);
+            downloadIntent.PutExtra("SessionId", SharedPreferencesManager.GetString("SessionId"));
+            StartService(downloadIntent);
         }
+
         private void DeleteFile(string fileName)
         {
-            try
-            {
-                RequestStoragePermissions();
-                Intent deleteIntent = new Intent(this, typeof(FileService));
-                deleteIntent.SetAction(FileService.ActionDelete);
-                deleteIntent.PutExtra("FileName", fileName);
-                deleteIntent.PutExtra("SessionId", SharedPreferencesManager.GetString("SessionId"));
-                StartService(deleteIntent);
-            }
-            catch (StoragePermissionsDenied ex)
-            {
-                Toast.MakeText(this, "can't upload file without permissions", ToastLength.Short).Show();
-            }
+            Intent deleteIntent = new Intent(this, typeof(FileService));
+            deleteIntent.SetAction(FileService.ActionDelete);
+            deleteIntent.PutExtra("FileName", fileName);
+            deleteIntent.PutExtra("SessionId", SharedPreferencesManager.GetString("SessionId"));
+            StartService(deleteIntent);
         }
 
         private void UpdateFile(string fileName)
         {
-            try
+            RequestStoragePermissions();
+            if (permissionGranted)
             {
-                RequestStoragePermissions();
-                StartFilePicker(FilePickerOperationId.Update);
+                StartFilePicker(FilePickerOperationId.Upload);
             }
-            catch (StoragePermissionsDenied ex)
+            else
             {
-                Toast.MakeText(this, "can't upload file without permissions", ToastLength.Short).Show();
+                Toast.MakeText(this, "can't update file without permissions", ToastLength.Short).Show();
             }
         }
 
