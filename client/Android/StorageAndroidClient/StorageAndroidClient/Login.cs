@@ -73,7 +73,7 @@ namespace StorageAndroidClient
             }
             catch (RpcException ex)
             {
-                if (ex.StatusCode == StatusCode.Unavailable)
+                if (ex.StatusCode == StatusCode.Unavailable || ex.StatusCode == StatusCode.DeadlineExceeded)
                 {
                     ShowErrorMessage("Error connecting to the server. Try loging in again.");
                 }
