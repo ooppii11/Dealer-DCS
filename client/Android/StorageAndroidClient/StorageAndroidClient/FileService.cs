@@ -1,11 +1,16 @@
 ﻿using Android.App;
 using Android.Content;
 using Android.OS;
+using Android.Widget;
 using AndroidX.Core.App;
 using AndroidX.Lifecycle;
+using Grpc.Core;
+using GrpcCloud;
+using Java.Nio.FileNio;
 using System;
 using System.Collections.Concurrent;
 using System.Net.Sockets;
+using System.Runtime.Remoting.Contexts;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -116,22 +121,28 @@ namespace StorageAndroidClient
             }
         }
 
-        
+        private void SendBroadcast(string action, string message) 
+        {
+            Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
+            Toast.MakeText(this, message, ToastLength.Short).Show();
+            taskCompleteIntent.PutExtra("action", action);
+            SendBroadcast(taskCompleteIntent);
+        }
         private async void PerformUpload(string sessionId, string fileName, string type, byte[] fileData)
         {
             try
             {
                 GrpcClient client = new GrpcClient(CloudStorageAddress);
                 await client.UploadFile(fileName, sessionId, fileData, type);
-                Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
-                taskCompleteIntent.PutExtra("message", "Upload completed for file: " + fileName);
-                taskCompleteIntent.PutExtra("action", "upload");
-                SendBroadcast(taskCompleteIntent);
+                SendBroadcast("upload", ("Upload completed for file: " + fileName));
             }
-            catch (Exception ex)
+            catch (RpcException ex)
             {
-                //notification
-                Console.WriteLine("Upload failed: " + ex.Message);
+                SendBroadcast("fail", ex.Message);
+            }
+            catch
+            {
+                SendBroadcast("fail", "Upload failed: internal");
             }
         }
 
@@ -146,10 +157,13 @@ namespace StorageAndroidClient
                 taskCompleteIntent.PutExtra("action", "download");
                 SendBroadcast(taskCompleteIntent);
             }
-            catch (Exception ex)
+            catch (RpcException ex)
             {
-                //notification
-                Console.WriteLine("Download failed: " + ex.Message);
+                SendBroadcast("fail", ex.Message);
+            }
+            catch
+            {
+                SendBroadcast("fail", "Download failed: internal");
             }
         }
 
@@ -173,7 +187,6 @@ namespace StorageAndroidClient
             }
             catch (System.Exception ex)
             {
-                //notification
                 Console.WriteLine("Error saving file: " + ex.Message);
             }
         }
@@ -188,10 +201,13 @@ namespace StorageAndroidClient
                 taskCompleteIntent.PutExtra("action", "update");
                 SendBroadcast(taskCompleteIntent);
             }
-            catch (Exception ex)
+            catch (RpcException ex)
             {
-                //notification
-                Console.WriteLine("Update failed: " + ex.Message);
+                SendBroadcast("fail", ex.Message);
+            }
+            catch
+            {
+                SendBroadcast("fail", "Update failed: internal");
             }
         }
 
@@ -206,10 +222,14 @@ namespace StorageAndroidClient
                 taskCompleteIntent.PutExtra("action", "delete");
                 SendBroadcast(taskCompleteIntent);
             }
-            catch (Exception ex)
+            catch (RpcException ex)
+            {
+                SendBroadcast("fail", ex.Message);
+            }
+            catch
             {
                 //notification
-                Console.WriteLine("Delete failed: " + ex.Message);
+                SendBroadcast("fail", "Delete failed: internal");
             }
         }
 

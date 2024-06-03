@@ -411,10 +411,8 @@ namespace StorageAndroidClient
 
             public override void OnReceive(Context context, Intent intent)
             {
-                string message = intent.GetStringExtra("message");
                 string action = intent.GetStringExtra("action");
-                Toast.MakeText(context, message, ToastLength.Short).Show();
-
+                
                 if (action != null && action != "download")
                 {
                     activity.LoadFileMetadata();
