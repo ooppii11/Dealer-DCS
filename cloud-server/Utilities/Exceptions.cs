@@ -23,6 +23,17 @@
     }
 
     [Serializable]
+    public class RegistrationException : Exception
+    {
+        public RegistrationException() { }
+        public RegistrationException(string message) : base(message) { }
+        public RegistrationException(string message, Exception inner) : base(message, inner) { }
+        protected RegistrationException(
+          System.Runtime.Serialization.SerializationInfo info,
+          System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
+    }
+
+    [Serializable]
     public class FileErrorsException : Exception
     {
         public FileErrorsException() { }

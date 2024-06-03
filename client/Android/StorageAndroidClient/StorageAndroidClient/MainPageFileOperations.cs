@@ -2,21 +2,23 @@
 using Android.Content;
 using Android.Database;
 using Android.OS;
-using Android.Service.QuickSettings;
 using Android.Views;
 using Android.Widget;
 using AndroidX.AppCompat.App;
 using AndroidX.Core.Content;
-using AndroidX.Lifecycle;
 using GrpcCloud;
 using System;
-using System.Collections.Generic;
+using System.Threading.Tasks;
+using Grpc.Core;
+using AndroidX.Core.App;
+using System.Threading;
 
 namespace StorageAndroidClient
 {
-    enum FilePickerOperation
+    enum FilePickerOperationId
     {
-        Upload = 1,
+        RequestStoragePermission,
+        Upload,
         Update,
     }
 
@@ -28,8 +30,7 @@ namespace StorageAndroidClient
         LinearLayout filesContainer;
         private TaskCompleteReceiver taskCompleteReceiver;
         private const string CloudStorageAddress = "10.10.0.35:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
-
-
+        private bool permissionGranted = false;
         protected override void OnCreate(Bundle savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
@@ -37,6 +38,7 @@ namespace StorageAndroidClient
             taskCompleteReceiver = new TaskCompleteReceiver(this);
             InitializeUI();
             LoadFileMetadata();
+            RequestStoragePermissions();
         }
 
         private void InitializeUI()
@@ -48,7 +50,41 @@ namespace StorageAndroidClient
             logoutButton.Click += LogoutButton_Click;
             uploadButton.Click += UploadButton_Click;
         }
+        private void RequestStoragePermissions()
+        {
+            if (ContextCompat.CheckSelfPermission(this, Android.Manifest.Permission.ReadExternalStorage) != Android.Content.PM.Permission.Granted ||
+                ContextCompat.CheckSelfPermission(this, Android.Manifest.Permission.WriteExternalStorage) != Android.Content.PM.Permission.Granted)
+            {
+                ActivityCompat.RequestPermissions(this,
+                    new String[] { Android.Manifest.Permission.ReadExternalStorage, Android.Manifest.Permission.WriteExternalStorage },
+                    (int)FilePickerOperationId.RequestStoragePermission);
+            }
+            else
+            {
+                permissionGranted = true;
+            }
+            
+        }
+        public override void OnRequestPermissionsResult(int requestCode, string[] permissions, Android.Content.PM.Permission[] grantResults)
+        {
+            base.OnRequestPermissionsResult(requestCode, permissions, grantResults);
 
+            switch (requestCode)
+            {
+                case (int)FilePickerOperationId.RequestStoragePermission:
+                    {
+                        if (grantResults.Length > 0 && grantResults[0] == Android.Content.PM.Permission.Granted)
+                        {
+                            permissionGranted = true;
+                        }
+                        else
+                        {
+                            permissionGranted = false;
+                        }
+                        return;
+                    }
+            }
+        }
         private void LogoutButton_Click(object sender, EventArgs e)
         {
             try
@@ -68,10 +104,18 @@ namespace StorageAndroidClient
 
         private void UploadButton_Click(object sender, EventArgs e)
         {
-            StartFilePicker(FilePickerOperation.Upload);
+            RequestStoragePermissions();
+            if (permissionGranted)
+            {
+                StartFilePicker(FilePickerOperationId.Upload);
+            }
+            else
+            {
+                Toast.MakeText(this, "can't upload file without permissions", ToastLength.Short).Show();
+            }
         }
 
-        private void StartFilePicker(FilePickerOperation code)
+        private void StartFilePicker(FilePickerOperationId code)
         {
             Intent intent = new Intent(Intent.ActionOpenDocument);
             intent.AddCategory(Intent.CategoryOpenable);
@@ -140,35 +184,55 @@ namespace StorageAndroidClient
                 return ms.ToArray();
             }
         }
-        private void LoadFileMetadata()
+        private async void LoadFileMetadata()
         {
-            try
+            const int retryDelay = 5000;
+            while (true)
             {
-                GetListOfFilesResponse files = GetFileMetadata();
-                filesContainer.RemoveAllViews();
-
-                foreach (var file in files.Files)
+                try
                 {
-                    AddFileButton(file);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Filed to load metadata");
-                //toast filed to load metadata
-                //if server unavialble: reset cache memory and go to login page:
-                /*
-                SharedPreferencesManager.SaveString("SessionId", null);
-                NavigateToLoginActivity();
-                */
-                //else 
-                /*
-                try periodcly load metadata intill it loads
-                */
+                    GetListOfFilesResponse files = GetFileMetadata();
+                    filesContainer.RemoveAllViews();
 
+                    foreach (var file in files.Files)
+                    {
+                        AddFileButton(file);
+                    }
+                    break;
+                }
+                catch (RpcException ex)
+                {
+                    Console.WriteLine("Filed to load metadata");
+                    if (ex.StatusCode == StatusCode.Unavailable)
+                    {
+                        Toast.MakeText(this, "Error connecting to the server.", ToastLength.Short).Show();
+                        SharedPreferencesManager.SaveString("SessionId", null);
+                        NavigateToLoginActivity();
+                        break;
+                    }
+                    else if (ex.StatusCode == StatusCode.PermissionDenied || ex.StatusCode == StatusCode.Unauthenticated)
+                    {
+                        Toast.MakeText(this, "Invalid session id", ToastLength.Short).Show();
+                        SharedPreferencesManager.SaveString("SessionId", null);
+                        NavigateToLoginActivity();
+                        break;
+                    }
+                    else
+                    {
+                        Toast.MakeText(this, "Error loading metadata - communication erorr", ToastLength.Short).Show();
+                        await Task.Delay(retryDelay);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Filed to load metadata");
+                    Toast.MakeText(this, "Error loading metadata - internal erorr", ToastLength.Short).Show();
+                    await Task.Delay(retryDelay);
+                }
             }
 
         }
+
 
         private GetListOfFilesResponse GetFileMetadata()
         {
@@ -270,12 +334,22 @@ namespace StorageAndroidClient
 
         private void DownloadFile(string fileName)
         {
+            RequestStoragePermissions();
+            if (permissionGranted)
+            {
+                StartFilePicker(FilePickerOperationId.Upload);
+            }
+            else
+            {
+                Toast.MakeText(this, "can't Download file without permissions", ToastLength.Short).Show();
+            }
             Intent downloadIntent = new Intent(this, typeof(FileService));
             downloadIntent.SetAction(FileService.ActionDownload);
             downloadIntent.PutExtra("FileName", fileName);
             downloadIntent.PutExtra("SessionId", SharedPreferencesManager.GetString("SessionId"));
             StartService(downloadIntent);
         }
+
         private void DeleteFile(string fileName)
         {
             Intent deleteIntent = new Intent(this, typeof(FileService));
@@ -287,7 +361,15 @@ namespace StorageAndroidClient
 
         private void UpdateFile(string fileName)
         {
-            StartFilePicker(FilePickerOperation.Update);
+            RequestStoragePermissions();
+            if (permissionGranted)
+            {
+                StartFilePicker(FilePickerOperationId.Upload);
+            }
+            else
+            {
+                Toast.MakeText(this, "can't update file without permissions", ToastLength.Short).Show();
+            }
         }
 
         private void StartUpdateService(byte[] fileData, string name)
@@ -329,10 +411,8 @@ namespace StorageAndroidClient
 
             public override void OnReceive(Context context, Intent intent)
             {
-                string message = intent.GetStringExtra("message");
                 string action = intent.GetStringExtra("action");
-                Toast.MakeText(context, message, ToastLength.Short).Show();
-
+                
                 if (action != null && action != "download")
                 {
                     activity.LoadFileMetadata();

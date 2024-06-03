@@ -13,7 +13,7 @@ namespace StorageAndroidClient
     {
         private readonly Channel _channel;
         private Cloud.CloudClient _client;
-        private const int MaxFileChunckLength = 31457;
+        private const int _MaxFileChunckLength = 31457;
 
         public GrpcClient(string host, int port)
         {
@@ -37,53 +37,53 @@ namespace StorageAndroidClient
         }
 
 
-        public SignupResponse Signup(string username, string email, string password, string phoneNumber)
+        public SignupResponse Signup(string username, string email, string password, string phoneNumber, int timeoutSeconds = 5)
         {
             var request = new SignupRequest { Username = username, Email = email, Password = password, PhoneNumber = phoneNumber };
-            var response = this._client.signup(request);
+            var response = this._client.signup(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
             return response;
         }
 
-        public async Task<SignupResponse> SignupAsync(string username, string email, string password, string phoneNumber)
+        public async Task<SignupResponse> SignupAsync(string username, string email, string password, string phoneNumber, int timeoutSeconds = 5)
         {
             var request = new SignupRequest { Username = username, Email = email, Password = password, PhoneNumber = phoneNumber };
-            var response = await this._client.signupAsync(request);
+            var response = await this._client.signupAsync(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
             return response;
         }
 
-        public LoginResponse Login(string username, string password)
+        public LoginResponse Login(string username, string password, int timeoutSeconds = 5)
         {
             var request = new LoginRequest { Username = username, Password = password };
-            var response = this._client.login(request);
+            var response = this._client.login(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
             return response;
         }
 
-        public async Task<LoginResponse> loginAsync(string username, string password)
+        public async Task<LoginResponse> loginAsync(string username, string password, int timeoutSeconds = 5)
         {
             var request = new LoginRequest { Username = username, Password = password };
-            var response = await this._client.loginAsync(request);
+            var response = await this._client.loginAsync(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
             return response;
         }
 
-        public LogoutResponse Logout(string sessionId)
+        public LogoutResponse Logout(string sessionId, int timeoutSeconds = 5)
         {
             var request = new LogoutRequest { SessionId = sessionId };
-            var response = this._client.logout(request);
+            var response = this._client.logout(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
             return response;
         }
 
-        public GetListOfFilesResponse GetFiles(string sessionId)
+        public GetListOfFilesResponse GetFiles(string sessionId, int timeoutSeconds = 5)
         {
             var request = new GetListOfFilesRequest { SessionId = sessionId };
-            var response = this._client.getListOfFiles(request);
+            var response = this._client.getListOfFiles(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
             return response;
         }
 
-        public async Task<UploadFileResponse> UploadFile(string fileName, string sessionId, byte[] fileData, string fileType)
+        public async Task<UploadFileResponse> UploadFile(string fileName, string sessionId, byte[] fileData, string fileType, int timeoutSeconds = 5)
         {
             List<UploadFileRequest> requests = CreateRequests<UploadFileRequest>(fileName, sessionId, fileData, fileType);
 
-            var call = this._client.UploadFile();
+            var call = this._client.UploadFile(deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
 
             foreach (var request in requests)
             {
@@ -96,11 +96,11 @@ namespace StorageAndroidClient
             return response;
         }
 
-        public async Task<byte[]> DownloadFile(string fileName, string sessionId)
+        public async Task<byte[]> DownloadFile(string fileName, string sessionId, int timeoutSeconds = 5)
         {
             DownloadFileRequest request = new DownloadFileRequest { SessionId = sessionId, FileName = fileName };
 
-            using (var call = this._client.DownloadFile(request))
+            using (var call = this._client.DownloadFile(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds)))
             {
                 using (var memoryStream = new MemoryStream())
                 {
@@ -114,11 +114,11 @@ namespace StorageAndroidClient
             }
         }
 
-        public async Task<UpdateFileResponse> UpdateFile(string fileName, string sessionId, byte[] fileData)
+        public async Task<UpdateFileResponse> UpdateFile(string fileName, string sessionId, byte[] fileData, int timeoutSeconds = 5)
         {
             List<UpdateFileRequest> requests = CreateRequests<UpdateFileRequest>(fileName, sessionId, fileData);
 
-            var call = this._client.UpdateFile();
+            var call = this._client.UpdateFile(deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
 
             foreach (var request in requests)
             {
@@ -134,7 +134,7 @@ namespace StorageAndroidClient
         private List<T> CreateRequests<T>(string fileName, string sessionId, byte[] fileData, string type = null) where T : IMessage<T>, new()
         {
             var requests = new List<T>();
-            int chunkSize = GrpcClient.MaxFileChunckLength;
+            int chunkSize = GrpcClient._MaxFileChunckLength;
             int numberOfChunks = fileData.Length / chunkSize + (fileData.Length % chunkSize == 0 ? 0 : 1);
 
             for (int i = 0; i < numberOfChunks; i++)
