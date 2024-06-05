@@ -30,6 +30,7 @@ namespace StorageAndroidClient
         LinearLayout filesContainer;
         private TaskCompleteReceiver taskCompleteReceiver;
         private const string CloudStorageAddress = "10.10.0.35:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
+        //private const string CloudStorageAddress = "10.253.241.213:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
         private bool permissionGranted = false;
         protected override void OnCreate(Bundle savedInstanceState)
         {
@@ -412,8 +413,9 @@ namespace StorageAndroidClient
             public override void OnReceive(Context context, Intent intent)
             {
                 string action = intent.GetStringExtra("action");
-                
-                if (action != null && action != "download")
+                string message = intent.GetStringExtra("message");
+                Toast.MakeText(context, message, ToastLength.Short).Show();
+                if (action != null && action != "download" && action != "update" && action != "fail")
                 {
                     activity.LoadFileMetadata();
                 }
