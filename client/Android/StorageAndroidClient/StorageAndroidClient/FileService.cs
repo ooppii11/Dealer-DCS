@@ -27,6 +27,7 @@ namespace StorageAndroidClient
         private CancellationTokenSource cancellationTokenSource;
         private ManualResetEventSlim manualResetEventSlim = new ManualResetEventSlim(false);
         private const string CloudStorageAddress = "10.10.0.35:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
+        //private const string CloudStorageAddress = "10.253.241.213:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
 
         public override void OnCreate()
         {
@@ -124,8 +125,8 @@ namespace StorageAndroidClient
         private void SendBroadcast(string action, string message) 
         {
             Intent taskCompleteIntent = new Intent("StorageAndroidClient.ACTION_TASK_COMPLETE");
-            Toast.MakeText(this, message, ToastLength.Short).Show();
             taskCompleteIntent.PutExtra("action", action);
+            taskCompleteIntent.PutExtra("message", message);
             SendBroadcast(taskCompleteIntent);
         }
         private async void PerformUpload(string sessionId, string fileName, string type, byte[] fileData)
@@ -134,7 +135,8 @@ namespace StorageAndroidClient
             {
                 GrpcClient client = new GrpcClient(CloudStorageAddress);
                 await client.UploadFile(fileName, sessionId, fileData, type);
-                SendBroadcast("upload", ("Upload completed for file: " + fileName));
+                string msg = "Upload completed for file: " + fileName;
+                SendBroadcast("upload", msg);
             }
             catch (RpcException ex)
             {
