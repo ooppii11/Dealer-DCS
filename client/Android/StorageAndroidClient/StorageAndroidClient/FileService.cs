@@ -140,7 +140,14 @@ namespace StorageAndroidClient
             }
             catch (RpcException ex)
             {
-                SendBroadcast("fail", ex.Message);
+                if (ex.StatusCode == Grpc.Core.StatusCode.Unavailable || ex.StatusCode == Grpc.Core.StatusCode.DeadlineExceeded)
+                {
+                    SendBroadcast("fail", "Error connecting to the server. Try uploading the file again.");
+                }
+                else
+                {
+                    SendBroadcast("fail", ex.Message);
+                }
             }
             catch
             {
@@ -161,7 +168,14 @@ namespace StorageAndroidClient
             }
             catch (RpcException ex)
             {
-                SendBroadcast("fail", ex.Message);
+                if (ex.StatusCode == Grpc.Core.StatusCode.Unavailable || ex.StatusCode == Grpc.Core.StatusCode.DeadlineExceeded)
+                {
+                    SendBroadcast("fail", "Error connecting to the server. Try downloading the file again.");
+                }
+                else
+                {
+                    SendBroadcast("fail", ex.Message);
+                }
             }
             catch
             {
@@ -205,7 +219,14 @@ namespace StorageAndroidClient
             }
             catch (RpcException ex)
             {
-                SendBroadcast("fail", ex.Message);
+                if (ex.StatusCode == Grpc.Core.StatusCode.Unavailable || ex.StatusCode == Grpc.Core.StatusCode.DeadlineExceeded)
+                {
+                    SendBroadcast("fail", "Error connecting to the server. Try updating the file again.");
+                }
+                else 
+                {
+                    SendBroadcast("fail", ex.Message);
+                }
             }
             catch
             {
@@ -226,7 +247,14 @@ namespace StorageAndroidClient
             }
             catch (RpcException ex)
             {
-                SendBroadcast("fail", ex.Message);
+                if (ex.StatusCode == Grpc.Core.StatusCode.Unavailable || ex.StatusCode == Grpc.Core.StatusCode.DeadlineExceeded)
+                {
+                    SendBroadcast("fail", "Error connecting to the server. Try deleting the file again.");
+                }
+                else
+                {
+                    SendBroadcast("fail", ex.Message);
+                }
             }
             catch
             {

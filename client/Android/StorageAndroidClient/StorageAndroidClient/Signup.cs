@@ -137,16 +137,6 @@ namespace StorageAndroidClient
             Finish();
         }
 
-        private void NavigateToLoginActivity(string username, string password)
-        {
-            Intent intent = new Intent(this, typeof(LoginPageActivity));
-            intent.PutExtra("username", username);
-            intent.PutExtra("password", password);
-            StartActivity(intent);
-            Finish();
-        }
-
-
         private void NavigateToMainActivity()
         {
             Intent intent = new Intent(this, typeof(MainPageFileOperationsActivity));
