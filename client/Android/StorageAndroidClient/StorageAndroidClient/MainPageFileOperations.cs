@@ -124,6 +124,15 @@ namespace StorageAndroidClient
             StartActivityForResult(Intent.CreateChooser(intent, "Select a file"), (int)code);
         }
 
+        private void StartFilePicker(FilePickerOperationId code, string fileName)
+        {
+            Intent intent = new Intent(Intent.ActionOpenDocument);
+            intent.PutExtra("fileName", fileName);
+            intent.AddCategory(Intent.CategoryOpenable);
+            intent.SetType("*/*");
+            StartActivityForResult(Intent.CreateChooser(intent, "Select a file"), (int)code);
+        }
+
         protected override void OnActivityResult(int requestCode, Result resultCode, Intent data)
         {
             base.OnActivityResult(requestCode, resultCode, data);
@@ -135,7 +144,7 @@ namespace StorageAndroidClient
             else if (requestCode == 2 && resultCode == Result.Ok && data != null)
             {
                 Android.Net.Uri uri = data.Data;
-                StartUpdateService(ReadFileData(uri), GetFileName(uri));
+                StartUpdateService(ReadFileData(uri), data.GetStringExtra("fileName"));
             }
         }
 
@@ -338,17 +347,16 @@ namespace StorageAndroidClient
             RequestStoragePermissions();
             if (permissionGranted)
             {
-                StartFilePicker(FilePickerOperationId.Upload);
+                Intent downloadIntent = new Intent(this, typeof(FileService));
+                downloadIntent.SetAction(FileService.ActionDownload);
+                downloadIntent.PutExtra("FileName", fileName);
+                downloadIntent.PutExtra("SessionId", SharedPreferencesManager.GetString("SessionId"));
+                StartService(downloadIntent);
             }
             else
             {
                 Toast.MakeText(this, "can't Download file without permissions", ToastLength.Short).Show();
             }
-            Intent downloadIntent = new Intent(this, typeof(FileService));
-            downloadIntent.SetAction(FileService.ActionDownload);
-            downloadIntent.PutExtra("FileName", fileName);
-            downloadIntent.PutExtra("SessionId", SharedPreferencesManager.GetString("SessionId"));
-            StartService(downloadIntent);
         }
 
         private void DeleteFile(string fileName)
@@ -365,7 +373,7 @@ namespace StorageAndroidClient
             RequestStoragePermissions();
             if (permissionGranted)
             {
-                StartFilePicker(FilePickerOperationId.Upload);
+                StartFilePicker(FilePickerOperationId.Upload, fileName);
             }
             else
             {
