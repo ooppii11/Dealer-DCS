@@ -415,7 +415,7 @@ namespace StorageAndroidClient
                 string action = intent.GetStringExtra("action");
                 string message = intent.GetStringExtra("message");
                 Toast.MakeText(context, message, ToastLength.Short).Show();
-                if (action != null && action != "download" && action != "update" && action != "fail")
+                if (action != null && action != "download" && action != "fail")
                 {
                     activity.LoadFileMetadata();
                 }
