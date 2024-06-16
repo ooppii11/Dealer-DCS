@@ -221,14 +221,14 @@ namespace StorageAndroidClient
                     Console.WriteLine("Filed to load metadata");
                     if (ex.StatusCode == StatusCode.Unavailable || ex.StatusCode == StatusCode.DeadlineExceeded)
                     {
-                        Toast.MakeText(this, "Error connecting to the server.", ToastLength.Short).Show();
+                        Toast.MakeText(this, "load metadata - Error connecting to the server.", ToastLength.Short).Show();
                         SharedPreferencesManager.Remove("SessionId");
                         NavigateToLoginActivity();
                         break;
                     }
                     else if (ex.StatusCode == StatusCode.PermissionDenied || ex.StatusCode == StatusCode.Unauthenticated)
                     {
-                        Toast.MakeText(this, "Invalid session id", ToastLength.Short).Show();
+                        Toast.MakeText(this, "load metadata - Invalid session id", ToastLength.Short).Show();
                         SharedPreferencesManager.Remove("SessionId");
                         NavigateToLoginActivity();
                         break;

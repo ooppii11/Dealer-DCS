@@ -120,10 +120,7 @@ namespace cloud_server.Services
                     {
                         try
                         {
-                            lock (CloudGrpcService._fileLock)
-                            {
-                                this._raftLogger.getCurrLeaderAddress();
-                            }
+                            
                             var result = requestPair.Action.DynamicInvoke(requestPair.Parameters);
                             if (result is Task taskResult)
                             {
