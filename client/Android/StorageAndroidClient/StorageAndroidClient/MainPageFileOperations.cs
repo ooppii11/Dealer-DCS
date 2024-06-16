@@ -29,6 +29,7 @@ namespace StorageAndroidClient
         Button uploadButton;
         LinearLayout filesContainer;
         private TaskCompleteReceiver taskCompleteReceiver;
+        private CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
         private const string CloudStorageAddress = "10.10.0.35:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
         //private const string CloudStorageAddress = "10.253.241.213:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
         private bool permissionGranted = false;
@@ -38,7 +39,7 @@ namespace StorageAndroidClient
             SetContentView(Resource.Layout.file_operations);
             taskCompleteReceiver = new TaskCompleteReceiver(this);
             InitializeUI();
-            LoadFileMetadata();
+            LoadFileMetadata(cancellationTokenSource.Token);
             RequestStoragePermissions();
         }
 
@@ -92,12 +93,14 @@ namespace StorageAndroidClient
             {
                 GrpcClient grpcClient = new GrpcClient(CloudStorageAddress);
                 grpcClient.Logout(SharedPreferencesManager.GetString("SessionId"));
-                SharedPreferencesManager.SaveString("SessionId", null);
+                SharedPreferencesManager.Remove("SessionId");
+                cancellationTokenSource.Cancel();
                 NavigateToLoginActivity();
             }
             catch
             {
-                SharedPreferencesManager.SaveString("SessionId", null);
+                SharedPreferencesManager.Remove("SessionId");
+                cancellationTokenSource.Cancel();
                 NavigateToLoginActivity();
             }
             
@@ -127,9 +130,9 @@ namespace StorageAndroidClient
         private void StartFilePicker(FilePickerOperationId code, string fileName)
         {
             Intent intent = new Intent(Intent.ActionOpenDocument);
-            intent.PutExtra("fileName", fileName);
             intent.AddCategory(Intent.CategoryOpenable);
             intent.SetType("*/*");
+            SharedPreferencesManager.SaveString("fileName", fileName);
             StartActivityForResult(Intent.CreateChooser(intent, "Select a file"), (int)code);
         }
 
@@ -144,7 +147,10 @@ namespace StorageAndroidClient
             else if (requestCode == 2 && resultCode == Result.Ok && data != null)
             {
                 Android.Net.Uri uri = data.Data;
-                StartUpdateService(ReadFileData(uri), data.GetStringExtra("fileName"));
+
+                // Use the retrieved file name
+                StartUpdateService(ReadFileData(uri), SharedPreferencesManager.GetString("fileName"));
+                SharedPreferencesManager.Remove("fileName");
             }
         }
 
@@ -194,10 +200,10 @@ namespace StorageAndroidClient
                 return ms.ToArray();
             }
         }
-        private async void LoadFileMetadata()
+        private async void LoadFileMetadata(CancellationToken stop)
         {
             const int retryDelay = 5000;
-            while (true)
+            while (!stop.IsCancellationRequested)
             {
                 try
                 {
@@ -213,17 +219,17 @@ namespace StorageAndroidClient
                 catch (RpcException ex)
                 {
                     Console.WriteLine("Filed to load metadata");
-                    if (ex.StatusCode == StatusCode.Unavailable)
+                    if (ex.StatusCode == StatusCode.Unavailable || ex.StatusCode == StatusCode.DeadlineExceeded)
                     {
-                        Toast.MakeText(this, "Error connecting to the server.", ToastLength.Short).Show();
-                        SharedPreferencesManager.SaveString("SessionId", null);
+                        Toast.MakeText(this, "load metadata - Error connecting to the server.", ToastLength.Short).Show();
+                        SharedPreferencesManager.Remove("SessionId");
                         NavigateToLoginActivity();
                         break;
                     }
                     else if (ex.StatusCode == StatusCode.PermissionDenied || ex.StatusCode == StatusCode.Unauthenticated)
                     {
-                        Toast.MakeText(this, "Invalid session id", ToastLength.Short).Show();
-                        SharedPreferencesManager.SaveString("SessionId", null);
+                        Toast.MakeText(this, "load metadata - Invalid session id", ToastLength.Short).Show();
+                        SharedPreferencesManager.Remove("SessionId");
                         NavigateToLoginActivity();
                         break;
                     }
@@ -299,6 +305,7 @@ namespace StorageAndroidClient
                         break;
                     case 2:
                         UpdateFile(metadata.Filename);
+                        dialog?.Dismiss();
                         break;
                 }
             };
@@ -373,7 +380,7 @@ namespace StorageAndroidClient
             RequestStoragePermissions();
             if (permissionGranted)
             {
-                StartFilePicker(FilePickerOperationId.Upload, fileName);
+                StartFilePicker(FilePickerOperationId.Update, fileName);
             }
             else
             {
@@ -425,7 +432,7 @@ namespace StorageAndroidClient
                 Toast.MakeText(context, message, ToastLength.Short).Show();
                 if (action != null && action != "download" && action != "fail")
                 {
-                    activity.LoadFileMetadata();
+                    activity.LoadFileMetadata(activity.cancellationTokenSource.Token);
                 }
             }
         }
