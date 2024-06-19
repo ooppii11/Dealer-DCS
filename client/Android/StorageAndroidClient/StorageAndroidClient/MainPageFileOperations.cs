@@ -31,7 +31,7 @@ namespace StorageAndroidClient
         private TaskCompleteReceiver taskCompleteReceiver;
         private CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
         private const string CloudStorageAddress = "10.10.0.35:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
-        //private const string CloudStorageAddress = "10.253.241.213:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
+        //private const string CloudStorageAddress = "10.253.243.88:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
         private bool permissionGranted = false;
         protected override void OnCreate(Bundle savedInstanceState)
         {
@@ -430,7 +430,12 @@ namespace StorageAndroidClient
                 string action = intent.GetStringExtra("action");
                 string message = intent.GetStringExtra("message");
                 Toast.MakeText(context, message, ToastLength.Short).Show();
-                if (action != null && action != "download" && action != "fail")
+                if (action == "failexit")
+                {
+                    SharedPreferencesManager.Remove("SessionId");
+                    activity.NavigateToLoginActivity();
+                }
+                else if (action != null && action != "download" && action != "fail")
                 {
                     activity.LoadFileMetadata(activity.cancellationTokenSource.Token);
                 }

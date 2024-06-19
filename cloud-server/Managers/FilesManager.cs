@@ -96,6 +96,10 @@ namespace cloud_server.Managers
             // Not implomented
             //return new Location("172.18.0.4", "172.18.0.5", "172.18.0.6");
             var addresses = (Environment.GetEnvironmentVariable("NODES_IPS"))?.Split(",")?.ToList();
+            if (addresses == null)
+            {
+                addresses = new List<string>();
+            }
             while (addresses.Count < 3)
             {
                 addresses.Add("");
