@@ -27,7 +27,7 @@ namespace StorageAndroidClient
         private CancellationTokenSource cancellationTokenSource;
         private ManualResetEventSlim manualResetEventSlim = new ManualResetEventSlim(false);
         private const string CloudStorageAddress = "10.10.0.35:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
-        //private const string CloudStorageAddress = "10.253.241.213:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
+        //private const string CloudStorageAddress = "10.253.243.88:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
 
         public override void OnCreate()
         {
@@ -144,9 +144,13 @@ namespace StorageAndroidClient
                 {
                     SendBroadcast("fail", "Error connecting to the server. Try uploading the file again.");
                 }
+                else if (ex.StatusCode == Grpc.Core.StatusCode.PermissionDenied || ex.StatusCode == Grpc.Core.StatusCode.Unauthenticated)
+                {
+                    SendBroadcast("failexit", "Invalied session id");
+                }
                 else
                 {
-                    SendBroadcast("fail", ex.Message);
+                    SendBroadcast("fail", ex.Status.Detail);
                 }
             }
             catch
@@ -172,9 +176,13 @@ namespace StorageAndroidClient
                 {
                     SendBroadcast("fail", "Error connecting to the server. Try downloading the file again.");
                 }
+                else if (ex.StatusCode == Grpc.Core.StatusCode.PermissionDenied || ex.StatusCode == Grpc.Core.StatusCode.Unauthenticated)
+                {
+                    SendBroadcast("failexit", "Invalied session id");
+                }
                 else
                 {
-                    SendBroadcast("fail", ex.Message);
+                    SendBroadcast("fail", ex.Status.Detail);
                 }
             }
             catch
@@ -223,9 +231,13 @@ namespace StorageAndroidClient
                 {
                     SendBroadcast("fail", "Error connecting to the server. Try updating the file again.");
                 }
+                else if (ex.StatusCode == Grpc.Core.StatusCode.PermissionDenied || ex.StatusCode == Grpc.Core.StatusCode.Unauthenticated)
+                {
+                    SendBroadcast("failexit", "Invalied session id");
+                }
                 else 
                 {
-                    SendBroadcast("fail", ex.Message);
+                    SendBroadcast("fail", ex.Status.Detail);
                 }
             }
             catch
@@ -251,9 +263,13 @@ namespace StorageAndroidClient
                 {
                     SendBroadcast("fail", "Error connecting to the server. Try deleting the file again.");
                 }
+                else if (ex.StatusCode == Grpc.Core.StatusCode.PermissionDenied || ex.StatusCode == Grpc.Core.StatusCode.Unauthenticated)
+                {
+                    SendBroadcast("failexit", "Invalied session id");
+                }
                 else
                 {
-                    SendBroadcast("fail", ex.Message);
+                    SendBroadcast("fail", ex.Status.Detail);
                 }
             }
             catch

@@ -37,53 +37,53 @@ namespace StorageAndroidClient
         }
 
 
-        public SignupResponse Signup(string username, string email, string password, string phoneNumber, int timeoutSeconds = 4)
+        public SignupResponse Signup(string username, string email, string password, string phoneNumber)
         {
             var request = new SignupRequest { Username = username, Email = email, Password = password, PhoneNumber = phoneNumber };
-            var response = this._client.signup(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+            var response = this._client.signup(request);
             return response;
         }
 
-        public async Task<SignupResponse> SignupAsync(string username, string email, string password, string phoneNumber, int timeoutSeconds = 4)
+        public async Task<SignupResponse> SignupAsync(string username, string email, string password, string phoneNumber)
         {
             var request = new SignupRequest { Username = username, Email = email, Password = password, PhoneNumber = phoneNumber };
-            var response = await this._client.signupAsync(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+            var response = await this._client.signupAsync(request);
             return response;
         }
 
-        public LoginResponse Login(string username, string password, int timeoutSeconds = 4)
+        public LoginResponse Login(string username, string password)
         {
             var request = new LoginRequest { Username = username, Password = password };
-            var response = this._client.login(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+            var response = this._client.login(request);
             return response;
         }
 
-        public async Task<LoginResponse> loginAsync(string username, string password, int timeoutSeconds = 4)
+        public async Task<LoginResponse> loginAsync(string username, string password)
         {
             var request = new LoginRequest { Username = username, Password = password };
-            var response = await this._client.loginAsync(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+            var response = await this._client.loginAsync(request);
             return response;
         }
 
-        public LogoutResponse Logout(string sessionId, int timeoutSeconds = 4)
+        public LogoutResponse Logout(string sessionId)
         {
             var request = new LogoutRequest { SessionId = sessionId };
-            var response = this._client.logout(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+            var response = this._client.logout(request);
             return response;
         }
 
-        public GetListOfFilesResponse GetFiles(string sessionId, int timeoutSeconds = 4)
+        public GetListOfFilesResponse GetFiles(string sessionId)
         {
             var request = new GetListOfFilesRequest { SessionId = sessionId };
-            var response = this._client.getListOfFiles(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+            var response = this._client.getListOfFiles(request);
             return response;
         }
 
-        public async Task<UploadFileResponse> UploadFile(string fileName, string sessionId, byte[] fileData, string fileType, int timeoutSeconds = 4)
+        public async Task<UploadFileResponse> UploadFile(string fileName, string sessionId, byte[] fileData, string fileType)
         {
             List<UploadFileRequest> requests = CreateRequests<UploadFileRequest>(fileName, sessionId, fileData, fileType);
 
-            var call = this._client.UploadFile(deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+            var call = this._client.UploadFile();
 
             foreach (var request in requests)
             {
@@ -96,11 +96,11 @@ namespace StorageAndroidClient
             return response;
         }
 
-        public async Task<byte[]> DownloadFile(string fileName, string sessionId, int timeoutSeconds = 4)
+        public async Task<byte[]> DownloadFile(string fileName, string sessionId)
         {
             DownloadFileRequest request = new DownloadFileRequest { SessionId = sessionId, FileName = fileName };
 
-            using (var call = this._client.DownloadFile(request, deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds)))
+            using (var call = this._client.DownloadFile(request))
             {
                 using (var memoryStream = new MemoryStream())
                 {
@@ -114,11 +114,11 @@ namespace StorageAndroidClient
             }
         }
 
-        public async Task<UpdateFileResponse> UpdateFile(string fileName, string sessionId, byte[] fileData, int timeoutSeconds = 4)
+        public async Task<UpdateFileResponse> UpdateFile(string fileName, string sessionId, byte[] fileData)
         {
             List<UpdateFileRequest> requests = CreateRequests<UpdateFileRequest>(fileName, sessionId, fileData);
 
-            var call = this._client.UpdateFile(deadline: DateTime.UtcNow.AddSeconds(timeoutSeconds));
+            var call = this._client.UpdateFile();
 
             foreach (var request in requests)
             {

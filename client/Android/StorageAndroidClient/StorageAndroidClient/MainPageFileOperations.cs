@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Grpc.Core;
 using AndroidX.Core.App;
 using System.Threading;
+using System.Diagnostics;
 
 namespace StorageAndroidClient
 {
@@ -31,15 +32,15 @@ namespace StorageAndroidClient
         private TaskCompleteReceiver taskCompleteReceiver;
         private CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
         private const string CloudStorageAddress = "10.10.0.35:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
-        //private const string CloudStorageAddress = "10.253.241.213:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
+        //private const string CloudStorageAddress = "10.253.243.88:50053"; //pc ip address on the current network -> port fowarded to the server on the docker container 50053:50053 -> server address
         private bool permissionGranted = false;
-        protected override void OnCreate(Bundle savedInstanceState)
+        protected override async void OnCreate(Bundle savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
             SetContentView(Resource.Layout.file_operations);
             taskCompleteReceiver = new TaskCompleteReceiver(this);
             InitializeUI();
-            LoadFileMetadata(cancellationTokenSource.Token);
+            await LoadFileMetadata(cancellationTokenSource.Token);
             RequestStoragePermissions();
         }
 
@@ -94,13 +95,11 @@ namespace StorageAndroidClient
                 GrpcClient grpcClient = new GrpcClient(CloudStorageAddress);
                 grpcClient.Logout(SharedPreferencesManager.GetString("SessionId"));
                 SharedPreferencesManager.Remove("SessionId");
-                cancellationTokenSource.Cancel();
                 NavigateToLoginActivity();
             }
             catch
             {
                 SharedPreferencesManager.Remove("SessionId");
-                cancellationTokenSource.Cancel();
                 NavigateToLoginActivity();
             }
             
@@ -200,7 +199,7 @@ namespace StorageAndroidClient
                 return ms.ToArray();
             }
         }
-        private async void LoadFileMetadata(CancellationToken stop)
+        private async Task LoadFileMetadata(CancellationToken stop)
         {
             const int retryDelay = 5000;
             while (!stop.IsCancellationRequested)
@@ -400,6 +399,7 @@ namespace StorageAndroidClient
 
         private void NavigateToLoginActivity()
         {
+            cancellationTokenSource.Cancel();
             Intent intent = new Intent(this, typeof(LoginPageActivity));
             StartActivity(intent);
             Finish();
@@ -425,14 +425,22 @@ namespace StorageAndroidClient
                 this.activity = activity;
             }
 
-            public override void OnReceive(Context context, Intent intent)
+            public override async void OnReceive(Context context, Intent intent)
             {
                 string action = intent.GetStringExtra("action");
                 string message = intent.GetStringExtra("message");
                 Toast.MakeText(context, message, ToastLength.Short).Show();
-                if (action != null && action != "download" && action != "fail")
+                if (action == "failexit")
                 {
-                    activity.LoadFileMetadata(activity.cancellationTokenSource.Token);
+                    SharedPreferencesManager.Remove("SessionId");
+                    activity.NavigateToLoginActivity();
+                }
+                else if (action != null && action != "download" && action != "fail")
+                {
+                    activity.cancellationTokenSource.Cancel();
+                    activity.cancellationTokenSource.Dispose();
+                    activity.cancellationTokenSource = new CancellationTokenSource();
+                    await activity.LoadFileMetadata(activity.cancellationTokenSource.Token);
                 }
             }
         }
